@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import prisma from '../lib/prisma.js';
+import { prisma } from '@sigma/db';
 import type { RegisterInput, LoginInput } from '../schemas/auth.schema.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';

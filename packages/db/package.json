@@ -1,0 +1,25 @@
+{
+  "name": "@sigma/db",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.3.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "prisma": "^7.3.0",
+    "typescript": "^5.8.2",
+    "tsx": "^4.19.4",
+    "eslint": "^9.19.0"
+  }
+}
