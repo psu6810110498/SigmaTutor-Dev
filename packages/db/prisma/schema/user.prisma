@@ -1,14 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
 // User model
 model User {
   id        String   @id @default(cuid())
@@ -40,7 +29,13 @@ model Session {
   @@index([refreshToken])
 }
 
-// Post model (example)
+// Role enum
+enum Role {
+  USER
+  ADMIN
+}
+
+// Post model (example) - keeping here for now as it relates to User
 model Post {
   id        String   @id @default(cuid())
   title     String
@@ -53,10 +48,4 @@ model Post {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([authorId])
-}
-
-// Role enum
-enum Role {
-  USER
-  ADMIN
 }
