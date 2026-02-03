@@ -2,25 +2,27 @@
   "name": "sigma-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
-    "dev": "pnpm --parallel run dev",
+    "dev": "turbo dev",
     "dev:frontend": "pnpm --filter @sigma/frontend dev",
     "dev:backend": "pnpm --filter @sigma/backend dev",
     "dev:shared": "pnpm --filter @sigma/shared dev",
-    "build": "pnpm --filter @sigma/shared build && pnpm --parallel --filter !@sigma/shared run build",
+    "build": "turbo build",
     "build:frontend": "pnpm --filter @sigma/frontend build",
     "build:backend": "pnpm --filter @sigma/backend build",
     "build:shared": "pnpm --filter @sigma/shared build",
-    "lint": "pnpm --parallel run lint",
+    "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "clean": "pnpm --parallel run clean",
+    "clean": "turbo clean",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build"
   },
   "devDependencies": {
-    "prettier": "^3.4.2"
+    "prettier": "^3.4.2",
+    "turbo": "^2.8.2"
   },
   "engines": {
     "node": ">=18.0.0",
