@@ -1,15 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import { FaArrowRight, FaBook, FaShoppingCart, FaHeart, FaRegHeart, FaTimes, FaTrash, FaFilter, FaSearch, FaStar } from 'react-icons/fa';
-// เรียกใช้ Context
+import Link from 'next/link';
+import { FaSearch, FaFilter, FaBookOpen, FaShoppingCart, FaHeart, FaRegHeart, FaTimes, FaTrash } from 'react-icons/fa';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+// 1. เรียกใช้ Context
 import { useCourse, ALL_COURSES } from '../context/CourseContext';
 
-export default function HomePage() {
-  // ดึงข้อมูลและฟังก์ชันจาก Context
-  const { cartItems, wishlistItems, removeFromCart, removeFromWishlist, addToCart, addToWishlist } = useCourse();
+export default function CoursesPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // State สำหรับ Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = 3; 
+  
+  const { cartItems, wishlistItems, addToCart, removeFromCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist } = useCourse();
   
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -19,7 +25,6 @@ export default function HomePage() {
 
   const totalPrice = cartItems.reduce((sum, item) => sum + item.price, 0);
 
-  // ปิด Popover เมื่อคลิกที่อื่น
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
@@ -34,38 +39,37 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
+    <div className="font-sans text-gray-900 bg-white min-h-screen flex flex-col">
       
-      {/* 1. Navbar */}
-      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      {/* 1. Navbar - ปรับเป็นสีขาวทึบ (bg-white) */}
+      <nav className="fixed w-full z-50 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+            <Link href="/" className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
               <div className="relative w-10 h-10">
                  <Image src="/Sigma-logo.png" alt="Sigma Logo" fill className="object-contain"/>
               </div>
               <span className="font-bold text-xl text-primary tracking-wide">Sigma Tutor</span>
-            </div>
+            </Link>
 
             {/* Menu Links */}
             <div className="hidden md:flex space-x-8 text-gray-600 font-medium">
-              <Link href="#" className="hover:text-primary transition-colors">หน้าแรก</Link>
-              <Link href="/courses" className="hover:text-primary transition-colors">รวมคอร์ส</Link>
+              <Link href="/" className="hover:text-primary transition-colors">หน้าแรก</Link>
+              <Link href="/courses" className="text-primary font-bold">รวมคอร์ส</Link>
               <Link href="#" className="hover:text-primary transition-colors">เกี่ยวกับเรา</Link>
               <Link href="#" className="hover:text-primary transition-colors">ติดต่อเรา</Link>
             </div>
 
             {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
-              
-              {/* --- โซนตะกร้าสินค้า & หัวใจ --- */}
-              <div className="hidden md:flex items-center space-x-1 border-r border-gray-200 pr-4 mr-1">
+               {/* Cart & Wishlist Section */}
+               <div className="hidden md:flex items-center space-x-1 border-r border-gray-200 pr-4 mr-1">
                  
                  {/* Wishlist Button */}
                  <div ref={wishlistRef} className="relative">
                     <button 
-                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-100 ${isWishlistOpen ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-50 ${isWishlistOpen ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
                         onClick={() => setIsWishlistOpen(!isWishlistOpen)}
                     >
                         {wishlistItems.length > 0 ? <FaHeart size={20} className="text-red-500" /> : <FaRegHeart size={20} />}
@@ -117,7 +121,7 @@ export default function HomePage() {
                  {/* Cart Button */}
                  <div ref={cartRef} className="relative">
                     <button 
-                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-100 ${isCartOpen ? 'text-primary' : 'text-gray-500 hover:text-primary'}`}
+                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-50 ${isCartOpen ? 'text-primary' : 'text-gray-500 hover:text-primary'}`}
                         onClick={() => setIsCartOpen(!isCartOpen)}
                     >
                         <FaShoppingCart size={20} className={cartItems.length > 0 ? "text-primary" : ""} />
@@ -162,6 +166,7 @@ export default function HomePage() {
                                     </div>
                                 )}
                             </div>
+                            {/* Footer ยอดรวม & ปุ่มชำระเงิน */}
                             {cartItems.length > 0 && (
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex justify-between items-center mb-3">
@@ -195,144 +200,181 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* 2. Hero Section */}
-      <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-               
-               <div className="text-center lg:text-left space-y-6">
-                  <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6" style={{ lineHeight: '1.6' }}>
-                    <span className="block mb-2">อัปเกรดคะแนนให้พุ่ง</span>
-                    <span className="block">
-                      ด้วย <span className="text-secondary">เทคนิคระดับท็อป</span>
-                    </span>
-                  </h1>
-                  <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 font-serif leading-relaxed">
-                    เรียนรู้และพัฒนาเพื่อเตรียมตัวสอบในโรงเรียน หรือสอบเข้ามหาวิทยาลัย 
-                    ด้วยเนื้อหาที่เข้มข้นและอาจารย์ผู้สอนมืออาชีพระดับประเทศ
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-                    <Link href="/courses">
-                      <button className="bg-primary hover:bg-blue-700 text-white text-lg font-bold px-8 py-3.5 rounded-xl shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1">
-                        สำรวจคอร์สเรียน ↗
-                      </button>
-                    </Link>
-                    <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-lg font-medium px-8 py-3.5 rounded-xl transition-all">
-                      ดูวิดีโอตัวอย่าง
+      {/* 2. Hero Section (Banner) */}
+      <header className="pt-32 pb-16 bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-white relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-full h-full opacity-20">
+            <div className="w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+         </div>
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 flex flex-col md:flex-row items-center justify-between">
+            <div className="max-w-2xl">
+                <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-xs font-medium mb-4 border border-white/20">
+                    ปลดล็อกศักยภาพของคุณกับ SIGMA TUTOR
+                </span>
+                <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">
+                    ปลดล็อกศักยภาพ <br/> <span className="text-blue-400">ในตัวคุณ</span>
+                </h1>
+                <p className="text-gray-300 text-lg mb-8 font-serif">
+                    เรียนรู้กับติวเตอร์ชั้นนำและผู้เชี่ยวชาญในทุกวิชาด้วยโปรแกรมการเรียนรู้ที่ออกแบบมาเพื่อความสำเร็จของคุณ
+                </p>
+                <div className="flex gap-4">
+                    <button className="bg-primary hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/30">
+                        เริ่มเรียนเลยวันนี้ ↗
                     </button>
-                  </div>
-               </div>
-
-               <div className="relative">
-                  <div className="absolute -top-10 -right-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-                  <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-                  
-                  <div className="relative h-[400px] lg:h-[500px] w-full bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden backdrop-blur-sm bg-white/50">
-                      <div className="text-center p-8 opacity-40">
-                         <p className="font-bold text-xl text-gray-400">พื้นที่สำหรับรูปภาพ</p>
-                         <p className="text-sm text-gray-400 mt-2">Hero Image Placeholder</p>
-                      </div>
-                  </div>
-               </div>
-            </div>
-         </div>
-      </section>
-
-      {/* 3. Demo Buttons Area (เพื่อทดสอบการเชื่อมต่อข้อมูล) */}
-      <section className="py-8 bg-white border-b border-gray-100">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h3 className="text-sm font-bold mb-4 text-gray-500 uppercase tracking-wide">ทดสอบระบบเชื่อมต่อข้อมูล (Context Demo)</h3>
-            <div className="flex gap-4 justify-center">
-                <button 
-                    onClick={() => addToCart(ALL_COURSES[0])}
-                    className="bg-white border border-primary text-primary hover:bg-primary hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
-                >
-                    <FaShoppingCart /> เพิ่ม "{ALL_COURSES[0].title}" ลงตะกร้า
-                </button>
-                <button 
-                    onClick={() => addToWishlist(ALL_COURSES[1])}
-                    className="bg-white border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
-                >
-                    <FaHeart /> กดถูกใจ "{ALL_COURSES[1].title}"
-                </button>
-            </div>
-         </div>
-      </section>
-
-      {/* 4. Stats Section */}
-      <section className="py-10 bg-white border-y border-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100 text-center opacity-50">
-             <div className="p-4">
-                 <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
-                 <p className="text-gray-600 font-medium">คอร์สเรียน</p>
-             </div>
-             <div className="p-4">
-                 <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
-                 <p className="text-gray-600 font-medium">ผู้เรียน</p>
-             </div>
-             <div className="p-4">
-                 <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
-                 <p className="text-gray-600 font-medium">ผู้สอนมืออาชีพ</p>
-             </div>
-             <div className="p-4">
-                 <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
-                 <p className="text-gray-600 font-medium">ความพึงพอใจ</p>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Popular Courses Section (Empty State) */}
-      <section className="py-16 md:py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">คอร์สยอดนิยม</h2>
-              <p className="text-gray-500 font-serif">เลือกเรียนวิชาที่คุณต้องการ เพื่อพัฒนาศักยภาพของคุณวันนี้</p>
-            </div>
-            <Link href="/courses" className="hidden md:flex items-center text-primary font-bold hover:underline">
-               ดูคอร์สทั้งหมด <FaArrowRight className="ml-2 text-sm"/>
-            </Link>
-          </div>
-
-          {/* Placeholder Box (ตามคำขอ ไม่ต้องโชว์คอร์สหลอกๆ) */}
-          <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-               <FaBook size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-gray-500">ยังไม่มีข้อมูลคอร์สแนะนำ</h3>
-            <p className="text-gray-400 text-sm mt-1">รายการคอร์สเรียนยอดนิยมจะปรากฏที่นี่เมื่อระบบเชื่อมต่อกับฐานข้อมูล</p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 6. Testimonials Section */}
-      <section className="py-16 md:py-24 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-           
-           <div className="text-center mb-16">
-              <span className="text-secondary font-bold tracking-wider text-sm uppercase">TESTIMONIALS</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-2">เรื่องราวความสำเร็จจากนักเรียนของเรา</h2>
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-gray-50 p-8 rounded-3xl relative h-64 flex flex-col items-center justify-center text-center border border-dashed border-gray-200">
-                   <div className="w-12 h-12 bg-gray-200 rounded-full mb-4 animate-pulse"></div>
-                   <div className="w-3/4 h-4 bg-gray-200 rounded mb-2 animate-pulse"></div>
-                   <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse"></div>
-                   <p className="text-gray-400 text-xs mt-6">พื้นที่สำหรับแสดงรีวิวผู้เรียน</p>
+                    <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-medium transition-all backdrop-blur-sm border border-white/10">
+                        ดูวิดีโอแนะนำ
+                    </button>
                 </div>
-              ))}
-           </div>
+            </div>
+            <div className="hidden md:block w-80 h-64 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 relative mt-8 md:mt-0 backdrop-blur-md flex items-center justify-center">
+                 <p className="text-gray-400 text-sm">พื้นที่สำหรับรูปภาพ (Hero)</p>
+            </div>
+         </div>
+      </header>
 
-        </div>
-      </section>
+      {/* 3. Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
+         <div className="flex flex-col lg:flex-row gap-8">
+            
+            {/* Sidebar Filters */}
+            <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
+                
+                {/* Search Mobile */}
+                <div className="lg:hidden mb-4">
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="ค้นหาคอร์สเรียน..." 
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
+                    </div>
+                </div>
 
-      {/* 7. Footer */}
+                {/* Filter Groups */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm opacity-60 pointer-events-none select-none grayscale">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                            <FaFilter className="text-primary" size={14} /> ตัวกรอง
+                        </h3>
+                        <button className="text-xs text-blue-600 hover:underline">ล้างตัวกรอง</button>
+                    </div>
+
+                    <div className="mb-6">
+                        <h4 className="text-sm font-bold text-gray-700 mb-3">ประเภทคอร์ส</h4>
+                        <div className="space-y-2">
+                            <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                            <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <h4 className="text-sm font-bold text-gray-700 mb-3">ระดับชั้น</h4>
+                        <div className="space-y-2">
+                            <div className="h-4 bg-gray-100 rounded w-full"></div>
+                            <div className="h-4 bg-gray-100 rounded w-2/3"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            {/* Content Area */}
+            <div className="flex-grow">
+                
+                {/* Top Bar */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">สำรวจคอร์สเรียน</h2>
+                        <p className="text-sm text-gray-500 mt-1">
+                             {searchQuery ? `กำลังค้นหา: "${searchQuery}"` : "รายการคอร์สเรียนทั้งหมดจะแสดงที่นี่"}
+                        </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="hidden md:block relative w-64">
+                            <input 
+                                type="text" 
+                                placeholder="ค้นหาคอร์สเรียน..." 
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <FaSearch className="absolute left-3 top-3 text-gray-400" size={14} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Empty State Box --- */}
+                <div className="w-full h-96 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 text-gray-300 shadow-sm">
+                        {searchQuery ? <FaSearch size={32} /> : <FaBookOpen size={32} />}
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-500 mb-2">
+                        {searchQuery ? "ไม่พบข้อมูล (Backend ยังไม่พร้อม)" : "พื้นที่สำหรับแสดงรายการคอร์ส"}
+                    </h3>
+                    <p className="text-gray-400 text-sm max-w-sm mb-6">
+                        เมื่อระบบ Backend เชื่อมต่อกับฐานข้อมูลแล้ว รายการคอร์สเรียนจะปรากฏขึ้นที่นี่
+                    </p>
+
+                    {/* Demo Buttons */}
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={() => addToCart(ALL_COURSES[0])}
+                            className="bg-white border border-primary text-primary hover:bg-primary hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
+                        >
+                            <FaShoppingCart /> ทดลองเพิ่มตะกร้า
+                        </button>
+                        <button 
+                            onClick={() => addToWishlist(ALL_COURSES[1])}
+                            className="bg-white border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
+                        >
+                            <FaHeart /> ทดลองกดถูกใจ
+                        </button>
+                    </div>
+                </div>
+
+                {/* --- Pagination --- */}
+                <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                        แสดง 0 จาก 0 รายการ
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <FiChevronLeft />
+                        </button>
+                        {[1, 2, 3].map(page => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all ${
+                                    currentPage === page 
+                                        ? 'bg-primary text-white shadow-md shadow-blue-500/20' 
+                                        : 'border border-gray-200 text-gray-600 hover:border-primary hover:text-primary bg-white'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button 
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <FiChevronRight />
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+         </div>
+      </main>
+
+      {/* 4. Footer */}
       <footer className="bg-primary text-white pt-16 pb-8 mt-auto">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
@@ -347,7 +389,6 @@ export default function HomePage() {
                      มุ่งมั่นพัฒนาการเรียนรู้ด้วยเทคโนโลยีที่ทันสมัย เพื่อสร้างอนาคตที่ดีกว่าสำหรับนักเรียนทุกคน
                   </p>
                </div>
-
                <div>
                   <h4 className="font-bold mb-4 text-lg">Platform</h4>
                   <ul className="space-y-2 text-sm text-blue-100">
@@ -356,7 +397,6 @@ export default function HomePage() {
                      <li><Link href="#" className="hover:text-white transition-colors">เรื่องราวความสำเร็จ</Link></li>
                   </ul>
                </div>
-
                <div>
                   <h4 className="font-bold mb-4 text-lg">Company</h4>
                   <ul className="space-y-2 text-sm text-blue-100">
@@ -365,7 +405,6 @@ export default function HomePage() {
                      <li><Link href="#" className="hover:text-white transition-colors">ติดต่อเรา</Link></li>
                   </ul>
                </div>
-
                <div>
                   <h4 className="font-bold mb-4 text-lg">Legal</h4>
                   <ul className="space-y-2 text-sm text-blue-100">
@@ -375,7 +414,6 @@ export default function HomePage() {
                   </ul>
                </div>
             </div>
-
             <div className="border-t border-blue-400/30 pt-8 text-center text-sm text-blue-200">
                © 2024 Sigma Tutor Academy. All rights reserved.
             </div>
