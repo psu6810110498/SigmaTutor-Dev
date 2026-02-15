@@ -50,7 +50,7 @@ npm install -g pnpm
 pnpm install
 
 # Generate Prisma client
-pnpm --filter @sigma/backend db:generate
+pnpm --filter @sigma/db db:generate
 ```
 
 ### Environment Setup
@@ -80,7 +80,7 @@ Required environment variables:
 docker-compose up postgres -d
 
 # Push database schema
-pnpm --filter @sigma/backend db:push
+pnpm --filter @sigma/db db:push
 
 # Run both frontend and backend
 pnpm dev
@@ -185,10 +185,10 @@ pnpm docker:build
 
 | Command                                    | Description             |
 | ------------------------------------------ | ----------------------- |
-| `pnpm --filter @sigma/backend db:generate` | Generate Prisma client  |
-| `pnpm --filter @sigma/backend db:push`     | Push schema to database |
-| `pnpm --filter @sigma/backend db:migrate`  | Run migrations          |
-| `pnpm --filter @sigma/backend db:studio`   | Open Prisma Studio      |
+| `pnpm --filter @sigma/db db:generate` | Generate Prisma client  |
+| `pnpm --filter @sigma/db db:push`     | Push schema to database |
+| `pnpm --filter @sigma/db db:migrate`  | Run migrations          |
+| `pnpm --filter @sigma/db db:studio`   | Open Prisma Studio      |
 
 ## 🔧 Using Shared Package
 
