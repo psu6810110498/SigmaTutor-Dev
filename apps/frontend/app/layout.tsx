@@ -30,8 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body className={`${kanit.variable} ${notoSerif.variable} font-serif bg-background text-gray-900 antialiased`}>
-        {/* 2. ห่อ App ด้วย CourseProvider */}
+      <body className={`${kanit.variable} ${notoSerif.variable} font-sans bg-background text-gray-900 antialiased`}>
         <CourseProvider>
           {children}
         </CourseProvider>
