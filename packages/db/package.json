@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^5.21.0",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {
     "@types/node": "^22.15.18",
-    "prisma": "^7.3.0",
-    "typescript": "^5.8.2",
+    "eslint": "^9.19.0",
+    "prisma": "^5.21.0",
     "tsx": "^4.19.4",
-    "eslint": "^9.19.0"
+    "typescript": "^5.8.2"
   }
 }

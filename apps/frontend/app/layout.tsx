@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Kanit, Noto_Serif_Thai } from "next/font/google";
 import "./globals.css";
-// 1. Import Provider
+// ✅ เพิ่มการนำเข้า AuthProvider จากโฟลเดอร์ context
+import { AuthProvider } from "./context/AuthContext";
 import { CourseProvider } from "./context/CourseContext";
 
 const kanit = Kanit({
@@ -31,10 +32,14 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={`${kanit.variable} ${notoSerif.variable} font-serif bg-background text-gray-900 antialiased`}>
-        {/* 2. ห่อ App ด้วย CourseProvider */}
-        <CourseProvider>
-          {children}
-        </CourseProvider>
+        {/* ✅ ลบ <Navbar /> ออกแล้ว เพื่อความสวยงามของหน้า Auth */}
+        
+        {/* ✅ ล้อมรอบด้วย AuthProvider เพื่อให้ "สมองส่วนกลาง" ทำงานได้ทั่วทั้งเว็บ */}
+        <AuthProvider>
+          <CourseProvider>
+            {children}
+          </CourseProvider>
+        </AuthProvider>
       </body>
     </html>
   );

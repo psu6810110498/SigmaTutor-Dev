@@ -1,0 +1,64 @@
+// file: packages/db/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  // ลบ previewFeatures ออกได้เลยครับ เรากลับมาใช้แบบมาตรฐานแล้ว
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ส่วน User Model (จากไฟล์ user.prisma เดิม) ---
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  name         String
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  profileImage String?   // ฟิลด์ที่เราเพิ่มเข้ามา
+
+  // Relations
+  posts        Post[]
+  sessions     Session[]
+
+  @@index([email])
+}
+
+// --- ส่วน Session Model ---
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+// --- ส่วน Role Enum ---
+enum Role {
+  USER
+  ADMIN
+}
+
+// --- ส่วน Post Model ---
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+}

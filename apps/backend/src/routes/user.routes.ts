@@ -1,8 +1,10 @@
-import { Router, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import { prisma } from '@sigma/db';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth.middleware.js';
 
-const router = Router();
+// ✅ แก้จุดที่ 1: ระบุ Type ให้ชัดเจน
+const router: express.Router = express.Router();
 
 /**
  * GET /api/users
@@ -10,9 +12,10 @@ const router = Router();
  */
 router.get(
   '/',
-  authenticate,
-  requireRole('ADMIN'),
-  async (_req: AuthRequest, res: Response): Promise<void> => {
+  authenticate as express.RequestHandler,
+  requireRole('ADMIN') as express.RequestHandler,
+  async (req: Request, res: Response): Promise<void> => {
+    const _req = req as AuthRequest;
     try {
       const users = await prisma.user.findMany({
         select: {
@@ -42,12 +45,14 @@ router.get(
  * GET /api/users/:id
  * Get user by ID
  */
-router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
+router.get('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  // ✅ แก้จุดที่ 2: บังคับให้เป็น string (Fix: Type 'string | string[]' is not assignable to type 'string')
+  const id = req.params.id as string;
 
+  try {
     // Users can only view their own profile unless admin
-    if (req.user?.userId !== id && req.user?.role !== 'ADMIN') {
+    if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
       res.status(403).json({
         success: false,
         error: 'Access denied',
@@ -92,13 +97,16 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promis
  * PATCH /api/users/:id
  * Update user
  */
-router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  // ✅ แก้จุดที่ 3: บังคับให้เป็น string
+  const id = req.params.id as string;
+
   try {
-    const { id } = req.params;
     const { name } = req.body;
 
     // Users can only update their own profile unless admin
-    if (req.user?.userId !== id && req.user?.role !== 'ADMIN') {
+    if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
       res.status(403).json({
         success: false,
         error: 'Access denied',
@@ -138,12 +146,13 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
  */
 router.delete(
   '/:id',
-  authenticate,
-  requireRole('ADMIN'),
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  authenticate as express.RequestHandler,
+  requireRole('ADMIN') as express.RequestHandler,
+  async (req: Request, res: Response): Promise<void> => {
+    // ✅ แก้จุดที่ 4: บังคับให้เป็น string
+    const id = req.params.id as string;
+    
     try {
-      const { id } = req.params;
-
       await prisma.user.delete({
         where: { id },
       });

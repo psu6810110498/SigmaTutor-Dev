@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FaArrowRight, FaBook, FaShoppingCart, FaHeart, FaRegHeart, FaTimes, FaTrash, FaFilter, FaSearch, FaStar } from 'react-icons/fa';
+// ✅ 1. เพิ่มการนำเข้า Navbar (Relative Path)
+import Navbar from '../../components/Navbar'; 
 // เรียกใช้ Context
 import { useCourse, ALL_COURSES } from '../context/CourseContext';
 
@@ -36,166 +38,10 @@ export default function HomePage() {
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
       
-      {/* 1. Navbar */}
-      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Logo */}
-            <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
-              <div className="relative w-10 h-10">
-                 <Image src="/Sigma-logo.png" alt="Sigma Logo" fill className="object-contain"/>
-              </div>
-              <span className="font-bold text-xl text-primary tracking-wide">Sigma Tutor</span>
-            </div>
+      {/* ✅ 2. เพิ่ม Navbar กลับมาไว้ด้านบนสุดของหน้าจอ */}
+      <Navbar />
 
-            {/* Menu Links */}
-            <div className="hidden md:flex space-x-8 text-gray-600 font-medium">
-              <Link href="#" className="hover:text-primary transition-colors">หน้าแรก</Link>
-              <Link href="/courses" className="hover:text-primary transition-colors">รวมคอร์ส</Link>
-              <Link href="#" className="hover:text-primary transition-colors">เกี่ยวกับเรา</Link>
-              <Link href="#" className="hover:text-primary transition-colors">ติดต่อเรา</Link>
-            </div>
-
-            {/* Right Side Actions */}
-            <div className="flex items-center space-x-4">
-              
-              {/* --- โซนตะกร้าสินค้า & หัวใจ --- */}
-              <div className="hidden md:flex items-center space-x-1 border-r border-gray-200 pr-4 mr-1">
-                 
-                 {/* Wishlist Button */}
-                 <div ref={wishlistRef} className="relative">
-                    <button 
-                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-100 ${isWishlistOpen ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
-                        onClick={() => setIsWishlistOpen(!isWishlistOpen)}
-                    >
-                        {wishlistItems.length > 0 ? <FaHeart size={20} className="text-red-500" /> : <FaRegHeart size={20} />}
-                        {wishlistItems.length > 0 && (
-                            <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-bounce-short">
-                                {wishlistItems.length}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* Wishlist Popover */}
-                    {isWishlistOpen && (
-                        <div className="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-fade-in-up">
-                            <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                <h3 className="font-bold text-gray-800">คอร์สที่ถูกใจ ({wishlistItems.length})</h3>
-                                <button onClick={() => setIsWishlistOpen(false)} className="text-gray-400 hover:text-gray-600"><FaTimes /></button>
-                            </div>
-                            <div className="max-h-80 overflow-y-auto">
-                                {wishlistItems.length === 0 ? (
-                                    <div className="py-10 text-center flex flex-col items-center justify-center text-gray-400">
-                                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-3">
-                                            <FaRegHeart size={24} className="text-red-300" />
-                                        </div>
-                                        <p className="text-sm font-medium">ยังไม่มีคอร์สที่ถูกใจ</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-gray-50">
-                                        {wishlistItems.map((item) => (
-                                            <div key={item.id} className="p-3 flex gap-3 hover:bg-gray-50 transition-colors">
-                                                <div className="w-16 h-12 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden relative">
-                                                     <div className="w-full h-full bg-purple-100 flex items-center justify-center text-xs text-purple-400 font-bold">IMG</div>
-                                                </div>
-                                                <div className="flex-grow min-w-0">
-                                                    <h4 className="text-sm font-medium text-gray-900 truncate">{item.title}</h4>
-                                                    <p className="text-sm text-gray-500">฿{item.price.toLocaleString()}</p>
-                                                </div>
-                                                <button onClick={() => removeFromWishlist(item.id)} className="text-gray-300 hover:text-red-500 p-1">
-                                                    <FaTrash size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                 </div>
-
-                 {/* Cart Button */}
-                 <div ref={cartRef} className="relative">
-                    <button 
-                        className={`transition-colors relative p-2 rounded-full hover:bg-gray-100 ${isCartOpen ? 'text-primary' : 'text-gray-500 hover:text-primary'}`}
-                        onClick={() => setIsCartOpen(!isCartOpen)}
-                    >
-                        <FaShoppingCart size={20} className={cartItems.length > 0 ? "text-primary" : ""} />
-                        {cartItems.length > 0 && (
-                            <span className="absolute top-0 right-0 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-bounce-short">
-                                {cartItems.length}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* Cart Popover */}
-                    {isCartOpen && (
-                        <div className="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-fade-in-up">
-                            <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                <h3 className="font-bold text-gray-800">รถเข็นของฉัน ({cartItems.length})</h3>
-                                <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-gray-600"><FaTimes /></button>
-                            </div>
-                            <div className="max-h-80 overflow-y-auto">
-                                {cartItems.length === 0 ? (
-                                    <div className="py-10 text-center flex flex-col items-center justify-center text-gray-400">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                            <FaShoppingCart size={24} className="opacity-30" />
-                                        </div>
-                                        <p className="text-sm font-medium">ยังไม่มีสินค้าในรถเข็น</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-gray-50">
-                                        {cartItems.map((item) => (
-                                            <div key={item.id} className="p-3 flex gap-3 hover:bg-gray-50 transition-colors">
-                                                <div className="w-16 h-12 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden relative">
-                                                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-xs text-blue-400 font-bold">IMG</div>
-                                                </div>
-                                                <div className="flex-grow min-w-0">
-                                                    <h4 className="text-sm font-medium text-gray-900 truncate">{item.title}</h4>
-                                                    <p className="text-sm text-red-500 font-bold">฿{item.price.toLocaleString()}</p>
-                                                </div>
-                                                <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 p-1">
-                                                    <FaTrash size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            {cartItems.length > 0 && (
-                                <div className="p-4 border-t border-gray-100 bg-white">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="text-sm text-gray-500">ยอดรวม</span>
-                                        <span className="text-lg font-bold text-primary">฿{totalPrice.toLocaleString()}</span>
-                                    </div>
-                                    <Link href="/payment">
-                                        <button className="w-full bg-primary hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-all shadow-md active:scale-95">
-                                            ชำระเงิน
-                                        </button>
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                 </div>
-
-              </div>
-
-              {/* Login / Register */}
-              <div className="flex items-center space-x-3">
-                <Link href="/login" className="hidden md:block text-primary font-medium px-4 py-2 hover:bg-blue-50 rounded-lg transition-colors">
-                  เข้าสู่ระบบ
-                </Link>
-                <Link href="/register" className="bg-primary hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-lg shadow-lg shadow-blue-500/30 transition-all active:scale-95">
-                  ลงทะเบียน
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* 2. Hero Section */}
+      {/* 1. Hero Section (ปรับ padding-top จาก pt-16 กลับเป็น pt-32 เพื่อเว้นที่ให้ Navbar) */}
       <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -238,7 +84,7 @@ export default function HomePage() {
          </div>
       </section>
 
-      {/* 3. Demo Buttons Area (เพื่อทดสอบการเชื่อมต่อข้อมูล) */}
+      {/* 2. Demo Buttons Area */}
       <section className="py-8 bg-white border-b border-gray-100">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h3 className="text-sm font-bold mb-4 text-gray-500 uppercase tracking-wide">ทดสอบระบบเชื่อมต่อข้อมูล (Context Demo)</h3>
@@ -259,7 +105,7 @@ export default function HomePage() {
          </div>
       </section>
 
-      {/* 4. Stats Section */}
+      {/* 3. Stats Section */}
       <section className="py-10 bg-white border-y border-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100 text-center opacity-50">
@@ -283,7 +129,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Popular Courses Section (Empty State) */}
+      {/* 4. Popular Courses Section (Empty State) */}
       <section className="py-16 md:py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
@@ -297,7 +143,6 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Placeholder Box (ตามคำขอ ไม่ต้องโชว์คอร์สหลอกๆ) */}
           <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                <FaBook size={24} />
@@ -309,30 +154,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 6. Testimonials Section */}
-      <section className="py-16 md:py-24 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-           
-           <div className="text-center mb-16">
-              <span className="text-secondary font-bold tracking-wider text-sm uppercase">TESTIMONIALS</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-2">เรื่องราวความสำเร็จจากนักเรียนของเรา</h2>
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-gray-50 p-8 rounded-3xl relative h-64 flex flex-col items-center justify-center text-center border border-dashed border-gray-200">
-                   <div className="w-12 h-12 bg-gray-200 rounded-full mb-4 animate-pulse"></div>
-                   <div className="w-3/4 h-4 bg-gray-200 rounded mb-2 animate-pulse"></div>
-                   <div className="w-1/2 h-4 bg-gray-200 rounded animate-pulse"></div>
-                   <p className="text-gray-400 text-xs mt-6">พื้นที่สำหรับแสดงรีวิวผู้เรียน</p>
-                </div>
-              ))}
-           </div>
-
-        </div>
-      </section>
-
-      {/* 7. Footer */}
+      {/* 5. Footer */}
       <footer className="bg-primary text-white pt-16 pb-8 mt-auto">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">

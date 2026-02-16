@@ -1,25 +1,28 @@
-import dotenv from 'dotenv';
-// Load environment variables immediately
-dotenv.config();
-
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import routes from './routes/index.js';
-import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import routes from './routes/index'; // <--- ลบ .js ออก
+import { errorHandler, notFoundHandler } from './middleware/error.middleware'; // <--- ลบ .js ออก
+import passport from 'passport';
+import './strategies/google.strategy.js'
 
+console.log('🔑 ตรวจสอบ DATABASE_URL:', process.env.DATABASE_URL ? 'เจอแล้ว!' : 'ยังว่างเปล่า...');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // อนุญาตทั้ง localhost และ IP
+    credentials: true, // อนุญาตให้ส่ง Cookie/Token มาได้
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use(passport.initialize());
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
