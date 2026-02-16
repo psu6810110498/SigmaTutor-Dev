@@ -1,0 +1,84 @@
+// Course models
+
+model Course {
+    id          String       @id @default(cuid())
+    title       String
+    description String?
+    price       Float
+    thumbnail   String?
+    status      CourseStatus @default(DRAFT)
+
+    instructorId String
+    instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    lessons     Lesson[]
+    enrollments Enrollment[]
+    payments    Payment[]
+
+    @@index([instructorId])
+    @@index([status])
+}
+
+model Lesson {
+    id       String  @id @default(cuid())
+    title    String
+    content  String?
+    videoUrl String?
+    order    Int
+    courseId String
+
+    course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    @@index([courseId])
+}
+
+model Enrollment {
+    id        String           @id @default(cuid())
+    userId    String
+    courseId  String
+    status    EnrollmentStatus @default(ACTIVE)
+    createdAt DateTime         @default(now())
+
+    user   User   @relation(fields: [userId], references: [id])
+    course Course @relation(fields: [courseId], references: [id])
+
+    @@unique([userId, courseId])
+}
+
+model Payment {
+    id        String        @id @default(cuid())
+    userId    String
+    courseId  String
+    amount    Float
+    status    PaymentStatus @default(PENDING)
+    stripeId  String?       @unique
+    createdAt DateTime      @default(now())
+
+    user   User   @relation(fields: [userId], references: [id])
+    course Course @relation(fields: [courseId], references: [id])
+
+    @@index([userId])
+    @@index([courseId])
+}
+
+enum CourseStatus {
+    DRAFT
+    PUBLISHED
+    ARCHIVED
+}
+
+enum EnrollmentStatus {
+    ACTIVE
+    COMPLETED
+    CANCELLED
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+}
