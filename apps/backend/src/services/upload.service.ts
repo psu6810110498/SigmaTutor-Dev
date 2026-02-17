@@ -1,5 +1,16 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+
+// Configure Multer (Memory Storage for R2)
+const storage = multer.memoryStorage();
+export const upload = multer({ storage });
+
+export const getFileUrl = (filename: string) => {
+  return process.env.R2_PUBLIC_URL
+    ? `${process.env.R2_PUBLIC_URL}/${filename}`
+    : `https://pub-d0f41a703ea14e2092f9c58b4d489324.r2.dev/${filename}`;
+};
 
 export class UploadService {
   private s3Client: S3Client;
@@ -31,7 +42,7 @@ export class UploadService {
 
       // คืนค่า URL กลับไป (เดี๋ยวต้องไปเปิด Public URL ใน Cloudflare ต่อ)
       return {
-        url: `https://pub-d0f41a703ea14e2092f9c58b4d489324.r2.dev/${fileName}`,
+        url: getFileUrl(fileName),
         key: fileName
       };
     } catch (error) {
@@ -40,3 +51,5 @@ export class UploadService {
     }
   }
 }
+
+export const uploadService = new UploadService();

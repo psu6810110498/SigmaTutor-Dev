@@ -15,6 +15,7 @@ model User {
   instructorCourses Course[]     @relation("InstructorCourses")
   enrollments       Enrollment[]
   payments          Payment[]
+  reviews           Review[]
 
   @@index([email])
 }

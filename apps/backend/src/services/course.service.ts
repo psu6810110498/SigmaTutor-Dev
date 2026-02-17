@@ -11,9 +11,16 @@ export class CourseService {
      * Create a new course
      */
     async create(instructorId: string, input: CreateCourseInput) {
+        // Generate slug from title if not present (simple version)
+        const slug = input.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4);
+
         return prisma.course.create({
             data: {
                 ...input,
+                slug,
                 instructorId,
             },
             include: { instructor: { select: { id: true, name: true, email: true } } },
@@ -28,7 +35,12 @@ export class CourseService {
             where: { id },
             include: {
                 instructor: { select: { id: true, name: true, email: true } },
-                lessons: { orderBy: { order: 'asc' } },
+                chapters: {
+                    include: {
+                        lessons: { orderBy: { order: 'asc' } }
+                    },
+                    orderBy: { order: 'asc' }
+                },
                 _count: { select: { enrollments: true } },
             },
         });

@@ -1,16 +1,18 @@
+
 // ============================================================
-// Seed — ข้อมูลตั้งต้นสำหรับ Category + Level
+// Seed — ข้อมูลตั้งต้นสำหรับ Category + Level + Admin
 // Run: pnpm --filter @sigma/db db:seed
 // ============================================================
 
 import dotenv from "dotenv";
 dotenv.config();
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hashSync } from "bcryptjs"; // ต้องติดตั้ง bcryptjs หรือใช้ไลบรารีอื่นที่มีอยู่
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+// const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient();
 
 // ------------------------------------------------------------
 // หมวดหมู่วิชา
@@ -69,6 +71,37 @@ async function main() {
         });
     }
     console.log(`   ✅ ${LEVELS.length} levels seeded`);
+
+    // ------------------------------------------------------------
+    // Admin Seed (New)
+    // ------------------------------------------------------------
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (adminEmail && adminPassword) {
+        console.log("🛡️  Seeding Admin account...");
+
+        // Hash Password (ถ้าไม่มี bcrypt ต้องหาวิธีอื่น แต่นี่คือแนวทางมาตรฐาน)
+        // หมายเหตุ: โปรเจกต์นี้อาจจะใช้ bcryptjs หรือ argon2 ให้ตรวจสอบ package.json อีกที
+        // สมมติว่าใช้ bcryptjs ไปก่อน ถ้า error เดี๋ยวแก้
+        const hashedPassword = hashSync(adminPassword, 10);
+
+        await prisma.user.upsert({
+            where: { email: adminEmail },
+            update: {
+                role: 'ADMIN' as Role, // Force role update just in case
+            },
+            create: {
+                email: adminEmail,
+                password: hashedPassword,
+                name: "System Admin",
+                role: 'ADMIN' as Role,
+            },
+        });
+        console.log(`   ✅ Admin account ensured: ${adminEmail}`);
+    } else {
+        console.log("   ⚠️  Skipping Admin seed: ADMIN_EMAIL or ADMIN_PASSWORD not set in .env");
+    }
 
     console.log("\n🎉 Seeding complete!");
 }

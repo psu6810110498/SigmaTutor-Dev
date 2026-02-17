@@ -14,7 +14,7 @@ passport.use(
       try {
         // เรียกใช้ฟังก์ชันที่เราเพิ่งเขียนใน auth.service.ts
         const tokens = await authService.validateGoogleUser(profile);
-        return done(null, tokens);
+        return done(null, tokens as any);
       } catch (error) {
         return done(error as Error, false);
       }

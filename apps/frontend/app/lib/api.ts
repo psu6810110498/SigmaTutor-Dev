@@ -21,20 +21,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v
 
 // ── Core HTTP Methods ─────────────────────────────────────
 
-/** Get auth token from localStorage */
-function getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('sigma_token');
-}
+// ── Core HTTP Methods ─────────────────────────────────────
 
-/** Build headers with optional auth */
-function headers(withAuth = false): HeadersInit {
-    const h: HeadersInit = { 'Content-Type': 'application/json' };
-    if (withAuth) {
-        const token = getToken();
-        if (token) h['Authorization'] = `Bearer ${token}`;
-    }
-    return h;
+/** Build headers */
+function headers(_auth?: boolean): HeadersInit {
+    return { 'Content-Type': 'application/json' };
 }
 
 /** Generic fetch wrapper with error handling */
@@ -43,10 +34,25 @@ async function request<T>(
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
     try {
-        const res = await fetch(`${API_BASE}${endpoint}`, options);
-        const json = await res.json();
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            credentials: 'include', // ✅ Send cookies with every request
+        });
+
+        let json;
+        try {
+            json = await res.json();
+        } catch {
+            json = {}; // Handle empty responses (like 204)
+        }
 
         if (!res.ok) {
+            // ✅ Handle 401 Unauthorized (Cookie expired/missing)
+            if (res.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/me')) {
+                // Optional: Trigger global logout or redirect
+                // window.location.href = '/login'; 
+            }
+
             return {
                 success: false,
                 error: json.error || `HTTP ${res.status}`,
@@ -66,6 +72,20 @@ async function request<T>(
 // ============================================================
 // Course API
 // ============================================================
+
+// Categories
+export const fetchCategories = async () => {
+    return request<Category[]>('/categories');
+};
+
+// Levels
+export const fetchLevels = async () => {
+    return request<Level[]>('/levels');
+};
+
+export const fetchCourses = async () => {
+    return request<CourseListResponse>('/courses');
+};
 
 export const courseApi = {
     /** GET /courses — List with filters + pagination */
@@ -138,11 +158,10 @@ export const courseApi = {
         const formData = new FormData();
         formData.append('thumbnail', file);
 
-        const token = getToken();
         const res = await fetch(`${API_BASE}/courses/${id}/upload`, {
             method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: formData,
+            credentials: 'include',
         });
 
         return res.json();

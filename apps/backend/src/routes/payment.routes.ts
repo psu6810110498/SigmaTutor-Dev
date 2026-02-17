@@ -4,7 +4,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { createPaymentSchema } from '../schemas/course.schema.js';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * POST /api/payments/checkout

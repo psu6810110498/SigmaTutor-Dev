@@ -1,15 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, BookOpen, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { FaShoppingCart, FaHeart } from "react-icons/fa";
+import { FaShoppingCart } from "react-icons/fa";
 import { useCourse, ALL_COURSES } from "@/app/context/CourseContext";
+import { fetchCategories, fetchLevels } from "@/app/lib/api"; // Import API functions
+import type { Category, Level } from "@/app/lib/types"; // Import types
 
 export default function ExplorePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const totalPages = 3;
-    const { addToCart, addToWishlist } = useCourse();
+    const { addToCart } = useCourse();
+
+    // State for filters
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [levels, setLevels] = useState<Level[]>([]);
+    const [loadingFilters, setLoadingFilters] = useState(true);
+
+    // Fetch filters on mount
+    useEffect(() => {
+        const loadFilters = async () => {
+            try {
+                const [cats, lvls] = await Promise.all([fetchCategories(), fetchLevels()]);
+                // @ts-ignore - API response handling might need refinement but for now assuming direct data access or success check
+                if (cats.success) setCategories(cats.data);
+                // @ts-ignore
+                if (lvls.success) setLevels(lvls.data);
+            } catch (error) {
+                console.error("Failed to load filters", error);
+            } finally {
+                setLoadingFilters(false);
+            }
+        };
+        loadFilters();
+    }, []);
 
     return (
         <>
@@ -61,28 +86,72 @@ export default function ExplorePage() {
                             </div>
                         </div>
 
-                        {/* Filter Placeholder */}
-                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm opacity-60 pointer-events-none select-none grayscale">
+                        {/* Filter Section */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <Filter className="text-primary" size={14} /> ตัวกรอง
                                 </h3>
                                 <button className="text-xs text-blue-600 hover:underline">ล้างตัวกรอง</button>
                             </div>
-                            <div className="mb-6">
-                                <h4 className="text-sm font-bold text-gray-700 mb-3">ประเภทคอร์ส</h4>
-                                <div className="space-y-2">
-                                    <div className="h-4 bg-gray-100 rounded w-3/4" />
-                                    <div className="h-4 bg-gray-100 rounded w-1/2" />
+
+                            {loadingFilters ? (
+                                // Skeletons
+                                <div className="space-y-6 animate-pulse">
+                                    <div>
+                                        <div className="h-4 bg-gray-100 rounded w-20 mb-3" />
+                                        <div className="space-y-2">
+                                            <div className="h-3 bg-gray-100 rounded w-3/4" />
+                                            <div className="h-3 bg-gray-100 rounded w-1/2" />
+                                            <div className="h-3 bg-gray-100 rounded w-2/3" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="h-4 bg-gray-100 rounded w-20 mb-3" />
+                                        <div className="space-y-2">
+                                            <div className="h-3 bg-gray-100 rounded w-full" />
+                                            <div className="h-3 bg-gray-100 rounded w-2/3" />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-bold text-gray-700 mb-3">ระดับชั้น</h4>
-                                <div className="space-y-2">
-                                    <div className="h-4 bg-gray-100 rounded w-full" />
-                                    <div className="h-4 bg-gray-100 rounded w-2/3" />
+                            ) : (
+                                // Actual Filters
+                                <div className="space-y-6">
+                                    {/* Categories */}
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-700 mb-3">ประเภทคอร์ส</h4>
+                                        <div className="space-y-2">
+                                            {categories.length > 0 ? (
+                                                categories.map((category) => (
+                                                    <label key={category.id} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-primary">
+                                                        <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary/20" />
+                                                        {category.name}
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <p className="text-xs text-gray-400">ไม่มีข้อมูลหมวดหมู่</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Levels */}
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-700 mb-3">ระดับชั้น</h4>
+                                        <div className="space-y-2">
+                                            {levels.length > 0 ? (
+                                                levels.map((level) => (
+                                                    <label key={level.id} className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-primary">
+                                                        <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary/20" />
+                                                        {level.name}
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <p className="text-xs text-gray-400">ไม่มีข้อมูลระดับชั้น</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </aside>
 
@@ -128,12 +197,7 @@ export default function ExplorePage() {
                                 >
                                     <FaShoppingCart /> ทดลองเพิ่มตะกร้า
                                 </button>
-                                <button
-                                    onClick={() => addToWishlist(ALL_COURSES[1])}
-                                    className="bg-white border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
-                                >
-                                    <FaHeart /> ทดลองกดถูกใจ
-                                </button>
+
                             </div>
                         </div>
 

@@ -13,17 +13,22 @@ export interface AuthRequest extends Request {
  * Middleware to authenticate JWT token
  */
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  let token = '';
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+
+  if (!token) {
     res.status(401).json({
       success: false,
       error: 'No token provided',
     });
     return;
   }
-
-  const token = authHeader.substring(7);
 
   try {
     const payload = authService.verifyAccessToken(token);

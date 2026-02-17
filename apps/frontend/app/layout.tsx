@@ -4,6 +4,7 @@ import "./globals.css";
 // ✅ เพิ่มการนำเข้า AuthProvider จากโฟลเดอร์ context
 import { AuthProvider } from "./context/AuthContext";
 import { CourseProvider } from "./context/CourseContext";
+import { Providers } from './providers';
 
 const kanit = Kanit({
   subsets: ["thai", "latin"],
@@ -32,12 +33,14 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={`${kanit.variable} ${notoSerif.variable} font-sans bg-background text-gray-900 antialiased`}>
-        {/* AuthProvider from HEAD, CourseProvider from Main */}
-        <AuthProvider>
-          <CourseProvider>
-            {children}
-          </CourseProvider>
-        </AuthProvider>
+        <Providers>
+          {/* AuthProvider from HEAD, CourseProvider from Main */}
+          <AuthProvider>
+            <CourseProvider>
+              {children}
+            </CourseProvider>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

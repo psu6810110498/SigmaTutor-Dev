@@ -10,7 +10,7 @@ import {
     courseQuerySchema,
 } from '../schemas/course.schema.js';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * POST /api/courses
@@ -135,7 +135,10 @@ router.post(
                 res.status(400).json({ success: false, error: 'No file uploaded' });
                 return;
             }
-            const url = getFileUrl(req.file.filename);
+
+            // Use UploadService to upload to R2 (Correct Logic)
+            const { url } = await import('../services/upload.service.js').then(m => m.uploadService.uploadFile(req.file!, 'courses/thumbnails'));
+
             const course = await courseService.updateThumbnail(String(req.params.id), url);
             res.json({ success: true, data: { thumbnailUrl: url, course } });
         } catch (error) {

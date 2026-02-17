@@ -2,49 +2,45 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-// เอา FaFacebookF ออกจากการ import
-import { FaArrowLeft, FaCheckCircle, FaExclamationCircle, FaEye, FaEyeSlash, FaCamera, FaGoogle } from 'react-icons/fa';
+import { useForm } from "react-hook-form";
+import { FaArrowLeft, FaCheckCircle, FaExclamationCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FcGoogle } from "react-icons/fc"; // Use FcGoogle for standard colored logo
 
-// --- ส่วนแสดงความแข็งแกร่งของรหัสผ่าน (คงเดิม) ---
+// --- Password Strength Component (Cleaned up) ---
 const PasswordStrengthIndicator = ({ password }: { password: string }) => {
+  if (!password) return null;
+
   const criteria = [
-    { id: 1, label: "อย่างน้อย 8 ตัวอักษร", regex: /.{8,}/ },
-    { id: 2, label: "มีตัวพิมพ์ใหญ่ (A-Z)", regex: /[A-Z]/ },
-    { id: 3, label: "มีตัวพิมพ์เล็ก (a-z)", regex: /[a-z]/ },
-    { id: 4, label: "มีตัวเลข (0-9)", regex: /[0-9]/ },
+    { id: 1, label: "8+ ตัวอักษร", regex: /.{8,}/ },
+    { id: 2, label: "ตัวใหญ่ (A-Z)", regex: /[A-Z]/ },
+    { id: 3, label: "ตัวเล็ก (a-z)", regex: /[a-z]/ },
+    { id: 4, label: "ตัวเลข (0-9)", regex: /[0-9]/ },
   ];
 
   const passedCount = criteria.reduce((acc, curr) => acc + (curr.regex.test(password) ? 1 : 0), 0);
-  let strengthColor = "bg-gray-200";
-  let strengthText = "";
-  
-  if (password) {
-    if (passedCount <= 2) { strengthColor = "bg-red-400"; strengthText = "อ่อน"; }
-    else if (passedCount === 3) { strengthColor = "bg-amber-400"; strengthText = "ปานกลาง"; }
-    else { strengthColor = "bg-green-400"; strengthText = "แข็งแกร่ง"; }
-  }
+
+  let strengthColor = "bg-red-500";
+  let strengthText = "อ่อนมาก";
+  if (passedCount >= 3) { strengthColor = "bg-yellow-500"; strengthText = "ปานกลาง"; }
+  if (passedCount === 4) { strengthColor = "bg-green-500"; strengthText = "แข็งแกร่ง"; }
 
   return (
-    <div className="mt-3 p-4 bg-violet-50/50 rounded-2xl border border-violet-100/50 space-y-3">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] font-bold text-violet-800 uppercase tracking-wider">ความปลอดภัยของรหัสผ่าน</span>
-        {password && <span className={`text-[9px] font-black text-white px-2 py-0.5 rounded-full ${strengthColor}`}>{strengthText}</span>}
+    <div className="mt-2 space-y-2">
+      <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full transition-all duration-300 ${strengthColor}`}
+          style={{ width: `${(passedCount / 4) * 100}%` }}
+        />
       </div>
-      <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-violet-100">
-        <div className={`h-full transition-all duration-500 ${strengthColor}`} style={{ width: `${(passedCount / 4) * 100}%` }}></div>
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
-        {criteria.map((item) => {
-          const isPassed = item.regex.test(password);
-          return (
-            <div key={item.id} className={`flex items-center gap-1.5 text-[10px] font-medium ${isPassed ? "text-violet-700" : "text-gray-400"}`}>
-              <FaCheckCircle className={isPassed ? "text-green-500" : "text-gray-200"} size={12} />
-              {item.label}
-            </div>
-          )
-        })}
+      <div className="flex flex-wrap gap-2">
+        {criteria.map((item) => (
+          <span key={item.id} className={`text-[10px] flex items-center gap-1 ${item.regex.test(password) ? "text-green-600 font-medium" : "text-gray-400"}`}>
+            {item.regex.test(password) ? <FaCheckCircle size={10} /> : <div className="w-2.5 h-2.5 rounded-full border border-gray-300" />}
+            {item.label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -52,58 +48,62 @@ const PasswordStrengthIndicator = ({ password }: { password: string }) => {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', agreeTerms: false });
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
-  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [serverError, setServerError] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData(prev => ({ ...prev, [e.target.name]: value }));
-  };
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm({
+    mode: "onChange", // Real-time validation
+  });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
+  const password = watch("password", "");
+
+  const onSubmit = async (data: any) => {
+    setServerError("");
+
+    // Manual confirm password check
+    if (data.password !== data.confirmPassword) {
+      setServerError("รหัสผ่านไม่ตรงกัน");
+      return;
     }
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) return alert("รหัสผ่านไม่ตรงกัน");
-    if (!formData.agreeTerms) return alert("กรุณายอมรับเงื่อนไขการใช้งาน");
-
-    setStatus('loading');
     try {
       const res = await fetch('http://localhost:4000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, email: formData.email, password: formData.password }),
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password
+        }),
       });
-      if (!res.ok) throw new Error('สมัครสมาชิกไม่สำเร็จ');
-      setStatus('success');
-      setTimeout(() => router.push('/login'), 2000);
+
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.message || 'สมัครสมาชิกไม่สำเร็จ');
+      }
+
+      // Success
+      router.push('/login?registered=true');
+
     } catch (err: any) {
-      setStatus('error');
-      setMessage(err.message);
+      setServerError(err.message);
     }
   };
 
   return (
     <div className="h-screen w-full flex overflow-hidden font-sans bg-[#F8F9FB]">
-      
-      {/* 📚 ฝั่งซ้าย: รูปปกห้องสมุดแบบดั้งเดิม (คงเดิม) */}
+
+      {/* 📚 Left Side: Library Cover (Hidden on Mobile) */}
       <div className="hidden lg:flex w-1/2 relative bg-gray-900 h-full">
-        <Image 
-          src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=2128&auto=format&fit=crop" 
+        <Image
+          src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?q=80&w=2128&auto=format&fit=crop"
           alt="Library Cover" fill className="object-cover opacity-60" priority unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
@@ -116,94 +116,160 @@ export default function RegisterPage() {
             ปลดล็อกศักยภาพ <br /> <span className="text-blue-300">ไร้ขีดจำกัด</span>
           </h1>
           <p className="text-lg text-gray-300 font-light leading-relaxed max-w-lg">
-            "การเรียนรู้ที่ดีที่สุด คือการเรียนรู้ที่เข้าใจ ไม่ใช่การท่องจำ" <br/>
+            "การเรียนรู้ที่ดีที่สุด คือการเรียนรู้ที่เข้าใจ ไม่ใช่การท่องจำ" <br />
             เริ่มต้นเส้นทางความสำเร็จของคุณที่นี่กับ Sigma Tutor
           </p>
         </div>
       </div>
 
-      {/* ⚪ ฝั่งขวา: ฟอร์มสมัครสมาชิก (คงเดิม) */}
+      {/* ⚪ Right Side: Registration Form */}
       <div className="w-full lg:w-1/2 h-full overflow-y-auto bg-[#F8F9FB] relative">
         <div className="min-h-full flex items-center justify-center p-6 py-12">
-          <div className="max-w-[500px] w-full bg-white rounded-[48px] shadow-2xl p-10 md:p-12 border border-gray-100/50 relative z-10">
-            
+          {/* Mobile Back Button */}
+          <div className="lg:hidden absolute top-6 left-6">
+            <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors text-sm font-medium">
+              <FaArrowLeft /> กลับหน้าหลัก
+            </Link>
+          </div>
+
+          <div className="max-w-[480px] w-full bg-white rounded-[40px] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] p-10 md:p-14 border border-gray-100/50 relative z-10">
+
             <div className="text-center mb-8">
-                <div className="relative w-14 h-14 mx-auto mb-4 bg-blue-50 p-3 rounded-2xl flex items-center justify-center">
-                    <Image src="/Sigma-logo.png" alt="Logo" width={40} height={40} unoptimized />
-                </div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">สร้างบัญชีใหม่</h2>
-                <p className="text-gray-400 text-sm mt-2">กรอกข้อมูลด้านล่างเพื่อสมัครสมาชิก</p>
+              <div className="relative w-14 h-14 mx-auto mb-4 bg-blue-50 p-3 rounded-2xl flex items-center justify-center border border-blue-100">
+                <Image src="/Sigma-logo.png" alt="Logo" width={40} height={40} unoptimized className="object-contain" />
+              </div>
+              <h2 className="text-3xl font-black text-gray-900 tracking-tight">สร้างบัญชีใหม่</h2>
+              <p className="text-gray-400 text-sm mt-2">กรอกข้อมูลเพื่อเริ่มต้นการเรียนรู้</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* ✅ อัปโหลดรูปโปรไฟล์ (คงเดิม) */}
-              <div className="flex flex-col items-center mb-6 space-y-2">
-                <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-                <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 rounded-full bg-gray-50 border-4 border-white shadow-lg cursor-pointer overflow-hidden group">
-                  {imagePreview ? <Image src={imagePreview} alt="Preview" fill className="object-cover" /> : <div className="flex h-full w-full items-center justify-center text-gray-300 bg-gray-50"><FaCamera size={30} /></div>}
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">เปลี่ยนรูป</div>
-                </div>
-                <p className="text-[10px] text-gray-400 font-bold tracking-widest uppercase">อัปโหลดรูปโปรไฟล์ (ถ้ามี)</p>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+              {/* Name Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="สมชาย ใจดี"
+                  {...register("name", { required: "กรุณากรอกชื่อ-นามสกุล", minLength: { value: 2, message: "ชื่อต้องยาวกว่า 2 ตัวอักษร" } })}
+                  className={`w-full px-5 py-3.5 bg-[#F8F9FB] border rounded-2xl outline-none transition-all text-sm font-medium
+                    ${errors.name ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10" : "border-gray-200/80 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"}`}
+                />
+                {errors.name && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><FaExclamationCircle /> {errors.name.message as string}</p>}
               </div>
 
+              {/* Email Field */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">ชื่อ-นามสกุล</label>
-                <input type="text" name="name" required placeholder="สมชาย ใจดี" onChange={handleChange} className="w-full px-5 py-3.5 bg-[#F8F9FB] border border-gray-200/80 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold" />
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">อีเมล <span className="text-red-500">*</span></label>
+                <input
+                  type="email"
+                  placeholder="name@example.com"
+                  {...register("email", {
+                    required: "กรุณากรอกอีเมล",
+                    pattern: { value: /^\S+@\S+$/i, message: "รูปแบบอีเมลไม่ถูกต้อง" }
+                  })}
+                  className={`w-full px-5 py-3.5 bg-[#F8F9FB] border rounded-2xl outline-none transition-all text-sm font-medium
+                    ${errors.email ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10" : "border-gray-200/80 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"}`}
+                />
+                {errors.email && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><FaExclamationCircle /> {errors.email.message as string}</p>}
               </div>
 
+              {/* Password Field */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">อีเมล</label>
-                <input type="email" name="email" required placeholder="name@example.com" onChange={handleChange} className="w-full px-5 py-3.5 bg-[#F8F9FB] border border-gray-200/80 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold" />
-              </div>
-
-              {/* ✅ รหัสผ่านพร้อมลูกตา (คงเดิม) */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">รหัสผ่าน</label>
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">รหัสผ่าน <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <input type={showPassword ? "text" : "password"} name="password" required placeholder="••••••••" onChange={handleChange} className="w-full px-5 py-3.5 bg-[#F8F9FB] border border-gray-200/80 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold pr-12" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-blue-500 transition-colors">{showPassword ? <FaEyeSlash /> : <FaEye />}</button>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register("password", {
+                      required: "กรุณากรอกรหัสผ่าน",
+                      minLength: { value: 8, message: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร" }
+                    })}
+                    className={`w-full px-5 py-3.5 bg-[#F8F9FB] border rounded-2xl outline-none transition-all text-sm font-medium pr-12
+                      ${errors.password ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10" : "border-gray-200/80 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"}`}
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors">
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
-                <PasswordStrengthIndicator password={formData.password} />
+                {errors.password && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><FaExclamationCircle /> {errors.password.message as string}</p>}
+
+                {/* Password Strength */}
+                <PasswordStrengthIndicator password={password} />
               </div>
 
+              {/* Confirm Password Field */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">ยืนยันรหัสผ่าน</label>
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">ยืนยันรหัสผ่าน <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" required placeholder="••••••••" onChange={handleChange} className="w-full px-5 py-3.5 bg-[#F8F9FB] border border-gray-200/80 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all text-sm font-bold pr-12" />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-blue-500 transition-colors">{showConfirmPassword ? <FaEyeSlash /> : <FaEye />}</button>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    {...register("confirmPassword", {
+                      required: "กรุณายืนยันรหัสผ่าน",
+                      validate: (val: string) => {
+                        if (watch('password') != val) {
+                          return "รหัสผ่านไม่ตรงกัน";
+                        }
+                      }
+                    })}
+                    className={`w-full px-5 py-3.5 bg-[#F8F9FB] border rounded-2xl outline-none transition-all text-sm font-medium pr-12
+                      ${errors.confirmPassword ? "border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10" : "border-gray-200/80 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"}`}
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors">
+                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
+                {errors.confirmPassword && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><FaExclamationCircle /> {errors.confirmPassword.message as string}</p>}
               </div>
 
+              {/* Terms Checkbox */}
               <div className="flex items-start gap-3 pt-1 px-1">
-                <input type="checkbox" name="agreeTerms" id="agree" onChange={handleChange} className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                <label htmlFor="agree" className="text-xs text-gray-500 leading-relaxed">
-                    ฉันยอมรับ <span className="text-blue-600 font-bold hover:underline">เงื่อนไขการใช้งาน</span> และ <span className="text-blue-600 font-bold hover:underline">นโยบายความเป็นส่วนตัว</span>
+                <input
+                  type="checkbox"
+                  id="agree"
+                  {...register("agreeTerms", { required: true })}
+                  className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="agree" className="text-xs text-gray-500 leading-relaxed cursor-pointer select-none">
+                  ฉันยอมรับ <span className="text-blue-600 font-bold hover:underline">เงื่อนไขการใช้งาน</span> และ <span className="text-blue-600 font-bold hover:underline">นโยบายความเป็นส่วนตัว</span>
                 </label>
               </div>
 
-              {status === 'error' && <div className="text-red-500 text-xs bg-red-50 p-3 rounded-xl border border-red-100 flex items-center gap-2">⚠️ {message}</div>}
-              {status === 'success' && <div className="text-green-600 text-xs bg-green-50 p-3 rounded-xl border border-green-100 flex items-center gap-2">✅ สมัครสมาชิกสำเร็จ! กำลังพาไปหน้า Login...</div>}
+              {/* Server Error Message */}
+              {serverError && (
+                <div className="text-red-500 text-xs bg-red-50 p-3 rounded-xl border border-red-100 flex items-center gap-2 animate-pulse">
+                  <FaExclamationCircle /> {serverError}
+                </div>
+              )}
 
-              <button disabled={status === 'loading'} className="w-full bg-[#0052CC] text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all text-sm">
-                {status === 'loading' ? 'กำลังบันทึกข้อมูล...' : 'สมัครสมาชิก'}
+              {/* Submit Button */}
+              <button
+                disabled={!isValid || isSubmitting}
+                className={`w-full font-bold py-4 rounded-2xl shadow-xl transition-all text-sm
+                  ${!isValid || isSubmitting
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                    : "bg-[#0052CC] text-white shadow-blue-500/20 active:scale-[0.98] hover:bg-blue-700"}`}
+              >
+                {isSubmitting ? 'กำลังสร้างบัญชี...' : 'สมัครสมาชิก'}
               </button>
 
-              {/* ✅ แก้ไข: เอา Facebook ออก และปรับ Google ให้เต็มความกว้าง */}
-              <div className="mt-4">
-                <button 
-                  type="button" 
-                  onClick={() => window.location.href = 'http://localhost:4000/api/auth/google'}
-                  // เพิ่ม w-full เพื่อให้ปุ่มขยายเต็ม
-                  className="w-full flex items-center justify-center gap-2 py-3 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-all text-xs font-bold text-gray-600 active:scale-95"
-                >
-                    <FaGoogle className="text-red-500" /> Google
-                </button>
-                {/* ปุ่ม Facebook ถูกลบออกไปแล้ว */}
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-100"></div>
+                <span className="flex-shrink mx-4 text-[10px] text-gray-400 uppercase font-bold tracking-widest">หรือสมัครด้วย</span>
+                <div className="flex-grow border-t border-gray-100"></div>
               </div>
 
-              <p className="text-center mt-8 text-sm text-gray-500 font-medium">
-                มีบัญชีอยู่แล้ว? <Link href="/login" className="text-blue-600 font-bold hover:underline">เข้าสู่ระบบที่นี่</Link>
+              {/* Google Button (Standard Style) */}
+              <button
+                type="button"
+                onClick={() => window.location.href = 'http://localhost:4000/api/auth/google'}
+                className="w-full flex items-center justify-center gap-3 py-3.5 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-medium text-gray-700 active:scale-[0.98] shadow-sm"
+              >
+                <FcGoogle className="text-xl" /> สมัครสมาชิกด้วย Google
+              </button>
+
+              <p className="text-center mt-6 text-sm text-gray-500 font-medium">
+                มีบัญชีอยู่แล้ว? <Link href="/login" className="text-[#0052CC] font-bold hover:text-blue-700 hover:underline transition-all">เข้าสู่ระบบที่นี่</Link>
               </p>
             </form>
           </div>
