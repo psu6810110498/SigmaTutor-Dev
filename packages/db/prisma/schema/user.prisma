@@ -10,7 +10,7 @@ model User {
   profileImage String?
 
   // Relations
-  posts             Post[] // Keeping posts from HEAD just in case
+  // posts             Post[] // Removed missing model
   sessions          Session[]
   instructorCourses Course[]     @relation("InstructorCourses")
   enrollments       Enrollment[]
