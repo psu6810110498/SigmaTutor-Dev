@@ -11,8 +11,7 @@
         "clean": "rm -rf dist node_modules"
     },
     "dependencies": {
-<<<<<<< HEAD
-    "@aws-sdk/client-s3": "^3.990.0",
+        "@aws-sdk/client-s3": "^3.990.0",
         "@sigma/db": "workspace:*",
         "@sigma/shared": "workspace:*",
         "bcryptjs": "^3.0.2",
