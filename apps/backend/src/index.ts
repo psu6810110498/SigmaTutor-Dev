@@ -1,29 +1,42 @@
-import dotenv from 'dotenv';
-// Load environment variables immediately
-dotenv.config();
-
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import path from 'path';
-import routes from './routes/index.js';
-import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import routes from './routes/index';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import passport from 'passport';
+import './strategies/google.strategy.js'
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { apiLimiter } from './middleware/rate-limit.middleware.js';
 
+console.log('🔑 ตรวจสอบ DATABASE_URL:', process.env.DATABASE_URL ? 'เจอแล้ว!' : 'ยังว่างเปล่า...');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // อนุญาตทั้ง localhost และ IP
+    credentials: true, // อนุญาตให้ส่ง Cookie/Token มาได้
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+import cookieParser from 'cookie-parser';
+
+// ...
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(helmet());
+app.use(morgan('dev'));
+app.use(apiLimiter);
+app.use(passport.initialize());
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.resolve('uploads')));
-
+// Serve uploaded files (Optional fallback if not using R2)
+// app.use('/uploads', express.static(path.resolve('uploads')));
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({

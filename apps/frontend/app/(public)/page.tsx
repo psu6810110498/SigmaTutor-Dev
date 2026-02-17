@@ -1,193 +1,148 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, BookOpen, Users, Award, Star } from "lucide-react";
-import { Button } from "@/app/components/ui/Button";
-import { useCourse, ALL_COURSES } from "@/app/context/CourseContext";
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { FaShoppingCart, FaHeart, FaArrowRight, FaBook } from 'react-icons/fa';
+import { useCourse, ALL_COURSES } from '../context/CourseContext';
 
 export default function HomePage() {
-  const { addToCart, addToWishlist } = useCourse();
+   const { cartItems, wishlistItems, addToCart, addToWishlist } = useCourse();
 
-  return (
-    <>
-      {/* Hero Section */}
-      <section className="pt-12 pb-20 bg-white relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-                🎓 แพลตฟอร์มเรียนออนไลน์อันดับ 1
-              </span>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
-                อัปเกรดคะแนน
-                <br />
-                <span className="text-primary">ให้พุ่งทะยาน</span>
-              </h1>
-              <p className="text-gray-600 text-lg mb-8 max-w-lg leading-relaxed">
-                เรียนรู้กับติวเตอร์ชั้นนำระดับประเทศ ด้วยโปรแกรมที่ออกแบบมาเพื่อความสำเร็จของคุณ
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/explore">
-                  <Button size="lg">
-                    <span className="flex items-center gap-2">
-                      เริ่มเรียนเลย <ArrowRight size={20} />
-                    </span>
-                  </Button>
-                </Link>
-                <Button variant="outline" size="lg">
-                  ดูวิดีโอแนะนำ
-                </Button>
-              </div>
-            </div>
-            <div className="hidden lg:flex items-center justify-center">
-              <div className="w-full h-80 bg-white/60 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center backdrop-blur-sm">
-                <p className="text-gray-400 text-sm">พื้นที่สำหรับรูปภาพ Hero</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+   const [isCartOpen, setIsCartOpen] = useState(false);
+   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
 
-      {/* Stats Section */}
-      <section className="py-12 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { icon: <Users size={24} />, value: "10,000+", label: "นักเรียนทั่วประเทศ" },
-              { icon: <BookOpen size={24} />, value: "200+", label: "คอร์สคุณภาพ" },
-              { icon: <Award size={24} />, value: "50+", label: "ผู้สอนมืออาชีพ" },
-              { icon: <Star size={24} />, value: "4.9/5", label: "คะแนนรีวิว" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="w-12 h-12 bg-primary-light rounded-xl flex items-center justify-center mx-auto mb-3 text-primary">
-                  {stat.icon}
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+   const cartRef = useRef<HTMLDivElement>(null);
+   const wishlistRef = useRef<HTMLDivElement>(null);
 
-      {/* Featured Courses */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">คอร์สเรียนแนะนำ</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              คอร์สเรียนยอดนิยมจากผู้สอนชั้นนำ คัดสรรมาเพื่อคุณโดยเฉพาะ
-            </p>
-          </div>
+   const totalPrice = cartItems.reduce((sum, item) => sum + item.price, 0);
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {ALL_COURSES.slice(0, 3).map((course) => (
-              <div
-                key={course.id}
-                className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all group"
-              >
-                {/* Image placeholder */}
-                <div className="h-48 bg-gray-100 flex items-center justify-center relative">
-                  <BookOpen size={48} className="text-gray-300" />
-                  {course.category && (
-                    <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-primary">
-                      {course.category}
-                    </span>
-                  )}
-                </div>
-                <div className="p-5">
-                  <h3 className="font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                    {course.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    {course.instructor} · {course.level}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-primary">
-                      ฿{course.price.toLocaleString()}
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => addToCart(course)}
-                    >
-                      เพิ่มลงตะกร้า
-                    </Button>
+   useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+         if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
+            setIsCartOpen(false);
+         }
+         if (wishlistRef.current && !wishlistRef.current.contains(event.target as Node)) {
+            setIsWishlistOpen(false);
+         }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+   }, []);
+
+   return (
+      <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
+
+         {/* Hero Section */}
+         <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+               <div className="grid lg:grid-cols-2 gap-12 items-center">
+
+                  <div className="text-center lg:text-left space-y-6">
+                     <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6" style={{ lineHeight: '1.6' }}>
+                        <span className="block mb-2">อัปเกรดคะแนนให้พุ่ง</span>
+                        <span className="block">
+                           ด้วย <span className="text-blue-600">เทคนิคระดับท็อป</span>
+                        </span>
+                     </h1>
+                     <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 font-serif leading-relaxed">
+                        เรียนรู้และพัฒนาเพื่อเตรียมตัวสอบในโรงเรียน หรือสอบเข้ามหาวิทยาลัย
+                        ด้วยเนื้อหาที่เข้มข้นและอาจารย์ผู้สอนมืออาชีพระดับประเทศ
+                     </p>
+                     <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
+                        <Link href="/explore">
+                           <button className="bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold px-8 py-3.5 rounded-xl shadow-xl shadow-blue-500/20 transition-all hover:-translate-y-1">
+                              สำรวจคอร์สเรียน ↗
+                           </button>
+                        </Link>
+                        <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-lg font-medium px-8 py-3.5 rounded-xl transition-all">
+                           ดูวิดีโอตัวอย่าง
+                        </button>
+                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <div className="text-center mt-10">
-            <Link href="/explore">
-              <Button variant="outline" size="lg">
-                <span className="flex items-center gap-2">
-                  ดูคอร์สทั้งหมด <ArrowRight size={18} />
-                </span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+                  <div className="relative">
+                     <div className="absolute -top-10 -right-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+                     <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
-      {/* Testimonials */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">เสียงจากนักเรียน</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              นักเรียนกว่า 10,000 คนเชื่อมั่นใน Sigma Tutor
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "น้องปลื้ม", score: "คะแนนเพิ่ม 40%", text: "การสอนเข้าใจง่ายมาก ทำให้คะแนนพุ่งขึ้นอย่างไม่น่าเชื่อ" },
-              { name: "น้องออม", score: "สอบติดจุฬาฯ", text: "คอร์สคุณภาพดีมาก อาจารย์ใจดี สอนเทคนิคที่ไม่มีในตำราเรียน" },
-              { name: "น้องซัน", score: "IELTS 7.5", text: "เรียนง่าย เข้าใจง่าย มีแบบฝึกหัดให้ทำเยอะ ดีมากครับ" },
-            ].map((testimonial, i) => (
-              <div key={i} className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                <div className="flex gap-1 mb-3">
-                  {[...Array(5)].map((_, j) => (
-                    <Star key={j} size={16} className="text-yellow-400 fill-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-4 leading-relaxed">{testimonial.text}</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary-light rounded-full flex items-center justify-center text-primary font-bold text-sm">
-                    {testimonial.name[0]}
+                     <div className="relative h-[400px] lg:h-[500px] w-full bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden backdrop-blur-sm bg-white/50">
+                        <div className="text-center p-8 opacity-40">
+                           <p className="font-bold text-xl text-gray-400">พื้นที่สำหรับรูปภาพ</p>
+                           <p className="text-sm text-gray-400 mt-2">Hero Image Placeholder</p>
+                        </div>
+                     </div>
                   </div>
+               </div>
+            </div>
+         </section>
+
+         {/* Demo Buttons Area */}
+         <section className="py-8 bg-white border-b border-gray-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+               <h3 className="text-sm font-bold mb-4 text-gray-500 uppercase tracking-wide">Context Demo</h3>
+               <div className="flex gap-4 justify-center">
+                  <button
+                     onClick={() => addToCart(ALL_COURSES[0])}
+                     className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
+                  >
+                     <FaShoppingCart /> เพิ่ม "{ALL_COURSES[0].title}" ลงตะกร้า
+                  </button>
+
+               </div>
+            </div>
+         </section>
+
+         {/* 3. Stats Section */}
+         <section className="py-10 bg-white border-y border-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100 text-center opacity-50">
+                  <div className="p-4">
+                     <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
+                     <p className="text-gray-600 font-medium">คอร์สเรียน</p>
+                  </div>
+                  <div className="p-4">
+                     <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
+                     <p className="text-gray-600 font-medium">ผู้เรียน</p>
+                  </div>
+                  <div className="p-4">
+                     <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
+                     <p className="text-gray-600 font-medium">ผู้สอนมืออาชีพ</p>
+                  </div>
+                  <div className="p-4">
+                     <h3 className="text-3xl md:text-4xl font-bold text-primary mb-2">---</h3>
+                     <p className="text-gray-600 font-medium">ความพึงพอใจ</p>
+                  </div>
+               </div>
+            </div>
+         </section>
+
+         {/* 4. Popular Courses Section (Empty State) */}
+         <section className="py-16 md:py-24 bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+               <div className="flex justify-between items-end mb-12">
                   <div>
-                    <p className="font-bold text-gray-900 text-sm">{testimonial.name}</p>
-                    <p className="text-xs text-primary font-medium">{testimonial.score}</p>
+                     <h2 className="text-3xl font-bold text-gray-900 mb-2">คอร์สยอดนิยม</h2>
+                     <p className="text-gray-500 font-serif">เลือกเรียนวิชาที่คุณต้องการ เพื่อพัฒนาศักยภาพของคุณวันนี้</p>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                  <Link href="/courses" className="hidden md:flex items-center text-primary font-bold hover:underline">
+                     ดูคอร์สทั้งหมด <FaArrowRight className="ml-2 text-sm" />
+                  </Link>
+               </div>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-primary text-white">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">พร้อมเริ่มต้นเรียนรู้แล้วหรือยัง?</h2>
-          <p className="text-white/80 text-lg mb-8 max-w-2xl mx-auto">
-            สมัครสมาชิกวันนี้และเข้าถึงคอร์สเรียนคุณภาพสูงจากผู้สอนชั้นนำ
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
-              <Button variant="secondary" size="lg">
-                สมัครสมาชิกฟรี
-              </Button>
-            </Link>
-            <Link href="/explore">
-              <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10">
-                ดูคอร์สทั้งหมด
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+               <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                     <FaBook size={24} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-500">ยังไม่มีข้อมูลคอร์สแนะนำ</h3>
+                  <p className="text-gray-400 text-sm mt-1">รายการคอร์สเรียนยอดนิยมจะปรากฏที่นี่เมื่อระบบเชื่อมต่อกับฐานข้อมูล</p>
+               </div>
+
+            </div>
+         </section>
+
+
+
+      </div>
+   );
 }

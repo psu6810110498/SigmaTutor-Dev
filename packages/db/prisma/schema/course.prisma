@@ -1,38 +1,53 @@
 // Course models
 
 model Course {
-    id          String       @id @default(cuid())
-    title       String
-    description String?
-    price       Float
-    thumbnail   String?
-    status      CourseStatus @default(DRAFT)
+    id            String       @id @default(cuid())
+    title         String
+    slug          String       @unique
+    description   String?
+    price         Float // From Main (Float is better for price)
+    originalPrice Float? // Aligning with price
+    status        CourseStatus @default(DRAFT)
+    courseType    CourseType   @default(ONLINE)
 
+    thumbnail   String?
+    thumbnailSm String?
+    thumbnailLg String?
+
+    // Relations (Head)
+    categoryId String?
+    category   Category? @relation(fields: [categoryId], references: [id])
+    levelId    String?
+    level      Level?    @relation(fields: [levelId], references: [id])
+
+    // Relations (Main)
     instructorId String
     instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+    // Head Fields
+    duration        String?
+    videoCount      Int       @default(0)
+    maxSeats        Int?
+    enrollStartDate DateTime?
+    enrollEndDate   DateTime?
+    location        String?
+    mapUrl          String?
+    zoomLink        String?
+    published       Boolean   @default(false)
+
+    // Child Relations
+    chapters    Chapter[] // From HEAD
+    schedules   CourseSchedule[] // From HEAD
+    enrollments Enrollment[] // From Main
+    payments    Payment[] // From Main
+    reviews     Review[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    lessons     Lesson[]
-    enrollments Enrollment[]
-    payments    Payment[]
-
     @@index([instructorId])
     @@index([status])
-}
-
-model Lesson {
-    id       String  @id @default(cuid())
-    title    String
-    content  String?
-    videoUrl String?
-    order    Int
-    courseId String
-
-    course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-    @@index([courseId])
+    @@map("courses")
 }
 
 model Enrollment {
@@ -68,6 +83,12 @@ enum CourseStatus {
     DRAFT
     PUBLISHED
     ARCHIVED
+}
+
+enum CourseType {
+    ONLINE
+    ONLINE_LIVE
+    ONSITE
 }
 
 enum EnrollmentStatus {

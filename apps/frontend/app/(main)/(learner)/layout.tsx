@@ -1,74 +1,118 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, BookOpen, Settings } from "lucide-react";
-import { PublicNavbar } from "@/app/components/layouts/PublicNavbar";
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { FiUser, FiGrid, FiBook, FiLogOut, FiShoppingCart, FiBell, FiMenu } from 'react-icons/fi';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { PublicNavbar } from '@/app/components/layouts/PublicNavbar'; // Import PublicNavbar
 
-const sidebarLinks = [
-    { href: "/dashboard", label: "หน้าหลัก", icon: Home },
-    { href: "/dashboard/my-courses", label: "คอร์สของฉัน", icon: BookOpen },
-    { href: "/dashboard/settings", label: "ตั้งค่าโปรไฟล์", icon: Settings },
-];
+export default function LearnerLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
 
-export default function LearnerLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    const pathname = usePathname();
+  const { user, logout, loading } = useAuth();
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const menuItems = [
+    { name: 'แดชบอร์ด', icon: FiGrid, href: '/dashboard' },
+    { name: 'ตารางเรียนของฉัน', icon: FiBook, href: '/my-courses' }, // Rename to match context if needed
+    { name: 'ข้อมูลส่วนตัว', icon: FiUser, href: '/profile' },
+  ];
+
+  if (loading) {
     return (
-        <div className="min-h-screen bg-gray-50">
-            <PublicNavbar />
-            <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex gap-8">
-                    {/* Sidebar */}
-                    <aside className="hidden lg:block w-56 flex-shrink-0">
-                        <nav className="bg-white rounded-xl border border-gray-200 p-4 space-y-1 sticky top-28">
-                            {sidebarLinks.map((link) => {
-                                const isActive = pathname === link.href;
-                                return (
-                                    <Link
-                                        key={link.href}
-                                        href={link.href}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                                                ? "bg-primary text-white"
-                                                : "text-gray-600 hover:bg-gray-100"
-                                            }`}
-                                    >
-                                        <link.icon size={18} />
-                                        {link.label}
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                    </aside>
-
-                    {/* Mobile nav */}
-                    <div className="lg:hidden flex gap-2 mb-4 w-full overflow-x-auto pb-2">
-                        {sidebarLinks.map((link) => {
-                            const isActive = pathname === link.href;
-                            return (
-                                <Link
-                                    key={link.href}
-                                    href={link.href}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${isActive
-                                            ? "bg-primary text-white"
-                                            : "bg-white text-gray-600 border border-gray-200"
-                                        }`}
-                                >
-                                    <link.icon size={16} />
-                                    {link.label}
-                                </Link>
-                            );
-                        })}
-                    </div>
-
-                    {/* Content */}
-                    <main className="flex-1 min-w-0">{children}</main>
-                </div>
-            </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
+
+      {/* --- 1. Top Navbar (Replaced with PublicNavbar for consistency) --- */}
+      {/* Pass isDashboard={true} to align logo with sidebar */}
+      <PublicNavbar
+        onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        isDashboard={true}
+      />
+
+      {/* Adjusted padding-top to account for PublicNavbar height (h-20 = 80px) */}
+      <div className="flex pt-20 flex-1">
+
+        {/* --- 2. Sidebar (Left) --- */}
+        <aside className={`
+          fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out z-40
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
+          pt-20 md:pt-0 
+        `}>
+          {/* Added top padding for mobile sidebar to clear navbar */}
+
+          <div className="p-6 h-full flex flex-col">
+            {/* User Info Card */}
+            <div className="flex flex-col items-center mb-8 pt-4">
+              <div className="w-20 h-20 rounded-full mb-3 relative p-1 bg-gradient-to-tr from-blue-400 to-purple-400">
+                <div className="w-full h-full rounded-full bg-white p-0.5 overflow-hidden">
+                  <img
+                    src={user?.profileImage || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`}
+                    alt="Profile"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                </div>
+              </div>
+              <h3 className="font-bold text-gray-800 text-center truncate w-full">
+                {user?.name || 'User'}
+              </h3>
+              <p className="text-gray-400 text-[10px] text-center truncate w-full">{user?.email}</p>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="space-y-1 flex-1">
+              {menuItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${isActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600'
+                      }`}
+                  >
+                    <item.icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-600'}`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Logout Button */}
+            <div className="pt-6 border-t border-gray-100">
+              <button
+                onClick={handleLogout}
+                className="flex items-center px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl w-full transition-colors text-sm font-medium"
+              >
+                <FiLogOut className="w-5 h-5 mr-3" />
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* --- 3. Main Content Area --- */}
+        <main className="flex-1 p-4 md:p-8 bg-gray-50 overflow-x-hidden">
+          <div className="max-w-5xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 }

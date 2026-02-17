@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Kanit, Noto_Serif_Thai } from "next/font/google";
 import "./globals.css";
-// 1. Import Provider
+// ✅ เพิ่มการนำเข้า AuthProvider จากโฟลเดอร์ context
+import { AuthProvider } from "./context/AuthContext";
 import { CourseProvider } from "./context/CourseContext";
+import { Providers } from './providers';
 
 const kanit = Kanit({
   subsets: ["thai", "latin"],
@@ -31,9 +33,14 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={`${kanit.variable} ${notoSerif.variable} font-sans bg-background text-gray-900 antialiased`}>
-        <CourseProvider>
-          {children}
-        </CourseProvider>
+        <Providers>
+          {/* AuthProvider from HEAD, CourseProvider from Main */}
+          <AuthProvider>
+            <CourseProvider>
+              {children}
+            </CourseProvider>
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -1,18 +1,21 @@
 // User model
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profileImage String?
 
   // Relations
+  // posts             Post[] // Removed missing model
   sessions          Session[]
   instructorCourses Course[]     @relation("InstructorCourses")
   enrollments       Enrollment[]
   payments          Payment[]
+  reviews           Review[]
 
   @@index([email])
 }

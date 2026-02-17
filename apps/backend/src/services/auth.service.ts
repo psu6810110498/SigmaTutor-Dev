@@ -2,8 +2,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@sigma/db';
 import type { RegisterInput, LoginInput } from '../schemas/auth.schema.js';
+import nodemailer from 'nodemailer';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = 'sigma-tutor-secret-key-12345';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
@@ -15,165 +16,170 @@ export interface TokenPayload {
 }
 
 export class AuthService {
-  /**
-   * Register a new user
-   */
+  private async sendResetEmail(email: string, link: string) {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: '"Sigma Tutor" <noreply@sigmatutor.com>',
+      to: email,
+      subject: 'รีเซ็ตรหัสผ่านของคุณ - Sigma Tutor',
+      html: `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; background-color: #f9f9f9;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 20px; shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #1e40af; margin-bottom: 24px;">สวัสดีครับ/ค่ะ</h2>
+            <p style="color: #4b5563; line-height: 1.6;">เราได้รับคำขอให้รีเซ็ตรหัสผ่านสำหรับบัญชี Sigma Tutor ของคุณ หากคุณเป็นคนส่งคำขอนี้ โปรดคลิกที่ปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${link}" style="background-color: #0052CC; color: white; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">ตั้งรหัสผ่านใหม่</a>
+            </div>
+            <p style="color: #9ca3af; font-size: 14px;">* ลิงก์นี้มีอายุการใช้งาน 1 ชั่วโมง หากคุณไม่ได้เป็นคนส่งคำขอนี้ โปรดเพิกเฉยต่ออีเมลฉบับนี้</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 40px 0;" />
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">© 2026 Sigma Tutor Team</p>
+          </div>
+        </div>
+      `,
+    });
+  }
+
   async register(input: RegisterInput) {
-    const existingUser = await prisma.user.findUnique({
-      where: { email: input.email },
-    });
-
-    if (existingUser) {
-      throw new Error('User with this email already exists');
-    }
-
+    const existingUser = await prisma.user.findUnique({ where: { email: input.email } });
+    if (existingUser) throw new Error('User with this email already exists');
     const hashedPassword = await bcrypt.hash(input.password, 12);
-
-    const user = await prisma.user.create({
-      data: {
-        email: input.email,
-        password: hashedPassword,
-        name: input.name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
+    return await prisma.user.create({
+      data: { email: input.email, password: hashedPassword, name: input.name },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
     });
-
-    return user;
   }
 
-  /**
-   * Login user and return tokens
-   */
   async login(input: LoginInput) {
-    const user = await prisma.user.findUnique({
-      where: { email: input.email },
-    });
-
-    if (!user) {
-      throw new Error('Invalid email or password');
-    }
-
+    const user = await prisma.user.findUnique({ where: { email: input.email } });
+    if (!user) throw new Error('Invalid email or password');
     const isValidPassword = await bcrypt.compare(input.password, user.password);
-
-    if (!isValidPassword) {
-      throw new Error('Invalid email or password');
-    }
-
+    if (!isValidPassword) throw new Error('Invalid email or password');
     const tokens = await this.generateTokens(user.id, user.email, user.role);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      ...tokens,
-    };
+    return { user: { id: user.id, email: user.email, name: user.name, role: user.role }, ...tokens };
   }
 
-  /**
-   * Refresh access token using refresh token
-   */
-  async refreshToken(refreshToken: string) {
-    const session = await prisma.session.findUnique({
-      where: { refreshToken },
-      include: { user: true },
-    });
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('ไม่พบผู้ใช้งานที่ใช้อีเมลนี้ในระบบ');
 
-    if (!session || session.expiresAt < new Date()) {
-      if (session) {
-        await prisma.session.delete({ where: { id: session.id } });
-      }
-      throw new Error('Invalid or expired refresh token');
-    }
-
-    // Delete old session
-    await prisma.session.delete({ where: { id: session.id } });
-
-    // Generate new tokens
-    const tokens = await this.generateTokens(
-      session.user.id,
-      session.user.email,
-      session.user.role
+    const resetToken = jwt.sign(
+      { userId: user.id, type: 'reset' },
+      JWT_SECRET,
+      { expiresIn: '1h' }
     );
 
-    return tokens;
+    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+    try {
+      await this.sendResetEmail(email, resetLink);
+      console.log(`[Email Sent] Reset link sent to: ${email}`);
+      return { success: true, message: 'ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลของคุณแล้ว' };
+    } catch (error: any) {
+      console.error('Nodemailer Error:', error.message);
+      throw new Error('ไม่สามารถส่งอีเมลได้ในขณะนี้ กรุณาลองใหม่ภายหลัง');
+    }
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    try {
+      const hasUpperCase = /[A-Z]/.test(newPassword);
+      const hasNumber = /[0-9]/.test(newPassword);
+      
+      if (newPassword.length < 8 || !hasUpperCase || !hasNumber) {
+        throw new Error('รหัสผ่านไม่เป็นไปตามมาตรฐานความปลอดภัย');
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; type: string };
+      if (decoded.type !== 'reset') throw new Error('ประเภทของรหัสยืนยันไม่ถูกต้อง');
+      
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      await prisma.user.update({ where: { id: decoded.userId }, data: { password: hashedPassword } });
+      
+      return { success: true, message: 'เปลี่ยนรหัสผ่านใหม่เรียบร้อยแล้ว' };
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') throw new Error('ลิงก์รีเซ็ตรหัสผ่านหมดอายุแล้ว');
+      throw new Error(error.message || 'ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้อง');
+    }
   }
 
   /**
-   * Logout user by invalidating refresh token
+   * ✅ เพิ่มส่วนนี้: สำหรับจัดการข้อมูลผู้ใช้ที่ล็อกอินผ่าน Google
    */
+  async validateGoogleUser(profile: any) {
+    try {
+      const email = profile.emails[0].value;
+      const name = profile.displayName;
+
+      // 1. ค้นหาผู้ใช้จากอีเมล
+      let user = await prisma.user.findUnique({ where: { email } });
+
+      // 2. ถ้าไม่มี ให้สร้างบัญชีใหม่ทันที (Auto-Register)
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            name,
+            // สำหรับ Social Login เราจะปล่อยรหัสผ่านเป็นค่าว่าง
+            // (อย่าลืมแก้ schema.prisma ให้ password เป็น optional ด้วยนะครับ)
+            password: '', 
+            role: 'USER',
+          },
+        });
+        console.log(`[Google Login] Created new user: ${email}`);
+      }
+
+      // 3. ออก Token ให้ผู้ใช้เหมือนการล็อกอินปกติ
+      return await this.generateTokens(user.id, user.email, user.role);
+    } catch (error: any) {
+      console.error('Google Auth Validation Error:', error.message);
+      throw new Error('เกิดข้อผิดพลาดในการยืนยันตัวตนด้วย Google');
+    }
+  }
+
+  async refreshToken(refreshToken: string) {
+    const session = await prisma.session.findUnique({ where: { refreshToken }, include: { user: true } });
+    if (!session || session.expiresAt < new Date()) {
+      if (session) await prisma.session.delete({ where: { id: session.id } });
+      throw new Error('Invalid or expired refresh token');
+    }
+    await prisma.session.delete({ where: { id: session.id } });
+    return await this.generateTokens(session.user.id, session.user.email, session.user.role);
+  }
+
   async logout(refreshToken: string) {
-    await prisma.session.deleteMany({
-      where: { refreshToken },
-    });
+    await prisma.session.deleteMany({ where: { refreshToken } });
   }
 
-  /**
-   * Generate access and refresh tokens
-   */
   private async generateTokens(userId: string, email: string, role: string) {
     const payload: TokenPayload = { userId, email, role };
-
-    const accessToken = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-    });
-
-    const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, {
-      expiresIn: JWT_REFRESH_EXPIRES_IN,
-    });
-
-    // Parse expiration time
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+    const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
     const expiresIn = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
     const expiresAt = new Date(Date.now() + expiresIn);
-
-    // Store refresh token in database
-    await prisma.session.create({
-      data: {
-        userId,
-        refreshToken,
-        expiresAt,
-      },
-    });
-
+    await prisma.session.create({ data: { userId, refreshToken, expiresAt } });
     return { accessToken, refreshToken };
   }
 
-  /**
-   * Verify access token
-   */
-  verifyAccessToken(token: string): TokenPayload {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  }
+  verifyAccessToken(token: string): TokenPayload { return jwt.verify(token, JWT_SECRET) as TokenPayload; }
 
-  /**
-   * Parse expiration string to milliseconds
-   */
   private parseExpiration(exp: string): number {
     const match = exp.match(/^(\d+)([smhd])$/);
-    if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 days
-
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
     const value = parseInt(match[1], 10);
     const unit = match[2];
-
     switch (unit) {
-      case 's':
-        return value * 1000;
-      case 'm':
-        return value * 60 * 1000;
-      case 'h':
-        return value * 60 * 60 * 1000;
-      case 'd':
-        return value * 24 * 60 * 60 * 1000;
-      default:
-        return 7 * 24 * 60 * 60 * 1000;
+      case 's': return value * 1000;
+      case 'm': return value * 60 * 1000;
+      case 'h': return value * 60 * 60 * 1000;
+      case 'd': return value * 24 * 60 * 60 * 1000;
+      default: return 7 * 24 * 60 * 60 * 1000;
     }
   }
 }
