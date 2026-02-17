@@ -1,0 +1,8 @@
+model Category {
+    id      String   @id @default(cuid())
+    name    String
+    slug    String   @unique
+    courses Course[]
+
+    @@map("categories")
+}
