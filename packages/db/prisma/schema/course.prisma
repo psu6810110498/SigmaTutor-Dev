@@ -1,26 +1,30 @@
+// Course models
+
 model Course {
     id            String       @id @default(cuid())
     title         String
     slug          String       @unique
     description   String?
-    price         Int
-    originalPrice Int?
+    price         Float // From Main (Float is better for price)
+    originalPrice Float? // Aligning with price
     status        CourseStatus @default(DRAFT)
-    courseType    CourseType
+    courseType    CourseType   @default(ONLINE)
 
     thumbnail   String?
     thumbnailSm String?
     thumbnailLg String?
 
+    // Relations (Head)
     categoryId String?
     category   Category? @relation(fields: [categoryId], references: [id])
     levelId    String?
     level      Level?    @relation(fields: [levelId], references: [id])
 
-    // Assuming instructor maps to User
+    // Relations (Main)
     instructorId String
-    instructor   User   @relation(fields: [instructorId], references: [id])
+    instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
 
+    // Head Fields
     duration        String?
     videoCount      Int       @default(0)
     maxSeats        Int?
@@ -31,14 +35,47 @@ model Course {
     zoomLink        String?
     published       Boolean   @default(false)
 
+    // Child Relations
+    chapters    Chapter[] // From HEAD
+    schedules   CourseSchedule[] // From HEAD
+    enrollments Enrollment[] // From Main
+    payments    Payment[] // From Main
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    chapters  Chapter[]
-    schedules CourseSchedule[]
-    // reviews         Review[] 
-
+    @@index([instructorId])
+    @@index([status])
     @@map("courses")
+}
+
+model Enrollment {
+    id        String           @id @default(cuid())
+    userId    String
+    courseId  String
+    status    EnrollmentStatus @default(ACTIVE)
+    createdAt DateTime         @default(now())
+
+    user   User   @relation(fields: [userId], references: [id])
+    course Course @relation(fields: [courseId], references: [id])
+
+    @@unique([userId, courseId])
+}
+
+model Payment {
+    id        String        @id @default(cuid())
+    userId    String
+    courseId  String
+    amount    Float
+    status    PaymentStatus @default(PENDING)
+    stripeId  String?       @unique
+    createdAt DateTime      @default(now())
+
+    user   User   @relation(fields: [userId], references: [id])
+    course Course @relation(fields: [courseId], references: [id])
+
+    @@index([userId])
+    @@index([courseId])
 }
 
 enum CourseStatus {
@@ -51,4 +88,17 @@ enum CourseType {
     ONLINE
     ONLINE_LIVE
     ONSITE
+}
+
+enum EnrollmentStatus {
+    ACTIVE
+    COMPLETED
+    CANCELLED
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
 }

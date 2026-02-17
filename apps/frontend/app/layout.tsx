@@ -31,10 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body className={`${kanit.variable} ${notoSerif.variable} font-serif bg-background text-gray-900 antialiased`}>
-        {/* ✅ ลบ <Navbar /> ออกแล้ว เพื่อความสวยงามของหน้า Auth */}
-        
-        {/* ✅ ล้อมรอบด้วย AuthProvider เพื่อให้ "สมองส่วนกลาง" ทำงานได้ทั่วทั้งเว็บ */}
+      <body className={`${kanit.variable} ${notoSerif.variable} font-sans bg-background text-gray-900 antialiased`}>
+        {/* AuthProvider from HEAD, CourseProvider from Main */}
         <AuthProvider>
           <CourseProvider>
             {children}

@@ -2,6 +2,8 @@ import express from 'express';
 import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
 import uploadRoutes from './upload.routes';
+import courseRoutes from './course.routes.js';
+import paymentRoutes from './payment.routes.js';
 
 // ✅ ระบุ Type : express.Router เพื่อแก้ปัญหา inferred type
 const router: express.Router = express.Router();
@@ -10,5 +12,7 @@ const router: express.Router = express.Router();
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/courses', courseRoutes);
+router.use('/payments', paymentRoutes);
 
 export default router;

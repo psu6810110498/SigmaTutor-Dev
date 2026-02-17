@@ -28,7 +28,7 @@ export class UploadService {
 
     try {
       await this.s3Client.send(command);
-      
+
       // คืนค่า URL กลับไป (เดี๋ยวต้องไปเปิด Public URL ใน Cloudflare ต่อ)
       return {
         url: `https://pub-d0f41a703ea14e2092f9c58b4d489324.r2.dev/${fileName}`,

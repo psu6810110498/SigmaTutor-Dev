@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import routes from './routes/index'; // <--- ลบ .js ออก
-import { errorHandler, notFoundHandler } from './middleware/error.middleware'; // <--- ลบ .js ออก
+import routes from './routes/index';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import passport from 'passport';
 import './strategies/google.strategy.js'
 
@@ -23,6 +23,9 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
+
+// Serve uploaded files (Optional fallback if not using R2)
+// app.use('/uploads', express.static(path.resolve('uploads')));
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
