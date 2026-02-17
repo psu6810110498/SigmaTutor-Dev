@@ -28,30 +28,27 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-
       {/* --- 1. Top Navbar (Replaced with PublicNavbar for consistency) --- */}
       {/* Pass isDashboard={true} to align logo with sidebar */}
-      <PublicNavbar
-        onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        isDashboard={true}
-      />
+      <PublicNavbar onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)} isDashboard={true} />
 
       {/* Adjusted padding-top to account for PublicNavbar height (h-20 = 80px) */}
       <div className="flex pt-20 flex-1">
-
         {/* --- 2. Sidebar (Left) --- */}
-        <aside className={`
+        <aside
+          className={`
           fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out z-40
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
           pt-20 md:pt-0 
-        `}>
+        `}
+        >
           {/* Added top padding for mobile sidebar to clear navbar */}
 
           <div className="p-6 h-full flex flex-col">
@@ -60,7 +57,10 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
               <div className="w-20 h-20 rounded-full mb-3 relative p-1 bg-gradient-to-tr from-blue-400 to-purple-400">
                 <div className="w-full h-full rounded-full bg-white p-0.5 overflow-hidden">
                   <img
-                    src={user?.profileImage || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`}
+                    src={
+                      user?.profileImage ||
+                      `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`
+                    }
                     alt="Profile"
                     className="w-full h-full object-cover rounded-full"
                   />
@@ -81,12 +81,15 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600'
-                      }`}
+                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${
+                      isActive
+                        ? 'bg-primary text-white shadow-md shadow-primary/20'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
+                    }`}
                   >
-                    <item.icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-600'}`} />
+                    <item.icon
+                      className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-primary'}`}
+                    />
                     {item.name}
                   </Link>
                 );
@@ -97,7 +100,7 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
             <div className="pt-6 border-t border-gray-100">
               <button
                 onClick={handleLogout}
-                className="flex items-center px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl w-full transition-colors text-sm font-medium"
+                className="flex items-center px-4 py-3 text-destructive hover:bg-destructive-light rounded-xl w-full transition-colors text-sm font-medium"
               >
                 <FiLogOut className="w-5 h-5 mr-3" />
                 ออกจากระบบ
@@ -108,9 +111,7 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
 
         {/* --- 3. Main Content Area --- */}
         <main className="flex-1 p-4 md:p-8 bg-gray-50 overflow-x-hidden">
-          <div className="max-w-5xl mx-auto">
-            {children}
-          </div>
+          <div className="max-w-5xl mx-auto">{children}</div>
         </main>
       </div>
     </div>
