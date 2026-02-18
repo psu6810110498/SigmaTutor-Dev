@@ -3,12 +3,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
+// ✅ แก้ไข: เพิ่มฟิลด์เสริมเข้าไปใน Interface ให้ครบตาม Database
 export interface User {
   id: string;
   email: string;
   name: string;
   role: string;
   profileImage?: string;
+  phone?: string;
+  address?: string;
+  school?: string;
+  educationLevel?: string;
+  province?: string;
+  birthday?: string;
 }
 
 interface AuthContextType {
@@ -28,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      // ✅ เพิ่ม .catch(() => null) เพื่อป้องกันหน้าจอแดง "Failed to fetch"
       const res = await fetch('http://localhost:4000/api/auth/me', {
         credentials: 'include',
       }).catch(() => null); 

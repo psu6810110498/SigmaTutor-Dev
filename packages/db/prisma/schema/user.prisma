@@ -9,8 +9,15 @@ model User {
   updatedAt    DateTime @updatedAt
   profileImage String?
 
+  // ✅ ฟิลด์ที่เพิ่มใหม่สำหรับหน้า Profile
+  address        String?
+  phone          String?
+  birthday       DateTime?
+  educationLevel String?
+  school         String?
+  province       String?
+
   // Relations
-  // posts             Post[] // Removed missing model
   sessions          Session[]
   instructorCourses Course[]     @relation("InstructorCourses")
   enrollments       Enrollment[]

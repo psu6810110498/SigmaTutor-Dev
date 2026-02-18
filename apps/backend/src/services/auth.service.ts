@@ -12,9 +12,9 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 export interface TokenPayload {
   userId: string;
   email: string;
-  name: string; // ✅ เพิ่มเพื่อให้ Sidebar/Navbar ดึงไปใช้ได้
+  name: string;
   role: string;
-  profileImage?: string; // ✅ เพิ่มรูปโปรไฟล์
+  profileImage?: string;
 }
 
 export class AuthService {
@@ -64,16 +64,29 @@ export class AuthService {
     const isValidPassword = await bcrypt.compare(input.password, user.password);
     if (!isValidPassword) throw new Error('Invalid email or password');
     
-    // ✅ ส่ง name และ profileImage เข้าไปสร้าง Token
     const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role, user.profileImage || undefined);
     return { user: { id: user.id, email: user.email, name: user.name, role: user.role, profileImage: user.profileImage }, ...tokens };
   }
 
-  // ✅ เพิ่มฟังก์ชันเพื่อดึงข้อมูลผู้ใช้ล่าสุด
+  /**
+   * ✅ แก้ไข: เพิ่มฟิลด์ให้ครบ เพื่อให้ระบบจำข้อมูลที่อยู่/เบอร์โทรได้หลัง Refresh
+   */
   async getUserById(id: string) {
     return await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, name: true, role: true, profileImage: true }
+      select: { 
+        id: true, 
+        email: true, 
+        name: true, 
+        role: true, 
+        profileImage: true,
+        phone: true,
+        address: true,
+        school: true,
+        educationLevel: true,
+        province: true,
+        birthday: true
+      }
     });
   }
 
@@ -127,7 +140,6 @@ export class AuthService {
         });
       }
 
-      // ✅ ส่งข้อมูลเข้า Token ให้ครบถ้วน
       return await this.generateTokens(user.id, user.email, user.name || '', user.role, user.profileImage || undefined);
     } catch (error: any) {
       throw new Error('เกิดข้อผิดพลาดในการยืนยันตัวตนด้วย Google');
@@ -141,7 +153,6 @@ export class AuthService {
       throw new Error('Invalid or expired refresh token');
     }
     await prisma.session.delete({ where: { id: session.id } });
-    // ✅ ส่ง name และ profileImage จาก User ใน session
     return await this.generateTokens(session.user.id, session.user.email, session.user.name || '', session.user.role, session.user.profileImage || undefined);
   }
 
@@ -150,7 +161,7 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, email: string, name: string, role: string, profileImage?: string) {
-    const payload: TokenPayload = { userId, email, name, role, profileImage }; // ✅ รวมข้อมูลใน Payload
+    const payload: TokenPayload = { userId, email, name, role, profileImage }; 
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
     const expiresIn = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
