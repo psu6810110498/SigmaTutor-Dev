@@ -9,6 +9,7 @@ import {
     updateCourseStatusSchema,
     courseQuerySchema,
 } from '../schemas/course.schema.js';
+import { prisma } from '@sigma/db'; // ✅ เพิ่ม import prisma สำหรับใช้ดึงคอร์สของฉัน
 
 const router: Router = Router();
 
@@ -44,6 +45,52 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch courses';
         res.status(400).json({ success: false, error: message });
+    }
+});
+
+/**
+ * GET /api/courses/my-courses
+ * ✅ ดึงข้อมูลคอร์สเรียนที่ผู้ใช้ล็อกอินลงทะเบียนไว้
+ * ⚠️ วางไว้ตรงนี้ถูกต้องแล้ว (ก่อนถึง /:id) เพื่อไม่ให้ Express routing สับสน
+ */
+router.get('/my-courses', authenticate, async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?.userId;
+  
+    try {
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+
+        const enrollments = await prisma.enrollment.findMany({
+            where: { userId: userId },
+            include: {
+                course: {
+                    include: {
+                        instructor: { select: { name: true } },
+                        category: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const myCourses = enrollments.map((en) => ({
+            id: en.course.id,
+            title: en.course.title,
+            thumbnail: en.course.thumbnail,
+            category: en.course.categoryId ? 'หมวดหมู่วิชา' : 'ทั่วไป', 
+            instructor: en.course.instructor?.name || 'ไม่ระบุผู้สอน',
+            courseType: en.course.courseType, 
+            status: en.status,
+            progress: en.status === 'COMPLETED' ? 100 : 0 
+        }));
+
+        res.json({ success: true, data: myCourses });
+    } catch (error) {
+        console.error('Fetch my-courses error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch my courses' });
     }
 });
 

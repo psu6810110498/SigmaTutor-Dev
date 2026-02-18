@@ -9,12 +9,12 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
+// ✅ แก้ไข: เอา profileImage ออกจาก Token เพื่อไม่ให้ Token อ้วนจน Database พัง
 export interface TokenPayload {
   userId: string;
   email: string;
   name: string;
   role: string;
-  profileImage?: string;
 }
 
 export class AuthService {
@@ -64,28 +64,17 @@ export class AuthService {
     const isValidPassword = await bcrypt.compare(input.password, user.password);
     if (!isValidPassword) throw new Error('Invalid email or password');
     
-    const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role, user.profileImage || undefined);
+    // ✅ แก้ไข: ไม่ต้องส่ง profileImage ไปสร้าง Token แล้ว
+    const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role);
     return { user: { id: user.id, email: user.email, name: user.name, role: user.role, profileImage: user.profileImage }, ...tokens };
   }
 
-  /**
-   * ✅ แก้ไข: เพิ่มฟิลด์ให้ครบ เพื่อให้ระบบจำข้อมูลที่อยู่/เบอร์โทรได้หลัง Refresh
-   */
   async getUserById(id: string) {
     return await prisma.user.findUnique({
       where: { id },
       select: { 
-        id: true, 
-        email: true, 
-        name: true, 
-        role: true, 
-        profileImage: true,
-        phone: true,
-        address: true,
-        school: true,
-        educationLevel: true,
-        province: true,
-        birthday: true
+        id: true, email: true, name: true, role: true, profileImage: true,
+        phone: true, address: true, school: true, educationLevel: true, province: true, birthday: true
       }
     });
   }
@@ -140,9 +129,11 @@ export class AuthService {
         });
       }
 
-      return await this.generateTokens(user.id, user.email, user.name || '', user.role, user.profileImage || undefined);
+      // ✅ แก้ไข: ไม่ต้องส่ง profileImage ไปสร้าง Token แล้ว
+      return await this.generateTokens(user.id, user.email, user.name || '', user.role);
     } catch (error: any) {
-      throw new Error('เกิดข้อผิดพลาดในการยืนยันตัวตนด้วย Google');
+      console.error("🔥 Google Auth Error ของจริงคือ:", error);
+      throw new Error(`ระบบขัดข้อง: ${error.message || 'ไม่ทราบสาเหตุ'}`);
     }
   }
 
@@ -153,15 +144,17 @@ export class AuthService {
       throw new Error('Invalid or expired refresh token');
     }
     await prisma.session.delete({ where: { id: session.id } });
-    return await this.generateTokens(session.user.id, session.user.email, session.user.name || '', session.user.role, session.user.profileImage || undefined);
+    // ✅ แก้ไข: ไม่ต้องส่ง profileImage ไปสร้าง Token แล้ว
+    return await this.generateTokens(session.user.id, session.user.email, session.user.name || '', session.user.role);
   }
 
   async logout(refreshToken: string) {
     await prisma.session.deleteMany({ where: { refreshToken } });
   }
 
-  private async generateTokens(userId: string, email: string, name: string, role: string, profileImage?: string) {
-    const payload: TokenPayload = { userId, email, name, role, profileImage }; 
+  // ✅ แก้ไข: ลบการรับค่า profileImage ออกไปเลย
+  private async generateTokens(userId: string, email: string, name: string, role: string) {
+    const payload: TokenPayload = { userId, email, name, role }; 
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
     const expiresIn = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
