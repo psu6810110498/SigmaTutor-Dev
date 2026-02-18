@@ -1,39 +1,77 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ===== Design Tokens (TailwindCSS v4) ===== */
 @theme {
-  /* Brand Colors */
-  --color-primary: #0056D2;
-  --color-primary-dark: #003FA3;
-  --color-primary-light: #EFF6FF;
-  --color-secondary: #FF8C00;
+  /* ── Brand / Primary ── */
+  --color-primary: #0056d2;
+  --color-primary-foreground: #ffffff;
+  --color-primary-dark: #003fa3;
+  --color-primary-light: #eff6ff;
+  --color-primary-hover: #0047b3;
 
-  /* Neutral */
-  --color-background: #F9FAFB;
-  --color-surface: #FFFFFF;
-  --color-gray-50: #F9FAFB;
-  --color-gray-100: #F3F4F6;
-  --color-gray-200: #E5E7EB;
-  --color-gray-300: #D1D5DB;
-  --color-gray-400: #9CA3AF;
-  --color-gray-500: #6B7280;
-  --color-gray-600: #4B5563;
+  /* ── Secondary ── */
+  --color-secondary: #ff8c00;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-dark: #cc7000;
+  --color-secondary-light: #fff4e5;
+  --color-secondary-hover: #e67e00;
+
+  /* ── Destructive ── */
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-destructive-dark: #dc2626;
+  --color-destructive-light: #fef2f2;
+  --color-destructive-hover: #e03b3b;
+
+  /* ── Accent ── */
+  --color-accent: #e0edff;
+  --color-accent-foreground: #0056d2;
+
+  /* ── Muted ── */
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
+
+  /* ── Neutral / Gray ── */
+  --color-background: #f9fafb;
+  --color-foreground: #111827;
+  --color-surface: #ffffff;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
   --color-gray-700: #374151;
-  --color-gray-800: #1F2937;
+  --color-gray-800: #1f2937;
   --color-gray-900: #111827;
 
-  /* Status */
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
+  /* ── Border / Input / Ring ── */
+  --color-border: #e5e7eb;
+  --color-input: #e5e7eb;
+  --color-ring: #0056d2;
 
-  /* Layout */
+  /* ── Status ── */
+  --color-success: #22c55e;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #f0fdf4;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-warning-light: #fffbeb;
+  --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-light: #fef2f2;
+  --color-info: #3b82f6;
+  --color-info-foreground: #ffffff;
+  --color-info-light: #eff6ff;
+
+  /* ── Layout ── */
   --sidebar-width-expanded: 240px;
   --sidebar-width-collapsed: 56px;
 
-  /* Fonts */
-  --font-sans: var(--font-kanit), "Kanit", sans-serif;
-  --font-serif: var(--font-noto-serif), "Noto Serif Thai", serif;
+  /* ── Fonts ── */
+  --font-sans: var(--font-kanit), 'Kanit', sans-serif;
+  --font-serif: var(--font-noto-serif), 'Noto Serif Thai', serif;
 }
 
 /* ===== Base Styles ===== */
@@ -47,19 +85,37 @@ body {
 
 /* ===== Custom Animations ===== */
 @keyframes blob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
 }
 
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes bounce-short {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
 }
 
 /* ===== Utility Classes ===== */
