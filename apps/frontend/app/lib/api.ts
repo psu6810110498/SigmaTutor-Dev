@@ -99,7 +99,8 @@ export const courseApi = {
                 .map(([k, v]) => [k, String(v)])
         ).toString() : '';
 
-        return request<CourseListResponse>(`/courses/marketplace${query}`);
+        // Cache for 2 minutes (courses may change frequently)
+        return request<CourseListResponse>(`/courses/marketplace${query}`, {}, true, 2 * 60 * 1000);
     },
 
     /** GET /courses/enrolled — User's enrolled courses */
@@ -216,7 +217,8 @@ export const courseApi = {
 export const bannerApi = {
     /** GET /banners/active — For Homepage Slider */
     getActive(position: BannerPosition = 'EXPLORE_TOP') {
-        return request<Banner[]>(`/banners/active?position=${position}`);
+        // Cache banners for 5 minutes
+        return request<Banner[]>(`/banners/active?position=${position}`, {}, true, 5 * 60 * 1000);
     },
 
     /** GET /banners — Admin List */
@@ -258,7 +260,7 @@ export const bannerApi = {
 export const categoryApi = {
     /** GET /categories — List all (for dropdowns) */
     list() {
-        return request<Category[]>('/categories');
+        return request<Category[]>('/categories', {}, true, 10 * 60 * 1000); // Cache 10 minutes
     },
 
     /** POST /categories — Create (ADMIN) */
@@ -308,7 +310,7 @@ export const userApi = {
 export const levelApi = {
     /** GET /levels — List all (ordered) */
     list() {
-        return request<Level[]>('/levels');
+        return request<Level[]>('/levels', {}, true, 10 * 60 * 1000); // Cache 10 minutes
     },
 
     /** POST /levels — Create (ADMIN) */

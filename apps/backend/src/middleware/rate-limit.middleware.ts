@@ -1,16 +1,18 @@
 import rateLimit from 'express-rate-limit';
 
 // Global API Rate Limiter
-// Limit each IP to 100 requests per 15 minutes
+// Limit each IP to 500 requests per 15 minutes (เพิ่มขึ้นเพื่อรองรับ frontend ที่เรียกหลาย API พร้อมกัน)
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300, // Limit each IP to 300 requests per windowMs
+    max: 500, // Limit each IP to 500 requests per windowMs (เพิ่มจาก 300)
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     message: {
         success: false,
         error: 'Too many requests from this IP, please try again after 15 minutes',
     },
+    // Skip rate limiting for health check
+    skip: (req) => req.path === '/health',
 });
 
 // Auth Rate Limiter (stricter)
