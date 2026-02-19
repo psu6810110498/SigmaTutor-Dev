@@ -133,11 +133,18 @@ function MarketplaceContent() {
         return rootCategories;
     }, [categories, rootCategoryId, categoryId, childCategories, rootCategories]);
 
+    // Filter out Middle Banners that are already shown in Top Banners
+    const uniqueMiddleBanners = useMemo(() => {
+        const topIds = new Set(topBanners.map(b => b.id));
+        return middleBanners.filter(b => !topIds.has(b.id));
+    }, [topBanners, middleBanners]);
+
     return (
         <div className="min-h-screen bg-white">
 
+
             {/* 1. Banner (EXPLORE_TOP) */}
-            <div>
+            <div className="relative z-0">
                 {topBanners.length > 0 ? (
                     <BannerStrip banners={topBanners} />
                 ) : (
@@ -160,14 +167,12 @@ function MarketplaceContent() {
             </div>
 
             {/* 2. Quick Filters — uses hardcoded 7 labels from component */}
-            <div className="sticky top-20 z-40 -mt-8">
+            <div className="sticky top-20 z-[45] -mt-8">
                 <QuickFilters
                     activeFilter={activeFilterLabel}
                     onFilterChange={handleQuickFilterChange}
                 />
             </div>
-
-
 
             {/* 3. Advanced Filter Bar */}
             <div className="max-w-7xl mx-auto px-4 mt-8">
@@ -206,12 +211,13 @@ function MarketplaceContent() {
                 </div>
             )}
 
-            {/* 5. Middle Banner */}
-            {middleBanners.length > 0 && (
+            {/* 5. Middle Banner (Deduped) */}
+            {uniqueMiddleBanners.length > 0 && (
                 <div className="mt-8 mb-4">
-                    <BannerStrip banners={middleBanners} />
+                    <BannerStrip banners={uniqueMiddleBanners} />
                 </div>
             )}
+
 
             {/* 6. Course Sections */}
             <div className="pb-24">
