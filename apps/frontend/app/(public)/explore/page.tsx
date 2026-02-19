@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Banner, Category, Level } from '@/app/lib/types';
@@ -12,9 +12,10 @@ import { useMarketplaceFilters } from '@/app/hooks/useMarketplaceFilters';
 import { useQuickFilter } from '@/app/hooks/useQuickFilter';
 import { Filter, X } from 'lucide-react';
 
-export default function MarketplacePage() {
+// ✅ เปลี่ยนชื่อเป็น ExplorePage ให้ตรงกับกิ่ง main และตำแหน่งไฟล์
+export default function ExplorePage() {
     return (
-        <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+        <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">กำลังโหลด...</div>}>
             <MarketplaceContent />
         </React.Suspense>
     );
@@ -114,8 +115,6 @@ function MarketplaceContent() {
         [levels, levelId]
     );
 
-
-    // Active filter chips
     const activeFilters: { key: string; label: string; onRemove: () => void }[] = [];
     if (categoryId) {
         const cat = categories.find(c => c.id === categoryId);
@@ -164,35 +163,24 @@ function MarketplaceContent() {
         return rootCategories;
     }, [categories, rootCategoryId, categoryId, childCategories, rootCategories]);
 
-    // Filter out Middle Banners that are already shown in Top Banners (Check ID & Image URL)
     const uniqueMiddleBanners = useMemo(() => {
         const topIds = new Set(topBanners.map(b => b.id));
         const topImages = new Set(topBanners.map(b => b.imageUrl));
-
         return middleBanners.filter(b => !topIds.has(b.id) && !topImages.has(b.imageUrl));
     }, [topBanners, middleBanners]);
 
     return (
         <div className="min-h-screen bg-white">
-
-            {/* 1. Banner (EXPLORE_TOP) */}
+            {/* 1. Banner Section */}
             <div className="relative z-0">
                 {topBanners.length > 0 ? (
                     <BannerStrip banners={topBanners} />
                 ) : (
-                    /* Fallback Hero Banner (Same content) */
                     <div className="relative overflow-hidden" style={{ height: 'clamp(200px, 30vw, 400px)' }}>
                         <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460]" />
-                        {/* Decorative Shapes */}
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-                        <div className="absolute bottom-0 left-0 w-72 h-72 bg-secondary/10 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-4 text-center z-10">
-                            <h1 className="text-3xl md:text-5xl font-extrabold mb-3 tracking-tight">
-                                คอร์สเรียนทั้งหมด
-                            </h1>
-                            <p className="text-base md:text-xl opacity-80 max-w-lg font-light">
-                                เลือกคอร์สที่ใช่ เพื่ออนาคตที่ชอบ
-                            </p>
+                            <h1 className="text-3xl md:text-5xl font-extrabold mb-3 tracking-tight">คอร์สเรียนทั้งหมด</h1>
+                            <p className="text-base md:text-xl opacity-80 max-w-lg font-light">เลือกคอร์สที่ใช่ เพื่ออนาคตที่ชอบ</p>
                         </div>
                     </div>
                 )}
@@ -236,48 +224,24 @@ function MarketplaceContent() {
                 />
             </div>
 
-            {/* 4. Active Filter Chips */}
+            {/* 5. Active Filter Chips */}
             {activeFilters.length > 0 && (
                 <div className="max-w-7xl mx-auto px-4 mt-6 flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-gray-500 flex items-center gap-1">
-                        <Filter size={14} /> กำลังกรอง:
-                    </span>
+                    <span className="text-sm font-bold text-gray-500 flex items-center gap-1"><Filter size={14} /> กำลังกรอง:</span>
                     {activeFilters.map(f => (
                         <span key={f.key} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2">
                             {f.label}
                             <button onClick={f.onRemove} className="hover:text-red-500 transition-colors"><X size={12} /></button>
                         </span>
                     ))}
-                    <button onClick={clearAll} className="text-xs text-gray-400 hover:text-red-500 underline ml-2">
-                        ล้างทั้งหมด
-                    </button>
+                    <button onClick={clearAll} className="text-xs text-gray-400 hover:text-red-500 underline ml-2">ล้างทั้งหมด</button>
                 </div>
             )}
 
-            {/* 5. Middle Banner (Deduped) */}
-            {uniqueMiddleBanners.length > 0 && (
-                <div className="mt-8 mb-4">
-                    <BannerStrip banners={uniqueMiddleBanners} />
-                </div>
-            )}
-
-
-            {/* 6. Course Sections */}
+            {/* 5. Course Sections */}
             <div className="pb-24">
                 {loading ? (
-                    /* Skeleton Loading */
-                    <div className="max-w-7xl mx-auto px-4 py-12">
-                        {[1, 2].map((i) => (
-                            <div key={i} className="mb-12">
-                                <div className="h-8 w-48 bg-gray-100 rounded-lg mb-6 animate-pulse" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {[1, 2, 3, 4].map((j) => (
-                                        <div key={j} className="h-[320px] bg-gray-50 rounded-2xl animate-pulse" />
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="max-w-7xl mx-auto px-4 py-12 text-center text-gray-400">กำลังโหลดข้อมูล...</div>
                 ) : sectionsToShow.length > 0 ? (
                     sectionsToShow.map((cat, index) => {
                         // Priority: selected category shows more courses and appears first
@@ -303,9 +267,7 @@ function MarketplaceContent() {
                 ) : (
                     <div className="text-center py-24 text-gray-400">
                         <p className="text-lg mb-2">ไม่พบคอร์สในหมวดนี้</p>
-                        <button onClick={clearAll} className="text-primary font-bold hover:underline">
-                            ดูคอร์สทั้งหมด
-                        </button>
+                        <button onClick={clearAll} className="text-primary font-bold hover:underline">ดูคอร์สทั้งหมด</button>
                     </div>
                 )}
             </div>
