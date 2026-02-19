@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { courseApi, categoryApi, levelApi } from '@/app/lib/api';
+import { categoryApi, levelApi } from '@/app/lib/api';
 import { Course, Category, Level } from '@/app/lib/types';
 import {
     Edit, Trash2, Search, Eye, Plus, BookOpen, Users, FileText, Filter,
@@ -34,6 +34,14 @@ export default function AdminCoursesPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
 
+    // ✅ ฟังก์ชันช่วยดึง Token 
+    const getToken = () => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+        }
+        return '';
+    };
+
     // ── Load reference data ──────────────────────────────────
     useEffect(() => {
         categoryApi.list().then(r => { if (r.success && r.data) setCategories(r.data); });
@@ -44,12 +52,27 @@ export default function AdminCoursesPage() {
     const fetchCourses = async () => {
         setLoading(true);
         try {
-            const res = await courseApi.getAdmin({
-                search: search || undefined,
-                status: statusFilter !== 'all' ? statusFilter : undefined,
-                page,
-                limit,
+            const token = getToken();
+            
+            // สร้าง Query String สำหรับส่งไป API
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit)
             });
+            if (search) params.append('search', search);
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+
+            // ✅ ดึงข้อมูลแบบแนบ Token
+            const response = await fetch(`http://localhost:4000/api/courses/admin?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            const res = await response.json();
+
             if (res.success && res.data) {
                 if (res.data.courses) {
                     setCourses(res.data.courses);
@@ -58,9 +81,13 @@ export default function AdminCoursesPage() {
                     setCourses(res.data);
                     setTotal(res.data.length);
                 }
+            } else if (res.error === 'No token provided' || res.error === 'jwt expired') {
+                console.warn('Token หมดอายุ กรุณาล็อกอินใหม่');
+                toast.error('เซสชันหมดอายุ กรุณาล็อกอินใหม่');
             }
         } catch (error) {
             console.error("Failed to fetch courses", error);
+            toast.error('ไม่สามารถดึงข้อมูลคอร์สเรียนได้');
         } finally {
             setLoading(false);
         }
@@ -93,12 +120,27 @@ export default function AdminCoursesPage() {
     const handleDelete = async () => {
         if (!deletingId) return;
         try {
-            await courseApi.delete(deletingId);
-            toast.success('ลบคอร์สเรียบร้อยแล้ว');
-            setDeletingId(null);
-            fetchCourses();
+            const token = getToken();
+            const response = await fetch(`http://localhost:4000/api/courses/${deletingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+            const res = await response.json();
+
+            if (res.success) {
+                toast.success('ลบคอร์สเรียบร้อยแล้ว');
+                setDeletingId(null);
+                fetchCourses(); // โหลดตารางใหม่หลังลบเสร็จ
+            } else {
+                toast.error(res.error || 'เกิดข้อผิดพลาดในการลบคอร์ส');
+            }
         } catch (error) {
-            toast.error('เกิดข้อผิดพลาดในการลบคอร์ส');
+            console.error("Delete Error:", error);
+            toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         }
     };
 
