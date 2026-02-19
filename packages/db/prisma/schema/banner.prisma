@@ -1,0 +1,23 @@
+model Banner {
+    id             String         @id @default(cuid())
+    title          String
+    subtitle       String?
+    imageUrl       String
+    imageUrlMobile String? // For mobile devices (Portrait/Square)
+    ctaLink        String?        @default("#")
+    ctaText        String?        @default("Learn More")
+    isActive       Boolean        @default(true)
+    priority       Int            @default(0) // Display Order (1, 2, 3...)
+    startDate      DateTime? // Schedule Start
+    endDate        DateTime? // Schedule End
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
+    position       BannerPosition @default(EXPLORE_TOP)
+
+    @@map("banners")
+}
+
+enum BannerPosition {
+    EXPLORE_TOP
+    EXPLORE_MIDDLE
+}

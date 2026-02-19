@@ -8,6 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   fullWidth?: boolean;
   isLoading?: boolean;
+  icon?: React.ReactNode;
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -30,6 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       size = 'md',
       fullWidth = false,
       isLoading = false,
+      icon,
       className = '',
       children,
       disabled,
@@ -41,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={`
-          font-bold transition-all active:scale-[0.98]
+          font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2
           ${variantStyles[variant]}
           ${sizeStyles[size]}
           ${fullWidth ? 'w-full' : ''}
@@ -52,12 +54,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
+          <>
             <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             กำลังโหลด...
-          </span>
+          </>
         ) : (
-          children
+          <>
+            {icon && <span>{icon}</span>}
+            {children}
+          </>
         )}
       </button>
     );

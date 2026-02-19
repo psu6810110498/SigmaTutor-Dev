@@ -27,8 +27,12 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
     try {
         const categories = await prisma.category.findMany({
             orderBy: { name: 'asc' },
-            include: { _count: { select: { courses: true } } },
+            include: {
+                _count: { select: { courses: true } },
+                children: { select: { id: true, name: true, slug: true } },
+            },
         });
+        // Add parentId to response (it's a scalar field, included by default)
         res.json({ success: true, data: categories });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch categories';

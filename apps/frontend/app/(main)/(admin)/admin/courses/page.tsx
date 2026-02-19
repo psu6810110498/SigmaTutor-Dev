@@ -1,18 +1,442 @@
+"use client";
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { categoryApi, levelApi } from '@/app/lib/api';
+import { Course, Category, Level } from '@/app/lib/types';
+import {
+    Edit, Trash2, Search, Eye, Plus, BookOpen, Users, FileText, Filter,
+    ChevronLeft, ChevronRight, MoreHorizontal, BarChart3
+} from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
+import { ConfirmDialog } from '@/app/components/ui/ConfirmDialog';
+
 export default function AdminCoursesPage() {
+    const { toast } = useToast();
+
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [levels, setLevels] = useState<Level[]>([]);
+
+    // ── Filters ──────────────────────────────────────────────
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [categoryFilter, setCategoryFilter] = useState<string>('all');
+    const [typeFilter, setTypeFilter] = useState<string>('all');
+
+    // ── Pagination ───────────────────────────────────────────
+    const [page, setPage] = useState(1);
+    const limit = 10;
+    const [total, setTotal] = useState(0);
+
+    // ── Delete Confirmation ──────────────────────────────────
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // ✅ ฟังก์ชันช่วยดึง Token 
+    const getToken = () => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+        }
+        return '';
+    };
+
+    // ── Load reference data ──────────────────────────────────
+    useEffect(() => {
+        categoryApi.list().then(r => { if (r.success && r.data) setCategories(r.data); });
+        levelApi.list().then(r => { if (r.success && r.data) setLevels(r.data); });
+    }, []);
+
+    // ── Fetch Courses ────────────────────────────────────────
+    const fetchCourses = async () => {
+        setLoading(true);
+        try {
+            const token = getToken();
+            
+            // สร้าง Query String สำหรับส่งไป API
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit)
+            });
+            if (search) params.append('search', search);
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+
+            // ✅ ดึงข้อมูลแบบแนบ Token
+            const response = await fetch(`http://localhost:4000/api/courses/admin?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            const res = await response.json();
+
+            if (res.success && res.data) {
+                if (res.data.courses) {
+                    setCourses(res.data.courses);
+                    setTotal(res.data.pagination?.total || res.data.courses.length);
+                } else if (Array.isArray(res.data)) {
+                    setCourses(res.data);
+                    setTotal(res.data.length);
+                }
+            } else if (res.error === 'No token provided' || res.error === 'jwt expired') {
+                console.warn('Token หมดอายุ กรุณาล็อกอินใหม่');
+                toast.error('เซสชันหมดอายุ กรุณาล็อกอินใหม่');
+            }
+        } catch (error) {
+            console.error("Failed to fetch courses", error);
+            toast.error('ไม่สามารถดึงข้อมูลคอร์สเรียนได้');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => { fetchCourses(); }, 300);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search, statusFilter, page]);
+
+    // ── Client-side filters for category & type ──────────────
+    const filteredCourses = useMemo(() => {
+        return courses.filter(c => {
+            if (categoryFilter !== 'all' && c.categoryId !== categoryFilter) return false;
+            if (typeFilter !== 'all' && c.courseType !== typeFilter) return false;
+            return true;
+        });
+    }, [courses, categoryFilter, typeFilter]);
+
+    // ── Stats ────────────────────────────────────────────────
+    const stats = useMemo(() => ({
+        total: courses.length,
+        published: courses.filter(c => c.status === 'PUBLISHED').length,
+        draft: courses.filter(c => c.status === 'DRAFT').length,
+        archived: courses.filter(c => c.status === 'ARCHIVED').length,
+    }), [courses]);
+
+    // ── Delete ───────────────────────────────────────────────
+    const handleDelete = async () => {
+        if (!deletingId) return;
+        try {
+            const token = getToken();
+            const response = await fetch(`http://localhost:4000/api/courses/${deletingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+            const res = await response.json();
+
+            if (res.success) {
+                toast.success('ลบคอร์สเรียบร้อยแล้ว');
+                setDeletingId(null);
+                fetchCourses(); // โหลดตารางใหม่หลังลบเสร็จ
+            } else {
+                toast.error(res.error || 'เกิดข้อผิดพลาดในการลบคอร์ส');
+            }
+        } catch (error) {
+            console.error("Delete Error:", error);
+            toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+        }
+    };
+
+    const totalPages = Math.ceil(total / limit);
+
+    // ── Status Badge ─────────────────────────────────────────
+    const StatusBadge = ({ status }: { status: string }) => {
+        const config: Record<string, { bg: string; text: string; label: string }> = {
+            PUBLISHED: { bg: 'bg-green-50', text: 'text-green-700', label: 'เผยแพร่' },
+            DRAFT: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'แบบร่าง' },
+            ARCHIVED: { bg: 'bg-red-50', text: 'text-red-600', label: 'อาร์ไคฟ์' },
+        };
+        const c = config[status] || config.DRAFT;
+        return (
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+                {c.label}
+            </span>
+        );
+    };
+
+    // ── Course Type Label ────────────────────────────────────
+    const courseTypeLabel = (type: string) => {
+        switch (type) {
+            case 'ONLINE': return '📹 Online';
+            case 'ONLINE_LIVE': return '🎥 Live';
+            case 'ONSITE': return '🏫 Onsite';
+            default: return type;
+        }
+    };
+
     return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">จัดการคอร์ส</h1>
-                <button className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors">
-                    + เพิ่มคอร์สใหม่
-                </button>
+        <div className="p-4 md:p-6 space-y-6">
+            {/* ── Header ─────────────────────────────────────── */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">จัดการคอร์สเรียน</h1>
+                    <p className="text-gray-500 text-sm mt-1">จัดการคอร์สทั้งหมดในระบบ</p>
+                </div>
+                <Link href="/admin/courses/create">
+                    <button className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-sm hover:shadow-md">
+                        <Plus size={18} /> เพิ่มคอร์สใหม่
+                    </button>
+                </Link>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <p className="text-gray-400 text-sm text-center py-12">
-                    รอเชื่อมต่อ Backend — รายการคอร์สจะแสดงที่นี่
-                </p>
+            {/* ── Stats Cards ────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'ทั้งหมด', value: stats.total, icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: 'เผยแพร่', value: stats.published, icon: Eye, color: 'text-green-600', bg: 'bg-green-50' },
+                    { label: 'แบบร่าง', value: stats.draft, icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100' },
+                    { label: 'อาร์ไคฟ์', value: stats.archived, icon: BarChart3, color: 'text-red-600', bg: 'bg-red-50' },
+                ].map((stat) => (
+                    <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${stat.bg}`}>
+                                <stat.icon size={18} className={stat.color} />
+                            </div>
+                            <div>
+                                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                                <p className="text-xs text-gray-500">{stat.label}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
+
+            {/* ── Filters ────────────────────────────────────── */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
+                <div className="flex flex-col md:flex-row gap-3">
+                    {/* Search */}
+                    <div className="relative flex-1">
+                        <input
+                            type="text"
+                            placeholder="ค้นหาชื่อคอร์ส..."
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                        />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    </div>
+                    {/* Status */}
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-white min-w-[140px]"
+                    >
+                        <option value="all">สถานะทั้งหมด</option>
+                        <option value="PUBLISHED">เผยแพร่แล้ว</option>
+                        <option value="DRAFT">แบบร่าง</option>
+                        <option value="ARCHIVED">อาร์ไคฟ์</option>
+                    </select>
+                    {/* Toggle More Filters */}
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm transition-colors ${showFilters ? 'border-primary bg-primary/5 text-primary' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    >
+                        <Filter size={16} /> ตัวกรองเพิ่มเติม
+                    </button>
+                </div>
+
+                {/* Extended Filters */}
+                {showFilters && (
+                    <div className="flex flex-col md:flex-row gap-3 pt-2 border-t border-gray-100 animate-fade-in-up">
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[160px]"
+                        >
+                            <option value="all">หมวดหมู่ทั้งหมด</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[140px]"
+                        >
+                            <option value="all">ประเภททั้งหมด</option>
+                            <option value="ONLINE">📹 Online (VDO)</option>
+                            <option value="ONLINE_LIVE">🎥 Live (Zoom)</option>
+                            <option value="ONSITE">🏫 Onsite</option>
+                        </select>
+                        <button
+                            onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); setStatusFilter('all'); setSearch(''); }}
+                            className="text-sm text-gray-500 hover:text-primary underline"
+                        >
+                            ล้างตัวกรอง
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Table ──────────────────────────────────────── */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-gray-50/80 border-b border-gray-200">
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">คอร์ส</th>
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">ราคา</th>
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">ประเภท</th>
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">ผู้สอน</th>
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">สถานะ</th>
+                                <th className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {loading ? (
+                                [...Array(5)].map((_, i) => (
+                                    <tr key={i} className="animate-pulse">
+                                        <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="w-14 h-10 bg-gray-100 rounded-lg" /><div className="space-y-2"><div className="h-3.5 bg-gray-100 rounded w-48" /><div className="h-2.5 bg-gray-100 rounded w-24" /></div></div></td>
+                                        <td className="px-5 py-4"><div className="h-3.5 bg-gray-100 rounded w-16" /></td>
+                                        <td className="px-5 py-4 hidden md:table-cell"><div className="h-3.5 bg-gray-100 rounded w-16" /></td>
+                                        <td className="px-5 py-4 hidden lg:table-cell"><div className="h-3.5 bg-gray-100 rounded w-24" /></td>
+                                        <td className="px-5 py-4"><div className="h-5 bg-gray-100 rounded-full w-16 mx-auto" /></td>
+                                        <td className="px-5 py-4"><div className="h-5 bg-gray-100 rounded w-20 mx-auto" /></td>
+                                    </tr>
+                                ))
+                            ) : filteredCourses.length > 0 ? (
+                                filteredCourses.map((course) => (
+                                    <tr key={course.id} className="hover:bg-gray-50/50 transition-colors group">
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                {course.thumbnail ? (
+                                                    <img
+                                                        src={course.thumbnail}
+                                                        alt={course.title}
+                                                        className="w-14 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className="w-14 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-blue-400 flex-shrink-0">
+                                                        <BookOpen size={16} />
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-gray-900 truncate max-w-[300px]">{course.title}</p>
+                                                    <p className="text-xs text-gray-500 mt-0.5">{course.category?.name || 'ไม่มีหมวดหมู่'}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-semibold text-gray-900">
+                                                    {course.price > 0 ? `฿${course.price.toLocaleString()}` : <span className="text-green-600">ฟรี</span>}
+                                                </span>
+                                                {course.originalPrice && course.originalPrice > course.price && (
+                                                    <span className="text-xs text-gray-400 line-through">฿{course.originalPrice.toLocaleString()}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 hidden md:table-cell">
+                                            <span className="text-xs text-gray-600">{courseTypeLabel(course.courseType)}</span>
+                                        </td>
+                                        <td className="px-5 py-4 hidden lg:table-cell">
+                                            <span className="text-sm text-gray-600">{course.instructor?.name || '-'}</span>
+                                        </td>
+                                        <td className="px-5 py-4 text-center">
+                                            <StatusBadge status={course.status} />
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Link href={`/explore/${course.id}`} target="_blank">
+                                                    <button className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all opacity-0 group-hover:opacity-100" title="ดูตัวอย่าง">
+                                                        <Eye size={16} />
+                                                    </button>
+                                                </Link>
+                                                <Link href={`/admin/courses/${course.id}/edit`}>
+                                                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="แก้ไข">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                </Link>
+                                                <button
+                                                    onClick={() => setDeletingId(course.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    title="ลบ"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-16 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                                                <BookOpen size={28} className="text-gray-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-900 font-medium">ยังไม่มีคอร์สเรียน</p>
+                                                <p className="text-gray-500 text-sm mt-1">สร้างคอร์สแรกของคุณเลย!</p>
+                                            </div>
+                                            <Link href="/admin/courses/create">
+                                                <button className="mt-2 flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-all shadow-sm">
+                                                    <Plus size={16} /> สร้างคอร์สใหม่
+                                                </button>
+                                            </Link>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* ── Pagination ──────────────────────────────── */}
+                {total > 0 && (
+                    <div className="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <span className="text-sm text-gray-500">
+                            แสดง {filteredCourses.length} จากทั้งหมด {total} รายการ
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                disabled={page === 1}
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                className="p-2 border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                const pageNum = i + 1;
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => setPage(pageNum)}
+                                        className={`w-9 h-9 text-sm rounded-lg transition-colors ${page === pageNum ? 'bg-primary text-white font-medium' : 'border border-gray-300 hover:bg-gray-50'}`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                            {totalPages > 5 && (
+                                <span className="px-2 text-gray-400"><MoreHorizontal size={16} /></span>
+                            )}
+                            <button
+                                disabled={page >= totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                                className="p-2 border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Delete Confirmation ─────────────────────────── */}
+            <ConfirmDialog
+                open={!!deletingId}
+                onCancel={() => setDeletingId(null)}
+                onConfirm={handleDelete}
+                title="ลบคอร์สเรียน"
+                message="คุณแน่ใจหรือไม่ที่จะลบคอร์สนี้? การกระทำนี้ไม่สามารถย้อนกลับได้"
+                variant="danger"
+            />
         </div>
     );
 }

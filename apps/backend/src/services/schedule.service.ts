@@ -8,6 +8,8 @@ export class ScheduleService {
         topic: string;
         location?: string | null;
         isOnline?: boolean;
+        sessionNumber?: number | null; // Added
+        status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED'; // Added
     }) {
         return prisma.courseSchedule.create({
             data: { ...data, courseId },
@@ -21,6 +23,8 @@ export class ScheduleService {
         topic?: string;
         location?: string | null;
         isOnline?: boolean;
+        sessionNumber?: number | null; // Added
+        status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED'; // Added
     }) {
         return prisma.courseSchedule.update({
             where: { id },

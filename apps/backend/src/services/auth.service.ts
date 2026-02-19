@@ -4,10 +4,14 @@ import { prisma } from '@sigma/db';
 import type { RegisterInput, LoginInput } from '../schemas/auth.schema.js';
 import nodemailer from 'nodemailer';
 
-const JWT_SECRET = 'sigma-tutor-secret-key-12345';
+const JWT_SECRET = process.env.JWT_SECRET as string;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET is not defined in environment variables.');
+}
 
 export interface TokenPayload {
   userId: string;
@@ -91,17 +95,17 @@ export class AuthService {
     try {
       const hasUpperCase = /[A-Z]/.test(newPassword);
       const hasNumber = /[0-9]/.test(newPassword);
-      
+
       if (newPassword.length < 8 || !hasUpperCase || !hasNumber) {
         throw new Error('รหัสผ่านไม่เป็นไปตามมาตรฐานความปลอดภัย');
       }
 
       const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; type: string };
       if (decoded.type !== 'reset') throw new Error('ประเภทของรหัสยืนยันไม่ถูกต้อง');
-      
+
       const hashedPassword = await bcrypt.hash(newPassword, 12);
       await prisma.user.update({ where: { id: decoded.userId }, data: { password: hashedPassword } });
-      
+
       return { success: true, message: 'เปลี่ยนรหัสผ่านใหม่เรียบร้อยแล้ว' };
     } catch (error: any) {
       if (error.name === 'TokenExpiredError') throw new Error('ลิงก์รีเซ็ตรหัสผ่านหมดอายุแล้ว');
@@ -128,7 +132,7 @@ export class AuthService {
             name,
             // สำหรับ Social Login เราจะปล่อยรหัสผ่านเป็นค่าว่าง
             // (อย่าลืมแก้ schema.prisma ให้ password เป็น optional ด้วยนะครับ)
-            password: '', 
+            password: '',
             role: 'USER',
           },
         });
