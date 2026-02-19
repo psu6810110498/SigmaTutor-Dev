@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaShoppingCart, FaHeart, FaArrowRight, FaBook } from 'react-icons/fa';
-import { useCourse, ALL_COURSES } from '../context/CourseContext';
+import { FaArrowRight, FaBook } from 'react-icons/fa';
+import { useCourse } from '../context/CourseContext';
 
 export default function HomePage() {
-  const { cartItems, wishlistItems, addToCart, addToWishlist } = useCourse();
+  const { cartItems } = useCourse();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -73,23 +73,6 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Demo Buttons Area */}
-      <section className="py-8 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-sm font-bold mb-4 text-gray-500 uppercase tracking-wide">
-            Context Demo
-          </h3>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => addToCart(ALL_COURSES[0])}
-              className="bg-white border border-primary text-primary hover:bg-primary hover:text-white font-bold py-2 px-6 rounded-full transition-all shadow-sm flex items-center gap-2 text-sm"
-            >
-              <FaShoppingCart /> เพิ่ม "{ALL_COURSES[0].title}" ลงตะกร้า
-            </button>
           </div>
         </div>
       </section>
