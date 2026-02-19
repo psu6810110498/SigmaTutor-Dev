@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface Course {
-  id: number;
+  id: string | number;
   title: string;
   price: number;
   image: string;
@@ -21,15 +21,27 @@ export const ALL_COURSES: Course[] = [
   { id: 6, title: "พื้นฐานบัญชีเบื้องต้น", price: 890, image: "/course-placeholder-6.jpg", category: "บัญชี", level: "ทั่วไป", instructor: "พี่เมย์ บัญชี" },
 ];
 
+export function toCartItem(realCourse: any): Course {
+  return {
+    id: realCourse.id,
+    title: realCourse.title,
+    price: realCourse.promotionalPrice || realCourse.price,
+    image: realCourse.thumbnail || '/course-placeholder-1.jpg',
+    category: realCourse.category?.name,
+    level: realCourse.level?.name,
+    instructor: realCourse.instructor?.name
+  };
+}
+
 interface CourseContextType {
   cartItems: Course[];
   wishlistItems: Course[];
   addToCart: (course: Course) => void;
-  removeFromCart: (id: number) => void;
+  removeFromCart: (id: string | number) => void;
   addToWishlist: (course: Course) => void;
-  removeFromWishlist: (id: number) => void;
-  isInCart: (id: number) => boolean;
-  isInWishlist: (id: number) => boolean;
+  removeFromWishlist: (id: string | number) => void;
+  isInCart: (id: string | number) => boolean;
+  isInWishlist: (id: string | number) => boolean;
 }
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -56,7 +68,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string | number) => {
     setCartItems(cartItems.filter(item => item.id !== id));
   };
 
@@ -66,12 +78,12 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const removeFromWishlist = (id: number) => {
+  const removeFromWishlist = (id: string | number) => {
     setWishlistItems(wishlistItems.filter(item => item.id !== id));
   };
 
-  const isInCart = (id: number) => cartItems.some(item => item.id === id);
-  const isInWishlist = (id: number) => wishlistItems.some(item => item.id === id);
+  const isInCart = (id: string | number) => cartItems.some(item => item.id === id);
+  const isInWishlist = (id: string | number) => wishlistItems.some(item => item.id === id);
 
   return (
     <CourseContext.Provider value={{ cartItems, wishlistItems, addToCart, removeFromCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist }}>

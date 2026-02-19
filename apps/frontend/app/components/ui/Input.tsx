@@ -4,7 +4,7 @@ import { type InputHTMLAttributes, forwardRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-    label: string;
+    label?: string;
     isPassword?: boolean;
     icon?: React.ReactNode;
     error?: string;
@@ -17,9 +17,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         return (
             <div className="w-full">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {label}
-                </label>
+                {label && (
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {label}
+                    </label>
+                )}
                 <div className="relative">
                     {icon && (
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">

@@ -6,13 +6,29 @@ export const createCourseSchema = z.object({
     title: z.string().min(3, 'Title must be at least 3 characters'),
     description: z.string().optional(),
     price: z.number().min(0, 'Price must be non-negative'),
+    originalPrice: z.number().min(0).optional().nullable(),
+    promotionalPrice: z.number().min(0).optional().nullable(),
+    courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).default('ONLINE'),
+    categoryId: z.string().optional().nullable(),
+    levelId: z.string().optional().nullable(),
+    instructorId: z.string().optional().nullable(),
+    maxSeats: z.number().int().min(0).optional().nullable(),
+    enrollStartDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
+    enrollEndDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
+    location: z.string().optional().nullable(),
+    mapUrl: z.string().url().optional().nullable(),
+    zoomLink: z.string().url().optional().nullable(),
+    published: z.boolean().default(false),
+    videoCount: z.number().int().min(0).default(0),
+    duration: z.string().optional().nullable(),
+    tags: z.array(z.string()).optional().default([]),
+    isBestSeller: z.boolean().optional().default(false),
+    isRecommended: z.boolean().optional().default(false),
 });
 
-export const updateCourseSchema = z.object({
-    title: z.string().min(3).optional(),
-    description: z.string().optional(),
-    price: z.number().min(0).optional(),
-    thumbnail: z.string().url().optional(),
+export const updateCourseSchema = createCourseSchema.partial().extend({
+    thumbnail: z.string().url().optional().nullable(),
+    thumbnailSm: z.string().url().optional().nullable(),
 });
 
 export const updateCourseStatusSchema = z.object({
@@ -24,7 +40,7 @@ export const courseQuerySchema = z.object({
     status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(10),
-    sort: z.enum(['price', 'createdAt', 'title']).default('createdAt'),
+    sort: z.enum(['price', 'createdAt', 'title', 'popular']).default('createdAt'),
     order: z.enum(['asc', 'desc']).default('desc'),
 });
 

@@ -1,9 +1,8 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { FileText, Video, Users, Monitor, MapPin, Folder, DollarSign, Globe, Save } from "lucide-react";
-import { courseApi, categoryApi, levelApi } from "@/app/lib/api";
+import { useState, useEffect, useMemo } from "react";
+import { FileText, Video, Users, Monitor, MapPin, Folder, DollarSign, Globe, Save, Award, User, Tag } from "lucide-react";
+import { courseApi, categoryApi, levelApi, userApi } from "@/app/lib/api";
 import type { Category, Level, Course, CreateCourseInput } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
@@ -19,22 +18,35 @@ interface CourseOverviewTabProps {
 
 export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) {
     const { toast } = useToast();
+
+    // Reference Data
     const [categories, setCategories] = useState<Category[]>([]);
     const [levels, setLevels] = useState<Level[]>([]);
+    const [instructors, setInstructors] = useState<any[]>([]); // Using any for user object for now
 
+    // Fetch Data
     useEffect(() => {
         categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
         levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
+        userApi.list().then((r) => {
+            if (r.success && r.data) {
+                // Filter for admins or instructors
+                const validInstructors = r.data.filter((u: any) => u.role === 'ADMIN' || u.role === 'INSTRUCTOR');
+                setInstructors(validInstructors);
+            }
+        });
     }, []);
 
     const [form, setForm] = useState<CreateCourseInput>({
         title: course.title,
-        description: course.description,
+        description: course.description || "",
         price: course.price,
-        originalPrice: course.originalPrice,
-        courseType: course.type as any, // Enum casing might differ? type is CourseType.
+        originalPrice: course.originalPrice || null,
+        promotionalPrice: course.promotionalPrice || null,
+        courseType: course.courseType || "ONLINE",
         categoryId: course.categoryId,
         levelId: course.levelId,
+        instructorId: course.instructorId,
         duration: course.duration,
         videoCount: course.videoCount,
         maxSeats: course.maxSeats,
@@ -44,10 +56,38 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
         mapUrl: course.mapUrl,
         zoomLink: course.zoomLink,
         published: course.published,
+        tags: course.tags || [],
+        isBestSeller: course.isBestSeller,
+        isRecommended: course.isRecommended,
     });
 
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
+
+    // Derived Categories
+    // 1. Root categories (parentId = null)
+    const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
+
+    // 2. Find selected root category (either the current category if it's a root, or the parent of the current category)
+    const selectedCategory = categories.find(c => c.id === form.categoryId);
+    const [rootCategoryId, setRootCategoryId] = useState<string>("");
+
+    // Update rootCategoryId when form.categoryId changes (initial load)
+    useEffect(() => {
+        if (selectedCategory) {
+            if (selectedCategory.parentId) {
+                setRootCategoryId(selectedCategory.parentId);
+            } else {
+                setRootCategoryId(selectedCategory.id);
+            }
+        }
+    }, [selectedCategory]);
+
+    // 3. Child categories based on selected root
+    const childCategories = useMemo(() => {
+        if (!rootCategoryId) return [];
+        return categories.filter(c => c.parentId === rootCategoryId);
+    }, [categories, rootCategoryId]);
 
     const updateForm = <K extends keyof CreateCourseInput>(key: K, value: CreateCourseInput[K]) => {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -104,6 +144,17 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                             onChange={(val) => updateForm("description", val)}
                             rows={6}
                         />
+                        {/* Tags */}
+                        <div>
+                            <label className={labelClass}>Tags (คั่นด้วยจุลภาค) <Tag size={14} className="inline ml-1 text-gray-400" /></label>
+                            <input
+                                type="text"
+                                value={form.tags?.join(", ") || ""}
+                                onChange={(e) => updateForm("tags", e.target.value.split(",").map(t => t.trim()).filter(Boolean))}
+                                className={inputClass}
+                                placeholder="เช่น คณิตศาสตร์, สอบเข้า, แนะนำ"
+                            />
+                        </div>
                     </div>
                 </SectionCard>
 
@@ -111,9 +162,27 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                     <div className="space-y-4">
                         <ImageUpload
                             label="ภาพปก (16:9)"
-                            value={thumbnailFile || course.thumbnail} // Show existing URL if no new file
+                            value={thumbnailFile || course.thumbnail}
                             onChange={setThumbnailFile}
                         />
+                    </div>
+                </SectionCard>
+
+                <SectionCard title="ผู้สอน" icon={User}>
+                    <div>
+                        <label className={labelClass}>เลือกผู้สอน</label>
+                        <select
+                            value={form.instructorId || ""}
+                            onChange={(e) => updateForm("instructorId", e.target.value)}
+                            className={inputClass}
+                        >
+                            <option value="">-- เลือกผู้สอน --</option>
+                            {instructors.map((inst) => (
+                                <option key={inst.id} value={inst.id}>
+                                    {inst.name} ({inst.email})
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </SectionCard>
 
@@ -204,31 +273,74 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                 </div>
 
                 <SectionCard title="สถานะ" icon={Globe}>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">เผยแพร่คอร์ส</span>
-                        <button
-                            type="button"
-                            onClick={() => updateForm("published", !form.published)}
-                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.published ? "bg-green-500" : "bg-gray-200"}`}
-                        >
-                            <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${form.published ? "translate-x-5" : ""}`} />
-                        </button>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">เผยแพร่คอร์ส</span>
+                            <button
+                                type="button"
+                                onClick={() => updateForm("published", !form.published)}
+                                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.published ? "bg-green-500" : "bg-gray-200"}`}
+                            >
+                                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${form.published ? "translate-x-5" : ""}`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                <Award size={14} className="text-orange-500" /> Best Seller
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={form.isBestSeller || false}
+                                onChange={(e) => updateForm("isBestSeller", e.target.checked)}
+                                className="w-4 h-4 text-primary rounded focus:ring-primary"
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                                <Award size={14} className="text-blue-500" /> Recommended
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={form.isRecommended || false}
+                                onChange={(e) => updateForm("isRecommended", e.target.checked)}
+                                className="w-4 h-4 text-primary rounded focus:ring-primary"
+                            />
+                        </div>
                     </div>
                 </SectionCard>
 
                 <SectionCard title="หมวดหมู่" icon={Folder}>
                     <div className="space-y-4">
+                        {/* Root Category Selector */}
                         <div>
-                            <label className={labelClass}>วิชา</label>
+                            <label className={labelClass}>หมวดหมู่หลัก (Root)</label>
+                            <select
+                                value={rootCategoryId}
+                                onChange={(e) => {
+                                    setRootCategoryId(e.target.value);
+                                    updateForm("categoryId", null); // Reset child when root changes
+                                }}
+                                className={inputClass}
+                            >
+                                <option value="">เลือกหมวดหมู่หลัก</option>
+                                {rootCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Child Category Selector (Subject) */}
+                        <div>
+                            <label className={labelClass}>วิชา (Subject)</label>
                             <select
                                 value={form.categoryId || ""}
                                 onChange={(e) => updateForm("categoryId", e.target.value || null)}
                                 className={inputClass}
+                                disabled={!rootCategoryId}
                             >
                                 <option value="">เลือกวิชา</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {childCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
+
                         <div>
                             <label className={labelClass}>ระดับชั้น</label>
                             <select
@@ -242,6 +354,7 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                         </div>
                     </div>
                 </SectionCard>
+
                 <SectionCard title="ราคา" icon={DollarSign}>
                     <div className="space-y-4">
                         <NumberInput
@@ -250,7 +363,12 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                             onChange={(val) => updateForm("price", val)}
                         />
                         <NumberInput
-                            label="ราคาเต็ม"
+                            label="ราคาโปรโมชั่น (ลด)"
+                            value={form.promotionalPrice || undefined}
+                            onChange={(val) => updateForm("promotionalPrice", val || null)}
+                        />
+                        <NumberInput
+                            label="ราคาเต็ม (ขีดฆ่า)"
                             value={form.originalPrice || undefined}
                             onChange={(val) => updateForm("originalPrice", val || null)}
                         />

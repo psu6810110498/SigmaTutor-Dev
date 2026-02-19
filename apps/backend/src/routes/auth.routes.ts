@@ -148,17 +148,27 @@ router.post(
 /**
  * POST /api/auth/logout
  */
+// ...
 router.post('/logout', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.body.refreshToken || req.cookies.refreshToken;
     if (refreshToken) {
       await authService.logout(refreshToken);
     }
+
+    // Clear cookies
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
     res.json({
       success: true,
       message: 'Logged out successfully',
     });
   } catch {
+    // Even if DB fails, clear cookies
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
     res.json({
       success: true,
       message: 'Logged out successfully',

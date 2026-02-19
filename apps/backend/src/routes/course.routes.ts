@@ -33,13 +33,59 @@ router.post(
 );
 
 /**
+ * GET /api/courses/marketplace
+ * Public marketplace listing with advanced filters
+ */
+router.get('/marketplace', async (req: Request, res: Response): Promise<void> => {
+    try {
+        // Allow unknown keys for new filters (categoryId, etc) which might not be in legacy schema
+        // Or better: cast to any for now if schema is strict
+        const query = req.query as any;
+        const result = await courseService.getMarketplaceCourses(query);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch courses';
+        res.status(400).json({ success: false, error: message });
+    }
+});
+
+/**
+ * GET /api/courses/enrolled
+ * Get user's enrolled courses (My Courses)
+ */
+router.get('/enrolled', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const result = await courseService.getUserEnrolledCourses(req.user!.userId);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch enrolled courses';
+        res.status(400).json({ success: false, error: message });
+    }
+});
+
+/**
+ * GET /api/courses/admin
+ * Admin/Instructor dashboard listing
+ */
+router.get('/admin', authenticate, requireRole('ADMIN', 'INSTRUCTOR'), async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const query = req.query as any;
+        const result = await courseService.getAdminCourses(query);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch admin courses';
+        res.status(400).json({ success: false, error: message });
+    }
+});
+
+/**
  * GET /api/courses
- * Query courses (public)
+ * Query courses (public) - DEPRECATED: Use /marketplace
  */
 router.get('/', async (req: Request, res: Response): Promise<void> => {
     try {
         const query = courseQuerySchema.parse(req.query);
-        const result = await courseService.findMany(query);
+        const result = await courseService.getMarketplaceCourses(query as any);
         res.json({ success: true, data: result });
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch courses';

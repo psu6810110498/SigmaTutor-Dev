@@ -15,6 +15,9 @@ export interface Category {
     name: string;
     slug: string;
     _count?: { courses: number };
+    parentId?: string | null;
+    parent?: Category | null;
+    children?: Category[];
 }
 
 export interface Level {
@@ -29,6 +32,11 @@ export interface Instructor {
     id: string;
     name: string;
     email?: string;
+    authId?: string; // Links to Use table if needed
+    bio?: string | null;
+    title?: string | null;
+    nickname?: string | null;
+    profileImage?: string | null;
 }
 
 export interface Course {
@@ -51,6 +59,7 @@ export interface Course {
     category: Category | null;
     levelId: string | null;
     level: Level | null;
+    instructorId: string;
     instructor: Instructor;
 
     // Details
@@ -63,6 +72,15 @@ export interface Course {
     mapUrl: string | null;
     zoomLink: string | null;
     published: boolean;
+    tags?: string[];
+    promotionalPrice?: number | null;
+    isBestSeller?: boolean;
+    isRecommended?: boolean;
+
+    // Calculated fields
+    rating?: number;
+    reviewCount?: number;
+    // promotions?: Promotion[]; // Uncomment when Promotion type is added
 
     createdAt: string;
     updatedAt: string;
@@ -99,12 +117,14 @@ export interface Lesson {
 
 export interface CourseSchedule {
     id: string;
+    sessionNumber?: number | null;
     date: string;
     startTime: string; // ISO String
     endTime: string;   // ISO String
     topic: string;
     location: string | null;
     isOnline: boolean;
+    status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED';
     courseId: string;
 }
 
@@ -159,9 +179,11 @@ export interface CreateCourseInput {
     description?: string;
     price: number;
     originalPrice?: number | null;
+    promotionalPrice?: number | null; // Added
     courseType: CourseType;
     categoryId?: string | null;
     levelId?: string | null;
+    instructorId?: string; // Added
     duration?: string | null;
     videoCount?: number;
     maxSeats?: number | null;
@@ -171,21 +193,41 @@ export interface CreateCourseInput {
     mapUrl?: string | null;
     zoomLink?: string | null;
     published?: boolean;
+    tags?: string[]; // Added
+    isBestSeller?: boolean; // Added
+    isRecommended?: boolean; // Added
 }
+
+export interface Banner {
+    id: string;
+    title: string;
+    subtitle?: string | null;
+    imageUrl: string;
+    imageUrlMobile?: string | null;
+    ctaLink?: string | null;
+    ctaText?: string | null;
+    isActive: boolean;
+    priority: number;
+    startDate?: string | null; // ISO String from JSON
+    endDate?: string | null;   // ISO String from JSON
+    position: BannerPosition;
+}
+
+export type BannerPosition = 'EXPLORE_TOP' | 'EXPLORE_MIDDLE';
 
 export interface CourseQueryParams {
     search?: string;
     status?: CourseStatus;
-    courseType?: CourseType;
+    courseType?: CourseType | null;
     categoryId?: string;
     levelId?: string;
-    minPrice?: number;
-    maxPrice?: number;
+    minPrice?: number | null;
+    maxPrice?: number | null;
+    rating?: number;
     published?: boolean;
     page?: number;
     limit?: number;
-    sort?: 'price' | 'createdAt' | 'title';
-    order?: 'asc' | 'desc';
+    sort?: 'newest' | 'price-asc' | 'price-desc' | 'popular';
 }
 
 export interface ReviewQueryParams {
