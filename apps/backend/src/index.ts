@@ -4,7 +4,7 @@ import cors from 'cors';
 import routes from './routes/index';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import passport from 'passport';
-import './strategies/google.strategy.js'
+import './strategies/google.strategy.js';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { apiLimiter } from './middleware/rate-limit.middleware.js';
@@ -27,7 +27,14 @@ import cookieParser from 'cookie-parser';
 
 // ...
 
-app.use(express.json());
+// Stripe webhook needs raw body — skip JSON parsing for webhook route
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payments/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(helmet());
