@@ -1,6 +1,6 @@
 // ============================================================
 // API Helper — HTTP client for backend communication
-// Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:4000/api/v1)
+// Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:4000/api)
 // ============================================================
 
 import type {
@@ -19,7 +19,7 @@ import type {
 
 // ── Config ────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 // ── Core HTTP Methods ─────────────────────────────────────
 
