@@ -13,13 +13,13 @@ import type {
     Level,
     ReviewListResponse,
     ReviewQueryParams,
+    Banner,
+    BannerPosition,
 } from './types';
 
 // ── Config ────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-
-// ── Core HTTP Methods ─────────────────────────────────────
 
 // ── Core HTTP Methods ─────────────────────────────────────
 
@@ -88,15 +88,38 @@ export const fetchCourses = async () => {
 };
 
 export const courseApi = {
-    /** GET /courses — List with filters + pagination */
-    list(params?: CourseQueryParams) {
+    /** 
+     * GET /courses/marketplace — Public listing for Explore page
+     * Supports: search, category, level, price, rating, sort 
+     */
+    getMarketplace(params?: CourseQueryParams) {
+        const query = params ? '?' + new URLSearchParams(
+            Object.entries(params)
+                .filter(([, v]) => v !== undefined && v !== null && v !== '')
+                .map(([k, v]) => [k, String(v)])
+        ).toString() : '';
+
+        return request<CourseListResponse>(`/courses/marketplace${query}`);
+    },
+
+    /** GET /courses/enrolled — User's enrolled courses */
+    getEnrolled() {
+        return request<Course[]>(`/courses/enrolled`);
+    },
+
+    /** GET /courses/admin — Admin/Instructor dashboard listing */
+    getAdmin(params?: any) {
         const query = params ? '?' + new URLSearchParams(
             Object.entries(params)
                 .filter(([, v]) => v !== undefined && v !== '')
                 .map(([k, v]) => [k, String(v)])
         ).toString() : '';
+        return request<any>(`/courses/admin${query}`);
+    },
 
-        return request<CourseListResponse>(`/courses${query}`);
+    /** Legacy List (mapped to marketplace or general query if needed) */
+    list(params?: CourseQueryParams) {
+        return this.getMarketplace(params);
     },
 
     /** GET /courses/:id — Single course detail */
@@ -111,19 +134,37 @@ export const courseApi = {
 
     /** POST /courses — Create (ADMIN) */
     create(data: CreateCourseInput) {
+        // Sanitize data: Convert empty strings to null for optional fields
+        const sanitizedData = { ...data };
+        (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach(key => {
+            if (sanitizedData[key] === '') {
+                // @ts-ignore
+                sanitizedData[key] = null;
+            }
+        });
+
         return request<Course>('/courses', {
             method: 'POST',
             headers: headers(true),
-            body: JSON.stringify(data),
+            body: JSON.stringify(sanitizedData),
         });
     },
 
     /** PUT /courses/:id — Update (ADMIN) */
     update(id: string, data: Partial<CreateCourseInput>) {
+        // Sanitize data
+        const sanitizedData = { ...data };
+        (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach(key => {
+            if (sanitizedData[key] === '') {
+                // @ts-ignore
+                sanitizedData[key] = null;
+            }
+        });
+
         return request<Course>(`/courses/${id}`, {
             method: 'PUT',
             headers: headers(true),
-            body: JSON.stringify(data),
+            body: JSON.stringify(sanitizedData),
         });
     },
 
@@ -169,6 +210,48 @@ export const courseApi = {
 };
 
 // ============================================================
+// Banner API
+// ============================================================
+
+export const bannerApi = {
+    /** GET /banners/active — For Homepage Slider */
+    getActive(position: BannerPosition = 'EXPLORE_TOP') {
+        return request<Banner[]>(`/banners/active?position=${position}`);
+    },
+
+    /** GET /banners — Admin List */
+    getAll() {
+        return request<Banner[]>('/banners');
+    },
+
+    /** POST /banners — Create */
+    create(data: Partial<Banner>) {
+        return request<Banner>('/banners', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: headers(true),
+        });
+    },
+
+    /** PUT /banners/:id — Update */
+    update(id: string, data: Partial<Banner>) {
+        return request<Banner>(`/banners/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+            headers: headers(true),
+        });
+    },
+
+    /** DELETE /banners/:id — Delete */
+    delete(id: string) {
+        return request<void>(`/banners/${id}`, {
+            method: 'DELETE',
+            headers: headers(true),
+        });
+    },
+};
+
+// ============================================================
 // Category API
 // ============================================================
 
@@ -200,6 +283,19 @@ export const categoryApi = {
     delete(id: string) {
         return request<void>(`/categories/${id}`, {
             method: 'DELETE',
+            headers: headers(true),
+        });
+    },
+};
+
+// ============================================================
+// User API (for instructor selection)
+// ============================================================
+
+export const userApi = {
+    /** GET /users — List all users (ADMIN) */
+    list() {
+        return request<any[]>('/users', {
             headers: headers(true),
         });
     },
@@ -366,6 +462,8 @@ export const lessonApi = {
 
 // ── Schedule API ─────────────────────────────────────────
 
+// ── Schedule API ─────────────────────────────────────────
+
 export const scheduleApi = {
     create: async (data: Partial<CourseSchedule> & { courseId: string; startTime: string; endTime: string; date: string; topic: string }) => {
         return request<ApiResponse<CourseSchedule>>('/schedules', {
@@ -390,3 +488,30 @@ export const scheduleApi = {
         });
     },
 };
+
+// ============================================================
+// Upload API
+// ============================================================
+
+export const uploadApi = {
+    /** POST /upload/image — Generic Image Upload */
+    async uploadImage(file: File) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch(`${API_BASE}/upload/image`, {
+            method: 'POST',
+            body: formData,
+            // Note: Content-Type is set automatically for FormData
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+            throw new Error(json.message || 'Upload failed');
+        }
+
+        return json as { success: boolean; url: string };
+    },
+};
+

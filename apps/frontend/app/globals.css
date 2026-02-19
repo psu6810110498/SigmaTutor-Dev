@@ -2,19 +2,21 @@
 
 /* ===== Design Tokens (TailwindCSS v4) ===== */
 @theme {
-  /* ── Brand / Primary ── */
-  --color-primary: #0056d2;
-  --color-primary-foreground: #ffffff;
-  --color-primary-dark: #003fa3;
-  --color-primary-light: #eff6ff;
-  --color-primary-hover: #0047b3;
+  /* Brand Colors */
+  --color-primary: #4169E1;
+  /* Royal Blue */
+  --color-primary-dark: #3154B3;
+  --color-primary-light: #E0E7FF;
+  --color-primary-hover: #3154B3;
 
-  /* ── Secondary ── */
-  --color-secondary: #ff8c00;
-  --color-secondary-foreground: #ffffff;
+  /* Secondary Colors */
+  --color-secondary: #FF6600;
+  /* Bright Orange */
   --color-secondary-dark: #cc7000;
   --color-secondary-light: #fff4e5;
   --color-secondary-hover: #e67e00;
+  --color-secondary-foreground: #ffffff;
+
 
   /* ── Destructive ── */
   --color-destructive: #ef4444;
@@ -49,7 +51,7 @@
   /* ── Border / Input / Ring ── */
   --color-border: #e5e7eb;
   --color-input: #e5e7eb;
-  --color-ring: #0056d2;
+  --color-ring: #4169E1;
 
   /* ── Status ── */
   --color-success: #22c55e;
@@ -69,12 +71,17 @@
   --sidebar-width-expanded: 240px;
   --sidebar-width-collapsed: 56px;
 
-  /* ── Fonts ── */
-  --font-sans: var(--font-kanit), 'Kanit', sans-serif;
-  --font-serif: var(--font-noto-serif), 'Noto Serif Thai', serif;
+  /* Fonts */
+  --font-sans: var(--font-kanit), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-noto-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /* ===== Base Styles ===== */
+:root {
+  --font-kanit: 'Kanit', sans-serif;
+  /* Fallback if variable fails */
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-background);
@@ -83,15 +90,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  /* Kanit for Headings */
+}
+
+p {
+  font-family: var(--font-serif);
+  /* Noto Serif for Body Text */
+}
+
+
 /* ===== Custom Animations ===== */
 @keyframes blob {
+
   0%,
   100% {
     transform: translate(0, 0) scale(1);
   }
+
   33% {
     transform: translate(30px, -50px) scale(1.1);
   }
+
   66% {
     transform: translate(-20px, 20px) scale(0.9);
   }
@@ -102,6 +128,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -109,10 +136,12 @@ body {
 }
 
 @keyframes bounce-short {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-2px);
   }

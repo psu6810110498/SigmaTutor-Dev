@@ -1,4 +1,5 @@
 import { SigmaLogo } from "@/app/components/icons/SigmaLogo";
+import TutorSection from "@/app/components/about/TutorSection";
 
 export default function AboutPage() {
     return (
@@ -34,6 +35,11 @@ export default function AboutPage() {
                 </div>
             </div>
 
+
+
+            {/* Tutors */}
+            <TutorSection />
+
             {/* Stats */}
             <div className="bg-primary/5 py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -52,6 +58,6 @@ export default function AboutPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

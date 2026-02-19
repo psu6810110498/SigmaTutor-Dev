@@ -1,14 +1,17 @@
 // Course models
 
 model Course {
-    id            String       @id @default(cuid())
-    title         String
-    slug          String       @unique
-    description   String?
-    price         Float // From Main (Float is better for price)
-    originalPrice Float? // Aligning with price
-    status        CourseStatus @default(DRAFT)
-    courseType    CourseType   @default(ONLINE)
+    id               String       @id @default(cuid())
+    title            String
+    slug             String       @unique
+    description      String?
+    price            Float // From Main (Float is better for price)
+    originalPrice    Float? // Aligning with price
+    promotionalPrice Float? // Discounted Price
+    status           CourseStatus @default(DRAFT)
+    courseType       CourseType   @default(ONLINE)
+    demoVideoUrl    String?   // สำหรับใส่ลิงก์ MP4 หรือ Youtube
+    materialUrl     String?   // สำหรับใส่ลิงก์ไฟล์ PDF
 
     thumbnail   String?
     thumbnailSm String?
@@ -34,6 +37,9 @@ model Course {
     mapUrl          String?
     zoomLink        String?
     published       Boolean   @default(false)
+    tags            String[]  @default([])
+    isBestSeller    Boolean   @default(false)
+    isRecommended   Boolean   @default(false)
 
     // Child Relations
     chapters    Chapter[] // From HEAD
@@ -41,6 +47,7 @@ model Course {
     enrollments Enrollment[] // From Main
     payments    Payment[] // From Main
     reviews     Review[]
+    promotions  Promotion[]      @relation("CoursePromotions")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

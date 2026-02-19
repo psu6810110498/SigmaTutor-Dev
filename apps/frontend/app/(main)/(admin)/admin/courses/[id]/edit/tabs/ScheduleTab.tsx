@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Calendar, MapPin, Video, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar, MapPin, Video, Clock, Hash } from "lucide-react";
 import { scheduleApi } from "@/app/lib/api";
 import type { Course, CourseSchedule } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
+
+type ScheduleStatus = "ON_SCHEDULE" | "POSTPONED" | "CANCELLED";
+
+const STATUS_CONFIG: Record<ScheduleStatus, { label: string; color: string; bg: string }> = {
+    ON_SCHEDULE: { label: "ตามกำหนด", color: "text-green-700", bg: "bg-green-100" },
+    POSTPONED: { label: "เลื่อน", color: "text-yellow-700", bg: "bg-yellow-100" },
+    CANCELLED: { label: "ยกเลิก", color: "text-red-700", bg: "bg-red-100" },
+};
 
 interface ScheduleTabProps {
     course: Course;
@@ -29,8 +37,10 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
         startTime: "",
         endTime: "",
         topic: "",
-        location: "", // Can be Zoom link if isOnline
-        isOnline: false
+        location: "",
+        isOnline: false,
+        sessionNumber: "" as string | number,
+        status: "ON_SCHEDULE" as ScheduleStatus,
     });
 
     const resetForm = () => {
@@ -40,7 +50,9 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
             endTime: "",
             topic: "",
             location: "",
-            isOnline: course.courseType === "ONLINE_LIVE" // Default based on course type
+            isOnline: course.courseType === "ONLINE_LIVE",
+            sessionNumber: "",
+            status: "ON_SCHEDULE",
         });
         setIsAdding(false);
         setEditingId(null);
@@ -54,8 +66,7 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
 
         setLoading(true);
         try {
-            // Combine date + time to ISO string
-            const dateStr = formData.date; // YYYY-MM-DD
+            const dateStr = formData.date;
             const startISO = new Date(`${dateStr}T${formData.startTime}:00`).toISOString();
             const endISO = new Date(`${dateStr}T${formData.endTime}:00`).toISOString();
             const dateISO = new Date(dateStr).toISOString();
@@ -67,7 +78,9 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
                 isOnline: formData.isOnline,
                 date: dateISO,
                 startTime: startISO,
-                endTime: endISO
+                endTime: endISO,
+                sessionNumber: formData.sessionNumber ? Number(formData.sessionNumber) : null,
+                status: formData.status,
             };
 
             if (editingId) {
@@ -122,12 +135,19 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
             topic: schedule.topic,
             location: schedule.location || "",
             isOnline: schedule.isOnline,
-            date: dateObj.toISOString().split('T')[0],
-            startTime: startObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-            endTime: endObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+            date: dateObj.toISOString().split("T")[0],
+            startTime: startObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+            endTime: endObj.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+            sessionNumber: (schedule as any).sessionNumber || "",
+            status: ((schedule as any).status as ScheduleStatus) || "ON_SCHEDULE",
         });
-        setIsAdding(true); // Re-use the add form UI
+        setIsAdding(true);
     };
+
+    // Sort schedules by date
+    const sortedSchedules = [...(course.schedules || [])].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
 
     return (
         <div className="space-y-6">
@@ -145,6 +165,29 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
                 <div className="bg-gray-50 border rounded-lg p-6 animate-fade-in-up">
                     <h4 className="font-medium mb-4 text-gray-900">{editingId ? "แก้ไขตารางเรียน" : "เพิ่มตารางเรียนใหม่"}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        {/* Session Number */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">ครั้งที่</label>
+                            <Input
+                                type="number"
+                                value={String(formData.sessionNumber)}
+                                onChange={e => setFormData({ ...formData, sessionNumber: e.target.value })}
+                                placeholder="เช่น 1, 2, 3..."
+                            />
+                        </div>
+                        {/* Status */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
+                            <select
+                                value={formData.status}
+                                onChange={e => setFormData({ ...formData, status: e.target.value as ScheduleStatus })}
+                                className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                            >
+                                <option value="ON_SCHEDULE">ตามกำหนด</option>
+                                <option value="POSTPONED">เลื่อน</option>
+                                <option value="CANCELLED">ยกเลิก</option>
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">หัวข้อการเรียน</label>
                             <Input
@@ -211,39 +254,54 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
 
             {/* List */}
             <div className="space-y-4">
-                {course.schedules?.map((schedule) => (
-                    <div key={schedule.id} className="border rounded-lg bg-white p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                            <div className="bg-blue-50 p-3 rounded-lg text-blue-600 text-center min-w-[60px]">
-                                <div className="text-xs font-bold uppercase">{new Date(schedule.date).toLocaleDateString("en-US", { month: "short" })}</div>
-                                <div className="text-xl font-bold">{new Date(schedule.date).getDate()}</div>
-                            </div>
-                            <div>
-                                <h3 className="font-medium text-gray-900">{schedule.topic}</h3>
-                                <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                        <Clock size={14} />
-                                        {new Date(schedule.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })} -
-                                        {new Date(schedule.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        {schedule.isOnline ? <Video size={14} /> : <MapPin size={14} />}
-                                        {schedule.location || (schedule.isOnline ? "Online Live" : "Onsite")}
-                                    </span>
+                {sortedSchedules.map((schedule) => {
+                    const scheduleAny = schedule as any;
+                    const status: ScheduleStatus = scheduleAny.status || "ON_SCHEDULE";
+                    const statusCfg = STATUS_CONFIG[status];
+
+                    return (
+                        <div key={schedule.id} className={`border rounded-lg bg-white p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${status === "CANCELLED" ? "opacity-60" : ""}`}>
+                            <div className="flex items-start gap-4">
+                                {/* Date Box */}
+                                <div className="bg-blue-50 p-3 rounded-lg text-blue-600 text-center min-w-[60px]">
+                                    {scheduleAny.sessionNumber && (
+                                        <div className="text-[10px] font-medium text-blue-400 mb-0.5">ครั้งที่ {scheduleAny.sessionNumber}</div>
+                                    )}
+                                    <div className="text-xs font-bold uppercase">{new Date(schedule.date).toLocaleDateString("en-US", { month: "short" })}</div>
+                                    <div className="text-xl font-bold">{new Date(schedule.date).getDate()}</div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className={`font-medium text-gray-900 ${status === "CANCELLED" ? "line-through" : ""}`}>{schedule.topic}</h3>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.bg} ${statusCfg.color}`}>
+                                            {statusCfg.label}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                                        <span className="flex items-center gap-1">
+                                            <Clock size={14} />
+                                            {new Date(schedule.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })} -
+                                            {new Date(schedule.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            {schedule.isOnline ? <Video size={14} /> : <MapPin size={14} />}
+                                            {schedule.location || (schedule.isOnline ? "Online Live" : "Onsite")}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 md:self-center self-end">
-                            <Button size="sm" variant="ghost" onClick={() => startEdit(schedule)}>
-                                <Pencil size={16} />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmDelete({ id: schedule.id, topic: schedule.topic })}>
-                                <Trash2 size={16} />
-                            </Button>
+                            <div className="flex items-center gap-2 md:self-center self-end">
+                                <Button size="sm" variant="ghost" onClick={() => startEdit(schedule)}>
+                                    <Pencil size={16} />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setConfirmDelete({ id: schedule.id, topic: schedule.topic })}>
+                                    <Trash2 size={16} />
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {(!course.schedules || course.schedules.length === 0) && !isAdding && (
                     <div className="text-center py-12 bg-white rounded-lg border border-dashed text-gray-400">

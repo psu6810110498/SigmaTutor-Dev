@@ -1,10 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Video, Users, Monitor, MapPin, Folder, DollarSign, Globe, Save } from "lucide-react";
+import { FileText, Video, User, Save, File, DollarSign } from "lucide-react";
 import { courseApi, categoryApi, levelApi } from "@/app/lib/api";
-import type { Category, Level, Course, CreateCourseInput } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
 import { NumberInput } from "@/app/components/ui/NumberInput";
@@ -13,185 +11,166 @@ import { ImageUpload } from "@/app/components/ui/ImageUpload";
 import { Button } from "@/app/components/ui/Button";
 
 interface CourseOverviewTabProps {
-    course: Course;
+    course: any;
+    instructors: any[];
     onUpdate: () => void;
 }
 
-export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) {
+export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverviewTabProps) {
     const { toast } = useToast();
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [levels, setLevels] = useState<Level[]>([]);
-
-    useEffect(() => {
-        categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
-        levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
-    }, []);
-
-    const [form, setForm] = useState<CreateCourseInput>({
-        title: course.title,
-        description: course.description,
-        price: course.price,
-        originalPrice: course.originalPrice,
-        courseType: course.type as any, // Enum casing might differ? type is CourseType.
-        categoryId: course.categoryId,
-        levelId: course.levelId,
-        duration: course.duration,
-        videoCount: course.videoCount,
-        maxSeats: course.maxSeats,
-        enrollStartDate: course.enrollStartDate,
-        enrollEndDate: course.enrollEndDate,
-        location: course.location,
-        mapUrl: course.mapUrl,
-        zoomLink: course.zoomLink,
-        published: course.published,
-    });
-
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
 
-    const updateForm = <K extends keyof CreateCourseInput>(key: K, value: CreateCourseInput[K]) => {
-        setForm((prev) => ({ ...prev, [key]: value }));
+    // ✅ รวมข้อมูลเดิมเข้ากับฟิลด์ใหม่ (วิดีโอ/ไฟล์) เพื่อให้บันทึกได้ครบ
+    const [form, setForm] = useState<any>({
+        title: course.title || "",
+        description: course.description || "",
+        price: course.price || 0,
+        originalPrice: course.originalPrice || null,
+        promotionalPrice: course.promotionalPrice || null,
+        instructorId: course.instructorId || "",
+        courseType: course.courseType || "ONLINE",
+        demoVideoUrl: course.demoVideoUrl || "", 
+        materialUrl: course.materialUrl || "",
+        published: course.published ?? false,
+        isBestSeller: course.isBestSeller ?? false,
+        isRecommended: course.isRecommended ?? false,
+    });
+
+    // ✅ ฟังก์ชันดึง Token จาก LocalStorage
+    const getToken = () => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+        }
+        return '';
+    };
+
+    const updateForm = (key: string, value: any) => {
+        setForm((prev: any) => ({ ...prev, [key]: value }));
     };
 
     const handleSave = async () => {
-        setSaving(true);
         if (!form.title.trim()) {
             toast.error("กรุณากรอกชื่อคอร์ส");
-            setSaving(false);
             return;
         }
 
-        // Update Text Data
-        const res = await courseApi.update(course.id, form);
-        if (!res.success) {
-            toast.error(res.error || "บันทึกไม่สำเร็จ");
+        setSaving(true);
+        try {
+            const token = getToken();
+            
+            // ✅ ใช้ fetch ยิงตรงไปที่ /api/courses/:id (ตามที่ระบุใน course.routes.ts)
+            // บังคับใช้ Method PUT ตามหลังบ้าน
+            const response = await fetch(`http://localhost:4000/api/courses/${course.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include',
+                body: JSON.stringify(form)
+            });
+
+            const res = await response.json();
+
+            if (res.success) {
+                // ถ้ามีการเปลี่ยนรูปหน้าปก ให้ใช้ courseApi เดิมช่วยอัปโหลด (เพราะมี ID แล้ว)
+                if (thumbnailFile) {
+                    await courseApi.uploadThumbnail(course.id, thumbnailFile);
+                }
+                toast.success("บันทึกการแก้ไขเรียบร้อยแล้ว ✨");
+                onUpdate(); // รีเฟรชข้อมูลในหน้าหลัก
+            } else {
+                toast.error(res.error || "บันทึกไม่สำเร็จ");
+            }
+        } catch (error) {
+            console.error("Update Error:", error);
+            toast.error("เซสชันหมดอายุหรือการเชื่อมต่อมีปัญหา กรุณาล็อกอินใหม่");
+        } finally {
             setSaving(false);
-            return;
         }
-
-        // Upload Thumbnail if changed
-        if (thumbnailFile) {
-            await courseApi.uploadThumbnail(course.id, thumbnailFile);
-        }
-
-        toast.success("บันทึกข้อมูลเรียบร้อย");
-        setSaving(false);
-        onUpdate();
     };
-
-    // Shared Styles
-    const inputClass = "w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all";
-    const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
+                
+                {/* 1. ข้อมูลทั่วไป */}
                 <SectionCard title="ข้อมูลทั่วไป" icon={FileText}>
                     <div className="space-y-4">
                         <div>
-                            <label className={labelClass}>ชื่อคอร์ส *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อคอร์ส *</label>
                             <input
                                 type="text"
                                 value={form.title}
                                 onChange={(e) => updateForm("title", e.target.value)}
-                                className={inputClass}
+                                className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none"
                             />
                         </div>
                         <RichTextarea
                             label="คำอธิบายคอร์ส"
                             value={form.description || ""}
                             onChange={(val) => updateForm("description", val)}
-                            rows={6}
                         />
                     </div>
                 </SectionCard>
 
-                <SectionCard title="สื่อการสอน" icon={Video}>
+                {/* 2. สื่อการสอน (เพิ่มช่องวิดีโอ/ไฟล์) */}
+                <SectionCard title="สื่อการสอนและไฟล์ประกอบ" icon={Video}>
                     <div className="space-y-4">
                         <ImageUpload
                             label="ภาพปก (16:9)"
-                            value={thumbnailFile || course.thumbnail} // Show existing URL if no new file
+                            value={thumbnailFile || course.thumbnail}
                             onChange={setThumbnailFile}
                         />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ลิงก์วิดีโอตัวอย่าง (MP4)</label>
+                                <input
+                                    type="url"
+                                    value={form.demoVideoUrl}
+                                    onChange={(e) => updateForm("demoVideoUrl", e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ไฟล์เอกสารประกอบ (PDF)</label>
+                                <input
+                                    type="url"
+                                    value={form.materialUrl}
+                                    onChange={(e) => updateForm("materialUrl", e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </SectionCard>
 
-                {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
-                    <SectionCard title="การรับสมัคร" icon={Users}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <NumberInput
-                                label="จำนวนรับสูงสุด"
-                                value={form.maxSeats || 0}
-                                onChange={(val) => updateForm("maxSeats", val)}
-                            />
-                            <div>
-                                <label className={labelClass}>ช่วงเวลาเปิดรับ</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="date"
-                                        value={form.enrollStartDate ? new Date(form.enrollStartDate).toISOString().split('T')[0] : ""}
-                                        onChange={(e) => updateForm("enrollStartDate", e.target.value || null)}
-                                        className={inputClass}
-                                    />
-                                    <span className="text-gray-400">-</span>
-                                    <input
-                                        type="date"
-                                        value={form.enrollEndDate ? new Date(form.enrollEndDate).toISOString().split('T')[0] : ""}
-                                        onChange={(e) => updateForm("enrollEndDate", e.target.value || null)}
-                                        className={inputClass}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </SectionCard>
-                )}
-                {form.courseType === "ONLINE_LIVE" && (
-                    <SectionCard title="ช่องทางเรียนสด" icon={Monitor}>
-                        <div>
-                            <label className={labelClass}>Zoom Link</label>
-                            <input
-                                type="url"
-                                value={form.zoomLink || ""}
-                                onChange={(e) => updateForm("zoomLink", e.target.value)}
-                                className={inputClass}
-                            />
-                        </div>
-                    </SectionCard>
-                )}
-                {form.courseType === "ONSITE" && (
-                    <SectionCard title="สถานที่เรียน" icon={MapPin}>
-                        <div className="space-y-4">
-                            <div>
-                                <label className={labelClass}>สถานที่</label>
-                                <input
-                                    type="text"
-                                    value={form.location || ""}
-                                    onChange={(e) => updateForm("location", e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Google Map URL</label>
-                                <input
-                                    type="url"
-                                    value={form.mapUrl || ""}
-                                    onChange={(e) => updateForm("mapUrl", e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                        </div>
-                    </SectionCard>
-                )}
+                {/* 3. ผู้สอน (เชื่อมกับฐานข้อมูลครู) */}
+                <SectionCard title="ผู้สอน" icon={User}>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้สอน</label>
+                        <select
+                            value={form.instructorId || ""}
+                            onChange={(e) => updateForm("instructorId", e.target.value)}
+                            className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+                        >
+                            <option value="">-- เลือกผู้สอน --</option>
+                            {instructors.map((inst) => (
+                                <option key={inst.id} value={inst.id}>
+                                    {inst.name} {inst.nickname ? `(${inst.nickname})` : ''} - {inst.title || 'ครูผู้สอน'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </SectionCard>
             </div>
 
-            {/* Right Column */}
+            {/* Sidebar ด้านขวา */}
             <div className="space-y-6">
-                {/* Action Panel (Sticky) */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm sticky top-24 z-10">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="font-semibold text-gray-900">บันทึกการแก้ไข</span>
-                    </div>
                     <Button
                         onClick={handleSave}
                         isLoading={saving}
@@ -199,49 +178,13 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                         size="lg"
                     >
                         <Save size={18} className="mr-2" />
-                        บันทึกข้อมูล
+                        บันทึกการแก้ไข
                     </Button>
+                    <p className="text-[10px] text-gray-400 mt-2 text-center italic">
+                        * หากบันทึกไม่ได้ กรุณาล็อกเอาท์และล็อกอินใหม่
+                    </p>
                 </div>
 
-                <SectionCard title="สถานะ" icon={Globe}>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">เผยแพร่คอร์ส</span>
-                        <button
-                            type="button"
-                            onClick={() => updateForm("published", !form.published)}
-                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.published ? "bg-green-500" : "bg-gray-200"}`}
-                        >
-                            <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${form.published ? "translate-x-5" : ""}`} />
-                        </button>
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="หมวดหมู่" icon={Folder}>
-                    <div className="space-y-4">
-                        <div>
-                            <label className={labelClass}>วิชา</label>
-                            <select
-                                value={form.categoryId || ""}
-                                onChange={(e) => updateForm("categoryId", e.target.value || null)}
-                                className={inputClass}
-                            >
-                                <option value="">เลือกวิชา</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className={labelClass}>ระดับชั้น</label>
-                            <select
-                                value={form.levelId || ""}
-                                onChange={(e) => updateForm("levelId", e.target.value || null)}
-                                className={inputClass}
-                            >
-                                <option value="">เลือกระดับชั้น</option>
-                                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                </SectionCard>
                 <SectionCard title="ราคา" icon={DollarSign}>
                     <div className="space-y-4">
                         <NumberInput
@@ -250,7 +193,7 @@ export function CourseOverviewTab({ course, onUpdate }: CourseOverviewTabProps) 
                             onChange={(val) => updateForm("price", val)}
                         />
                         <NumberInput
-                            label="ราคาเต็ม"
+                            label="ราคาเต็ม (ขีดฆ่า)"
                             value={form.originalPrice || undefined}
                             onChange={(val) => updateForm("originalPrice", val || null)}
                         />

@@ -7,6 +7,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { PublicNavbar } from '@/app/components/layouts/PublicNavbar'; // Import PublicNavbar
 
+
+
+
+
 export default function LearnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -81,11 +85,10 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${
-                      isActive
-                        ? 'bg-primary text-white shadow-md shadow-primary/20'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
-                    }`}
+                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${isActive
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
+                      }`}
                   >
                     <item.icon
                       className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-primary'}`}
@@ -106,6 +109,8 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
                 ออกจากระบบ
               </button>
             </div>
+
+            {/* Sidebar Banner Removed */}
           </div>
         </aside>
 

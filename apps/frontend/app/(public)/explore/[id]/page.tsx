@@ -231,8 +231,8 @@ export default function CourseDetailPage() {
                                     key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key
-                                            ? "border-primary text-primary"
-                                            : "border-transparent text-gray-500 hover:text-gray-700"
+                                        ? "border-primary text-primary"
+                                        : "border-transparent text-gray-500 hover:text-gray-700"
                                         }`}
                                 >
                                     {tab.label}
@@ -244,33 +244,56 @@ export default function CourseDetailPage() {
                     {/* Tab Content */}
                     <div className="mb-8">
                         {/* === Lessons Tab (ONLINE) === */}
-                        {activeTab === "lessons" && course.lessons && (
-                            <div className="space-y-2">
-                                {course.lessons.length === 0 ? (
+                        {activeTab === "lessons" && (
+                            <div className="space-y-6">
+                                {!course.chapters || course.chapters.length === 0 ? (
                                     <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีบทเรียน</p>
                                 ) : (
-                                    course.lessons.map((lesson, i) => (
-                                        <div key={lesson.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                                            <button
-                                                onClick={() => toggleLesson(lesson.id)}
-                                                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <span className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center text-sm font-bold">
-                                                        {i + 1}
-                                                    </span>
-                                                    <span className="text-sm font-medium text-gray-900">{lesson.title}</span>
-                                                </div>
-                                                <div className="flex items-center gap-3 text-gray-400">
-                                                    {lesson.duration && <span className="text-xs">{lesson.duration}</span>}
-                                                    {expandedLessons.has(lesson.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                </div>
-                                            </button>
-                                            {expandedLessons.has(lesson.id) && lesson.content && (
-                                                <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3">
-                                                    {lesson.content}
-                                                </div>
-                                            )}
+                                    course.chapters.map((chapter) => (
+                                        <div key={chapter.id}>
+                                            <h3 className="font-bold text-gray-900 mb-3 ml-1">{chapter.title}</h3>
+                                            <div className="space-y-2">
+                                                {chapter.lessons?.map((lesson, i) => (
+                                                    <div key={lesson.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                                                        <button
+                                                            onClick={() => toggleLesson(lesson.id)}
+                                                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center text-sm font-bold">
+                                                                    {i + 1}
+                                                                </span>
+                                                                <span className="text-sm font-medium text-gray-900">{lesson.title}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 text-gray-400">
+                                                                {lesson.duration && <span className="text-xs">{lesson.duration} นาที</span>}
+                                                                <div className="flex items-center gap-1">
+                                                                    {lesson.type === 'VIDEO' && <Video size={14} />}
+                                                                    {lesson.type === 'FILE' && <BookOpen size={14} />}
+                                                                    {expandedLessons.has(lesson.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                        {expandedLessons.has(lesson.id) && (
+                                                            <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
+                                                                {lesson.content || "ไม่มีรายละเอียดเนื้อหา"}
+                                                                {lesson.youtubeUrl && (
+                                                                    <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                                                        <iframe
+                                                                            src={`https://www.youtube.com/embed/${lesson.youtubeUrl.split('v=')[1] || lesson.youtubeUrl.split('/').pop()}`}
+                                                                            className="w-full h-full"
+                                                                            allowFullScreen
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {(!chapter.lessons || chapter.lessons.length === 0) && (
+                                                    <p className="text-gray-400 text-xs pl-4 italic">ไม่มีบทเรียนในบทนี้</p>
+                                                )}
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -278,39 +301,64 @@ export default function CourseDetailPage() {
                         )}
 
                         {/* === Schedule Tab (ONLINE_LIVE) === */}
-                        {activeTab === "schedule" && course.liveSchedules && (
+                        {activeTab === "schedule" && course.schedules && (
                             <div className="space-y-3">
-                                {course.liveSchedules.length === 0 ? (
+                                {course.schedules.length === 0 ? (
                                     <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
                                 ) : (
-                                    course.liveSchedules.map((sched) => (
-                                        <div key={sched.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center">
-                                                    <Calendar className="text-violet-600" size={20} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900 text-sm">{sched.topic}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {formatDate(sched.date)} · {sched.startTime} - {sched.endTime}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {sched.zoomLink && (
-                                                <a
-                                                    href={sched.zoomLink}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1 text-xs text-violet-600 hover:underline"
+                                    <>
+                                        {course.schedules.map((sched, idx) => {
+                                            const isPast = new Date(sched.date) < new Date();
+                                            const isOnline = sched.isOnline || course.courseType === 'ONLINE_LIVE';
+                                            return (
+                                                <div
+                                                    key={sched.id}
+                                                    className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${isPast ? 'border-gray-100 opacity-60' : 'border-gray-200'
+                                                        }`}
                                                 >
-                                                    <ExternalLink size={12} /> Zoom
-                                                </a>
-                                            )}
-                                        </div>
-                                    ))
+                                                    {/* Session Number */}
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${isPast ? 'bg-gray-100 text-gray-400' : 'bg-violet-50 text-violet-600'
+                                                        }`}>
+                                                        {idx + 1}
+                                                    </div>
+
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-gray-900 text-sm truncate">
+                                                            {sched.topic}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-0.5">
+                                                            {formatDate(sched.date)} · {sched.startTime} – {sched.endTime}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Platform badge (no link exposed) */}
+                                                    <div className="flex-shrink-0">
+                                                        {isPast ? (
+                                                            <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+                                                                เรียนแล้ว
+                                                            </span>
+                                                        ) : isOnline ? (
+                                                            <span className="text-xs text-violet-600 bg-violet-50 px-2 py-1 rounded-lg font-medium">
+                                                                📡 Zoom
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-lg font-medium">
+                                                                📍 {sched.location || 'สถานที่เรียน'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        <p className="text-xs text-gray-400 text-center pt-2">
+                                            🔒 ลิงก์ Zoom จะส่งให้ทางอีเมลหลังชำระเงิน
+                                        </p>
+                                    </>
                                 )}
                             </div>
                         )}
+
 
                         {/* === Location Tab (ONSITE) === */}
                         {activeTab === "location" && (
@@ -472,7 +520,10 @@ export default function CourseDetailPage() {
                             {course.enrollStartDate && (
                                 <div className="flex items-center justify-between text-gray-600">
                                     <span>เปิดรับสมัคร</span>
-                                    <span className="font-medium">{formatDate(course.enrollStartDate)}</span>
+                                    <span className="font-medium text-xs">
+                                        {formatDate(course.enrollStartDate)}
+                                        {course.enrollEndDate && ` - ${formatDate(course.enrollEndDate)}`}
+                                    </span>
                                 </div>
                             )}
                         </div>
@@ -482,8 +533,8 @@ export default function CourseDetailPage() {
                             onClick={() => addToCart(toCartItem(course))}
                             disabled={isInCart(course.id)}
                             className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
-                                    ? "bg-green-50 text-green-600 cursor-default"
-                                    : "bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]"
+                                ? "bg-green-50 text-green-600 cursor-default"
+                                : "bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]"
                                 }`}
                         >
                             {isInCart(course.id) ? "✓ อยู่ในตะกร้าแล้ว" : (

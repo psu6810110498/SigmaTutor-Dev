@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { Course as APICourse } from '@/app/lib/types';
 
-// Cart item — uses string IDs to match database UUIDs
+// ✅ ใช้ CartItem ตามกิ่ง main เพื่อรองรับ UUID (String) 
 export interface CartItem {
   id: string;
   title: string;
@@ -15,13 +15,13 @@ export interface CartItem {
 }
 
 /**
- * Convert an API Course object to a CartItem for the shopping cart
+ * ฟังก์ชันแปลงข้อมูลจาก API เป็น Item สำหรับตะกร้าสินค้า
  */
 export function toCartItem(course: APICourse): CartItem {
   return {
     id: course.id,
     title: course.title,
-    price: course.price,
+    price: course.promotionalPrice || course.price,
     image: course.thumbnail || course.thumbnailSm || '/course-placeholder.jpg',
     category: course.category?.name,
     level: course.level?.name,
@@ -38,7 +38,7 @@ interface CourseContextType {
   removeFromWishlist: (id: string) => void;
   isInCart: (id: string) => boolean;
   isInWishlist: (id: string) => boolean;
-  clearCart: () => void;
+  clearCart: () => void; // ✅ เพิ่มจากระบบ Payment ของเพื่อน
 }
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
@@ -48,24 +48,22 @@ export function CourseProvider({ children }: { children: ReactNode }) {
   const [wishlistItems, setWishlistItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
-    // Filter out old cart items that used numeric IDs (from mock data era)
-    const isValidItem = (item: CartItem) => typeof item.id === 'string' && item.id.length > 5;
-
+    // โหลดข้อมูลจาก LocalStorage เมื่อเปิดหน้าเว็บ
     const savedCart = localStorage.getItem('sigma_cart');
     const savedWishlist = localStorage.getItem('sigma_wishlist');
+    
+    // ตรวจสอบข้อมูลเก่า (ถ้า ID เป็นตัวเลขให้กรองออกเพื่อป้องกันระบบพัง)
+    const isValidItem = (item: CartItem) => typeof item.id === 'string' && item.id.length > 5;
+
     if (savedCart) {
       const parsed = JSON.parse(savedCart) as CartItem[];
       const valid = parsed.filter(isValidItem);
       setCartItems(valid);
-      // Clean up invalid entries
-      if (valid.length !== parsed.length) localStorage.setItem('sigma_cart', JSON.stringify(valid));
     }
     if (savedWishlist) {
       const parsed = JSON.parse(savedWishlist) as CartItem[];
       const valid = parsed.filter(isValidItem);
       setWishlistItems(valid);
-      if (valid.length !== parsed.length)
-        localStorage.setItem('sigma_wishlist', JSON.stringify(valid));
     }
   }, []);
 

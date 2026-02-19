@@ -1,17 +1,13 @@
 model CourseSchedule {
-    id        String   @id @default(cuid())
-    date      DateTime
-    startTime DateTime // Combines date + time usually, or just time part.
-    // But UI uses Date + StartTime + EndTime.
-    // Making them DateTime is safer for TimeZone.
-    // Or use String "HH:mm" like before?
-    // User approved plan with DateTime.
-    // I'll stick to DateTime.
-
-    endTime  DateTime
-    topic    String
-    location String? // Room or Zoom Link (unified)
-    isOnline Boolean  @default(false)
+    id            String         @id @default(cuid())
+    sessionNumber Int? // ครั้งที่ 1, 2, 3...
+    date          DateTime
+    startTime     DateTime
+    endTime       DateTime
+    topic         String
+    location      String? // Room or Zoom Link (unified)
+    isOnline      Boolean        @default(false)
+    status        ScheduleStatus @default(ON_SCHEDULE)
 
     courseId String
     course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -21,4 +17,10 @@ model CourseSchedule {
 
     @@index([courseId])
     @@map("course_schedules")
+}
+
+enum ScheduleStatus {
+    ON_SCHEDULE
+    POSTPONED
+    CANCELLED
 }

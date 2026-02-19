@@ -7,6 +7,8 @@ import paymentRoutes from './payment.routes.js';
 import categoryRoutes from './category.routes.js';
 import levelRoutes from './level.routes.js';
 
+import bannerRoutes from './banner.routes.js';
+
 // ✅ ระบุ Type : express.Router เพื่อแก้ปัญหา inferred type
 const router: express.Router = express.Router();
 
@@ -19,5 +21,6 @@ router.use('/courses', courseRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/levels', levelRoutes);
+router.use('/banners', bannerRoutes);
 
 export default router;

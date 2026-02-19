@@ -23,10 +23,10 @@ export function AdminFormLayout({
     loading = false,
 }: AdminFormLayoutProps) {
     return (
-        <div className="min-h-screen bg-gray-50 pb-24 md:pb-12">
-            {/* Header */}
-            <div className="sticky top-0 z-40 bg-white border-b shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="min-h-screen bg-gray-50 pb-24 md:pb-12 -mt-6 -mx-6 lg:-mt-10 lg:-mx-10">
+            {/* Header — breaks out of parent padding, sticks below mobile nav */}
+            <div className="sticky top-16 lg:top-0 z-40 bg-white border-b shadow-sm">
+                <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <Breadcrumb items={breadcrumbs} className="mb-2" />

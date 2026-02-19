@@ -17,9 +17,14 @@ export class CourseService {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4);
 
+        // Sanitize dates if they are strings
+        const data = { ...input } as any;
+        if (typeof data.enrollStartDate === 'string') data.enrollStartDate = new Date(data.enrollStartDate);
+        if (typeof data.enrollEndDate === 'string') data.enrollEndDate = new Date(data.enrollEndDate);
+
         return prisma.course.create({
             data: {
-                ...input,
+                ...data,
                 slug,
                 instructorId,
             },
@@ -34,14 +39,24 @@ export class CourseService {
         const course = await prisma.course.findUnique({
             where: { id },
             include: {
-                instructor: { select: { id: true, name: true, email: true } },
+                instructor: { select: { id: true, name: true, email: true, profileImage: true } },
+                category: { select: { id: true, name: true, slug: true } },
+                level: { select: { id: true, name: true, slug: true, order: true } },
                 chapters: {
                     include: {
                         lessons: { orderBy: { order: 'asc' } }
                     },
                     orderBy: { order: 'asc' }
                 },
-                _count: { select: { enrollments: true } },
+                schedules: {
+                    orderBy: { date: 'asc' }
+                },
+                reviews: {
+                    include: { user: { select: { id: true, name: true } } },
+                    take: 5,
+                    orderBy: { createdAt: 'desc' }
+                },
+                _count: { select: { enrollments: true, reviews: true } },
             },
         });
 
@@ -52,38 +67,120 @@ export class CourseService {
         return course;
     }
 
+
     /**
      * Query courses with filters, pagination, and sorting
      */
-    async findMany(query: CourseQueryInput) {
-        const { search, status, page, limit, sort, order } = query;
+    /**
+     * Get courses for Marketplace (Public View)
+     * Optimized select & filtering
+     */
+    async getMarketplaceCourses(query: CourseQueryInput & {
+        categoryId?: string;
+        levelId?: string;
+        minPrice?: number;
+        maxPrice?: number;
+        rating?: number;
+    }) {
+        const search = query.search as string | undefined;
+        const page = Number(query.page) || 1;
+        const limit = Number(query.limit) || 12;
+        const sort = query.sort || 'newest';
+        const categoryId = query.categoryId as string | undefined;
+        const levelId = query.levelId as string | undefined;
+        const minPrice = query.minPrice ? Number(query.minPrice) : undefined;
+        const maxPrice = query.maxPrice ? Number(query.maxPrice) : undefined;
 
-        const where = {
-            ...(status && { status: status as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' }),
+        // Handle Category Hierarchy
+        let categoryFilter: any = categoryId ? { categoryId } : {};
+
+        if (categoryId) {
+            const category = await prisma.category.findUnique({
+                where: { id: categoryId },
+                include: { children: { select: { id: true } } }
+            });
+
+            if (category && category.children.length > 0) {
+                const childIds = category.children.map(c => c.id);
+                categoryFilter = { categoryId: { in: [categoryId, ...childIds] } };
+            }
+        }
+
+        // Build Where Clause
+        const where: any = {
+            status: 'PUBLISHED', // Always filter published for marketplace
+            ...categoryFilter,
             ...(search && {
                 OR: [
-                    { title: { contains: search, mode: 'insensitive' as const } },
-                    { description: { contains: search, mode: 'insensitive' as const } },
+                    { title: { contains: search, mode: 'insensitive' } },
+                    { description: { contains: search, mode: 'insensitive' } },
+                    // Search in tags if available in Schema
+                    { tags: { has: search } }
                 ],
             }),
+            // ...(categoryId && { categoryId }), <-- Removed
+            ...(levelId && { levelId }),
+            ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
+            ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
         };
+
+        // Build Order Clause
+        let orderBy: any = { createdAt: 'desc' };
+        // Explicitly check sort strings to satisfy TypeScript
+        const sortParam = sort as string;
+        if (sortParam === 'price-asc') orderBy = { price: 'asc' };
+        else if (sortParam === 'price-desc') orderBy = { price: 'desc' };
+        else if (sortParam === 'popular') orderBy = { enrollments: { _count: 'desc' } };
 
         const [courses, total] = await Promise.all([
             prisma.course.findMany({
                 where,
-                include: {
-                    instructor: { select: { id: true, name: true } },
+                select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    description: true,
+                    thumbnail: true,
+                    price: true,
+                    originalPrice: true,
+                    promotionalPrice: true,
+                    courseType: true,
+                    reviews: {
+                        select: { rating: true }
+                    },
+                    level: { select: { name: true } },
+                    category: { select: { name: true } },
+                    instructor: { select: { id: true, name: true, profileImage: true } },
                     _count: { select: { enrollments: true } },
+                    videoCount: true,
+                    isBestSeller: true,
+                    isRecommended: true,
+                    tags: true,
                 },
-                orderBy: { [sort]: order },
+                orderBy,
                 skip: (page - 1) * limit,
                 take: limit,
             }),
             prisma.course.count({ where }),
         ]);
 
+        // Transform and Calculate Rating
+        const mappedCourses = courses.map(course => {
+            const reviewCount = course.reviews.length;
+            const rating = reviewCount > 0
+                ? course.reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount
+                : 0;
+
+            const { reviews, ...rest } = course;
+            return {
+                ...rest,
+                rating,
+                reviewCount
+            };
+        });
+
         return {
-            courses,
+            courses: mappedCourses,
             pagination: {
                 page,
                 limit,
@@ -94,14 +191,73 @@ export class CourseService {
     }
 
     /**
+     * Get courses enrolled by a user (My Courses)
+     */
+    async getUserEnrolledCourses(userId: string) {
+        return prisma.enrollment.findMany({
+            where: { userId, status: 'ACTIVE' },
+            include: {
+                course: {
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                        thumbnail: true,
+                        // progress: true, // Removed as field doesn't exist yet
+                        instructor: { select: { name: true } },
+                        _count: { select: { chapters: true } } // Count chapters instead of lessons for now
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    /**
+     * Admin/Instructor Course List
+     */
+    async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
+        const { search, status, instructorId } = query;
+        const page = Number(query.page) || 1;
+        const limit = Number(query.limit) || 10;
+
+        const where: any = {
+            ...(status && { status }),
+            ...(instructorId && { instructorId }),
+            ...(search && {
+                title: { contains: search, mode: 'insensitive' }
+            })
+        };
+
+        const [courses, total] = await Promise.all([
+            prisma.course.findMany({
+                where,
+                include: {
+                    instructor: { select: { name: true, email: true } },
+                    _count: { select: { enrollments: true } }
+                },
+                orderBy: { updatedAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            prisma.course.count({ where })
+        ]);
+
+        return { courses, total, totalPages: Math.ceil(total / limit) };
+    }
+
+
+    /**
      * Update a course
      */
     async update(id: string, input: UpdateCourseInput) {
         await this.findById(id); // throws if not found
 
+        // Prisma requires null relational IDs to be passed as-is;
+        // cast to any to allow null disconnection for optional relations.
         return prisma.course.update({
             where: { id },
-            data: input,
+            data: input as any,
             include: { instructor: { select: { id: true, name: true, email: true } } },
         });
     }
