@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -5,67 +7,111 @@ interface QuickFiltersProps {
     filters?: string[];
     activeFilter?: string;
     onFilterChange: (filter: string) => void;
+    disabled?: boolean;
 }
 
 export default function QuickFilters({
     filters = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"],
-    activeFilter = "TCAS", // Default active as per requirement
-    onFilterChange
+    activeFilter = "ทั้งหมด",
+    onFilterChange,
+    disabled = false
 }: QuickFiltersProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [showLeftShadow, setShowLeftShadow] = useState(false);
-    const [showRightShadow, setShowRightShadow] = useState(true);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(true);
 
+    // Debug: Log props changes
+    useEffect(() => {
+        console.log('🎨 QuickFilters props:', { activeFilter, disabled, filtersCount: filters.length });
+    }, [activeFilter, disabled, filters]);
+
+    // Check scroll position
     const checkScroll = () => {
         if (!scrollContainerRef.current) return;
         const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-        setShowLeftShadow(scrollLeft > 0);
-        setShowRightShadow(scrollLeft < scrollWidth - clientWidth - 5); // buffer
+        setCanScrollLeft(scrollLeft > 0);
+        setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
     };
 
     useEffect(() => {
         checkScroll();
-        window.addEventListener('resize', checkScroll);
-        return () => window.removeEventListener('resize', checkScroll);
+        const container = scrollContainerRef.current;
+        if (container) {
+            container.addEventListener('scroll', checkScroll);
+            window.addEventListener('resize', checkScroll);
+        }
+        return () => {
+            if (container) {
+                container.removeEventListener('scroll', checkScroll);
+            }
+            window.removeEventListener('resize', checkScroll);
+        };
     }, []);
 
-    const scroll = (direction: 'left' | 'right') => {
-        if (!scrollContainerRef.current) return;
-        const scrollAmount = 200;
-        scrollContainerRef.current.scrollBy({
-            left: direction === 'left' ? -scrollAmount : scrollAmount,
-            behavior: 'smooth'
-        });
+    // Scroll functions
+    const scrollLeft = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+        }
+    };
+
+    const scrollRight = () => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+        }
+    };
+
+    // Handle filter click
+    const handleFilterClick = (filter: string) => {
+        console.log('🎯 QuickFilter handleFilterClick called:', { filter, disabled, activeFilter });
+        if (disabled) {
+            console.warn('⚠️ QuickFilter disabled - categories not loaded yet');
+            return;
+        }
+        console.log('✅ QuickFilter calling onFilterChange:', filter);
+        onFilterChange(filter);
     };
 
     return (
-        <div className="relative z-20 -mt-6 md:-mt-8 px-4 max-w-7xl mx-auto group">
-
-            {/* Left Gradient & Button */}
-            <div className={`absolute left-0 top-0 bottom-4 w-12 bg-gradient-to-r from-gray-50 to-transparent z-10 pointer-events-none transition-opacity duration-300 ${showLeftShadow ? 'opacity-100' : 'opacity-0'}`} />
-            {showLeftShadow && (
-                <button
-                    onClick={() => scroll('left')}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 -mt-2 z-20 bg-white shadow-md rounded-full p-1.5 text-gray-600 hover:text-primary hover:scale-110 transition-all hidden md:flex"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-            )}
-
-            {/* Scroll Container */}
-            <div
-                ref={scrollContainerRef}
-                onScroll={checkScroll}
-                className="w-full pb-4 scrollbar-hide flex justify-center md:justify-center md:overflow-x-auto"
-            >
-                <div className="flex gap-2.5 md:gap-3 bg-white/95 backdrop-blur-xl p-2 rounded-2xl md:rounded-full border border-gray-100/50 shadow-lg shadow-gray-200/50 flex-wrap justify-center w-full md:w-max md:flex-nowrap md:shrink-0 mx-auto md:mx-0">
+        <div className="relative w-full max-w-7xl mx-auto px-2 md:px-6">
+            {/* Mobile: Flex wrap (ไม่ต้องเลื่อน) */}
+            <div className="md:hidden">
+                <div className="flex flex-wrap gap-2 justify-center py-3 px-2">
                     {filters.map((filter) => {
                         const isActive = activeFilter === filter;
                         return (
                             <button
                                 key={filter}
-                                onClick={() => onFilterChange(filter)}
-                                className={`px-4 md:px-6 py-2 rounded-lg md:rounded-full text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap ${isActive ? 'bg-secondary text-white shadow-md transform scale-105' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFilterClick(filter);
+                                }}
+                                disabled={disabled}
+                                className={`
+                                    relative z-50
+                                    px-3 py-1.5
+                                    rounded-full
+                                    text-xs
+                                    font-semibold
+                                    transition-all
+                                    duration-200
+                                    whitespace-nowrap
+                                    select-none
+                                    focus:outline-none
+                                    focus:ring-2
+                                    focus:ring-primary
+                                    focus:ring-offset-1
+                                    ${disabled
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                        : isActive
+                                            ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105 cursor-pointer'
+                                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300 shadow-sm cursor-pointer'
+                                    }
+                                `}
+                                aria-pressed={isActive}
+                                aria-disabled={disabled}
+                                aria-label={`กรองตาม ${filter}`}
                             >
                                 {filter}
                             </button>
@@ -74,16 +120,92 @@ export default function QuickFilters({
                 </div>
             </div>
 
-            {/* Right Gradient & Button */}
-            <div className={`absolute right-0 top-0 bottom-4 w-12 bg-gradient-to-l from-gray-50 to-transparent z-10 pointer-events-none transition-opacity duration-300 ${showRightShadow ? 'opacity-100' : 'opacity-0'}`} />
-            {showRightShadow && (
-                <button
-                    onClick={() => scroll('right')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 -mt-2 z-20 bg-white shadow-md rounded-full p-1.5 text-gray-600 hover:text-primary hover:scale-110 transition-all hidden md:flex"
+            {/* Desktop: Scroll container with buttons */}
+            <div className="hidden md:block relative">
+                {/* Desktop: Left scroll button */}
+                {canScrollLeft && (
+                    <button
+                        onClick={scrollLeft}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 z-30 bg-white shadow-lg rounded-full p-2 text-gray-600 hover:text-primary hover:bg-gray-50 transition-all items-center justify-center"
+                        aria-label="เลื่อนซ้าย"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                )}
+
+                {/* Desktop: Left gradient overlay */}
+                {canScrollLeft && (
+                    <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white via-white/80 to-transparent z-20 pointer-events-none" />
+                )}
+
+                {/* Scroll container */}
+                <div
+                    ref={scrollContainerRef}
+                    className="overflow-x-auto scrollbar-hide scroll-smooth w-full flex justify-center"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                    <ChevronRight size={20} />
-                </button>
-            )}
+                    {/* Filters container */}
+                    <div className="flex gap-4 justify-center items-center py-4 px-4 bg-white/95 backdrop-blur-sm rounded-full border border-gray-100 shadow-sm min-w-max">
+                        {filters.map((filter) => {
+                            const isActive = activeFilter === filter;
+                            return (
+                                <button
+                                    key={filter}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFilterClick(filter);
+                                    }}
+                                    disabled={disabled}
+                                    className={`
+                                        relative z-50
+                                        px-6 lg:px-8
+                                        py-2.5
+                                        rounded-full
+                                        text-base
+                                        font-semibold
+                                        transition-all
+                                        duration-200
+                                        whitespace-nowrap
+                                        select-none
+                                        focus:outline-none
+                                        focus:ring-2
+                                        focus:ring-primary
+                                        focus:ring-offset-2
+                                        ${disabled
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                            : isActive
+                                                ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105 cursor-pointer'
+                                                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md cursor-pointer'
+                                        }
+                                    `}
+                                    aria-pressed={isActive}
+                                    aria-disabled={disabled}
+                                    aria-label={`กรองตาม ${filter}`}
+                                >
+                                    {filter}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Desktop: Right gradient overlay */}
+                {canScrollRight && (
+                    <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white via-white/80 to-transparent z-20 pointer-events-none" />
+                )}
+
+                {/* Desktop: Right scroll button */}
+                {canScrollRight && (
+                    <button
+                        onClick={scrollRight}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 z-30 bg-white shadow-lg rounded-full p-2 text-gray-600 hover:text-primary hover:bg-gray-50 transition-all items-center justify-center"
+                        aria-label="เลื่อนขวา"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

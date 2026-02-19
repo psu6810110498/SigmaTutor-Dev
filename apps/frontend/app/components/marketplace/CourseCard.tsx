@@ -38,7 +38,7 @@ export default function CourseCard({ course }: CourseCardProps) {
     return (
         <Link
             href={`/explore/${course.slug}`}
-            className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full group w-[280px] md:w-[300px] flex-shrink-0 relative"
+            className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full group w-[280px] md:w-full flex-shrink-0 relative"
         >
             {/* Thumbnail */}
             <div className="relative h-44 w-full bg-gray-100 overflow-hidden">

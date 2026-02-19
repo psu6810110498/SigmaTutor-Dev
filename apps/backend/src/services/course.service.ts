@@ -78,6 +78,7 @@ export class CourseService {
     async getMarketplaceCourses(query: CourseQueryInput & {
         categoryId?: string;
         levelId?: string;
+        tutorId?: string;
         minPrice?: number;
         maxPrice?: number;
         rating?: number;
@@ -88,6 +89,7 @@ export class CourseService {
         const sort = query.sort || 'newest';
         const categoryId = query.categoryId as string | undefined;
         const levelId = query.levelId as string | undefined;
+        const tutorId = query.tutorId as string | undefined;
         const minPrice = query.minPrice ? Number(query.minPrice) : undefined;
         const maxPrice = query.maxPrice ? Number(query.maxPrice) : undefined;
 
@@ -120,6 +122,7 @@ export class CourseService {
             }),
             // ...(categoryId && { categoryId }), <-- Removed
             ...(levelId && { levelId }),
+            ...(tutorId && { instructorId: tutorId }),
             ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
             ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
         };

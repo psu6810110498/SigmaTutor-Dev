@@ -16,6 +16,7 @@ export interface ScheduleSession {
     location?: string;   // ห้อง / สถานที่ (ONSITE)
     zoomLink?: string;   // Zoom URL (ONLINE_LIVE)
     videoUrl?: string;   // VDO URL (ONLINE)
+    notes?: string;      // หมายเหตุ
 }
 
 interface ScheduleInputProps {
@@ -86,12 +87,10 @@ export function ScheduleInput({ courseType, value, onChange }: ScheduleInputProp
                                     {isOnsite && (
                                         <th className="px-3 py-2.5 text-left font-semibold text-gray-600 w-36">สถานที่/ห้อง</th>
                                     )}
-                                    {isLive && (
-                                        <th className="px-3 py-2.5 text-left font-semibold text-gray-600 w-48">Zoom Link</th>
-                                    )}
                                     {isOnline && (
                                         <th className="px-3 py-2.5 text-left font-semibold text-gray-600 w-48">ลิงก์วิดีโอ (optional)</th>
                                     )}
+                                    <th className="px-3 py-2.5 text-left font-semibold text-gray-600">หมายเหตุ</th>
                                     <th className="px-3 py-2.5 w-10" />
                                 </tr>
                             </thead>
@@ -157,18 +156,6 @@ export function ScheduleInput({ courseType, value, onChange }: ScheduleInputProp
                                             </td>
                                         )}
 
-                                        {isLive && (
-                                            <td className="px-3 py-2">
-                                                <input
-                                                    type="url"
-                                                    value={s.zoomLink || ''}
-                                                    onChange={(e) => updateSession(s.id, 'zoomLink', e.target.value)}
-                                                    placeholder="https://zoom.us/j/…"
-                                                    className={inputBase}
-                                                />
-                                            </td>
-                                        )}
-
                                         {isOnline && (
                                             <td className="px-3 py-2">
                                                 <input
@@ -180,6 +167,16 @@ export function ScheduleInput({ courseType, value, onChange }: ScheduleInputProp
                                                 />
                                             </td>
                                         )}
+
+                                        <td className="px-3 py-2">
+                                            <input
+                                                type="text"
+                                                value={s.notes || ''}
+                                                onChange={(e) => updateSession(s.id, 'notes', e.target.value)}
+                                                placeholder="หมายเหตุ..."
+                                                className={inputBase}
+                                            />
+                                        </td>
 
                                         <td className="px-3 py-2">
                                             <button
@@ -274,19 +271,6 @@ export function ScheduleInput({ courseType, value, onChange }: ScheduleInputProp
                                     </div>
                                 )}
 
-                                {isLive && (
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Zoom Link</label>
-                                        <input
-                                            type="url"
-                                            value={s.zoomLink || ''}
-                                            onChange={(e) => updateSession(s.id, 'zoomLink', e.target.value)}
-                                            placeholder="https://zoom.us/j/…"
-                                            className={inputBase}
-                                        />
-                                    </div>
-                                )}
-
                                 {isOnline && (
                                     <div>
                                         <label className="block text-xs font-medium text-gray-500 mb-1">ลิงก์วิดีโอ (optional)</label>
@@ -299,6 +283,17 @@ export function ScheduleInput({ courseType, value, onChange }: ScheduleInputProp
                                         />
                                     </div>
                                 )}
+                                
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">หมายเหตุ</label>
+                                    <input
+                                        type="text"
+                                        value={s.notes || ''}
+                                        onChange={(e) => updateSession(s.id, 'notes', e.target.value)}
+                                        placeholder="หมายเหตุ..."
+                                        className={inputBase}
+                                    />
+                                </div>
                             </div>
                         ))}
                     </div>

@@ -12,11 +12,16 @@ const router: express.Router = express.Router();
 router.get(
   '/instructors',
   authenticate as express.RequestHandler,
-  requireRole('ADMIN') as express.RequestHandler,
+  requireRole('ADMIN', 'INSTRUCTOR') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const instructors = await prisma.user.findMany({
-        where: { role: 'ADMIN' },
+        where: { 
+          OR: [
+            { role: 'INSTRUCTOR' },
+            { role: 'ADMIN' } // Include ADMIN as they can also be instructors
+          ]
+        },
         select: {
           id: true,
           email: true,

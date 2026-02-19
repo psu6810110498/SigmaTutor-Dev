@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FaArrowRight, FaBook, FaShoppingCart, FaHeart } from 'react-icons/fa';
 import { useCourse } from '../context/CourseContext';
-import { courseApi, bannerApi } from '@/app/lib/api';
-import { Banner, Course } from '@/app/lib/types';
-import BannerStrip from "@/app/components/common/BannerStrip";
+import { courseApi } from '@/app/lib/api';
+import { Course } from '@/app/lib/types';
 import CategorySection from "@/app/components/home/CategorySection";
 import FeatureSection from "@/app/components/home/FeatureSection";
 
@@ -14,7 +13,6 @@ export default function HomePage() {
   // ✅ รวมความสามารถ: ใช้ทั้ง addToCart และ cartItems
   const { addToCart, cartItems } = useCourse();
 
-  const [activeBanners, setActiveBanners] = useState<Banner[]>([]);
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,13 +20,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ ดึงทั้งแบนเนอร์และคอร์สยอดนิยมมาพร้อมกัน
-        const [bannerRes, courseRes] = await Promise.all([
-            bannerApi.getActive('HOME_TOP'),
-            courseApi.getMarketplace({ sort: 'popular', limit: 4 })
-        ]);
-
-        if (bannerRes.success && bannerRes.data) setActiveBanners(bannerRes.data);
+        const courseRes = await courseApi.getMarketplace({ sort: 'popular', limit: 4 });
         if (courseRes.success && courseRes.data) setPopularCourses(courseRes.data.courses);
       } catch (error) {
         console.error("Failed to fetch homepage data", error);
@@ -41,11 +33,8 @@ export default function HomePage() {
 
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
-      
-      {/* 1. Top Banner (ถ้ามีข้อมูล) */}
-      {activeBanners.length > 0 && <BannerStrip banners={activeBanners} />}
 
-      {/* 2. Hero Section */}
+      {/* 1. Hero Section */}
       <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">

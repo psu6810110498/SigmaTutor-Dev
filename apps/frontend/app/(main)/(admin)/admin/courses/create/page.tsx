@@ -95,9 +95,10 @@ export default function CreateCoursePage() {
     // ── Form State ────────────────────────────────────────────
     const [form, setForm] = useState<any>({
         title: "",
-        description: "",
-        price: 0,
-        originalPrice: null,
+        shortDescription: "", // คำอธิบายสั้นๆ แสดงหน้าคอร์ส
+        description: "", // คำอธิบายเต็มๆ
+        price: 0, // ราคาขาย
+        originalPrice: null, // ราคาตั้งต้น
         promotionalPrice: null,
         courseType: "ONLINE",
         categoryId: null,
@@ -105,12 +106,15 @@ export default function CreateCoursePage() {
         instructorId: undefined,
         duration: null,
         videoCount: 0,
-        maxSeats: null,
+        maxSeats: null, // จำนวนที่นั่งที่สุด
         enrollStartDate: null,
         enrollEndDate: null,
         location: null,
         mapUrl: null,
-        zoomLink: null,
+        zoomLink: null, // Zoom/Google Meet Link
+        meetingId: null, // Meeting ID (ไม่บังคับ)
+        courseCode: "", // รหัสคอร์ส
+        priceRange: null, // ช่วงราคา
         // ✅ เพิ่มฟิลด์ใหม่สำหรับลิงก์วิดีโอและไฟล์
         demoVideoUrl: "",
         materialUrl: "",
@@ -230,13 +234,15 @@ export default function CreateCoursePage() {
     // ── Completeness Meter ───────────────────────────────────
     const completeness = useMemo(() => {
         let filled = 0;
-        const total = 6;
+        const total = 8;
         if (form.title.trim()) filled++;
+        if (form.shortDescription?.trim()) filled++;
         if (form.description) filled++;
         if (form.categoryId) filled++;
         if (form.price > 0) filled++;
         if (form.instructorId) filled++;
         if (thumbnailFile) filled++;
+        if (form.courseType) filled++;
         return Math.round((filled / total) * 100);
     }, [form, thumbnailFile]);
 
@@ -246,12 +252,12 @@ export default function CreateCoursePage() {
     const actions = (
         <>
             <Link href="/admin/courses">
-                <Button variant="ghost" disabled={saving}>
-                    <ChevronLeft size={16} className="mr-1" /> ยกเลิก
+                <Button variant="ghost" disabled={saving} className="text-gray-600 hover:text-gray-900">
+                    <ChevronLeft size={18} className="mr-2" /> ยกเลิก
                 </Button>
             </Link>
-            <Button onClick={handleSubmit} isLoading={saving}>
-                <Save size={16} className="mr-1.5" /> บันทึกคอร์ส
+            <Button onClick={handleSubmit} isLoading={saving} className="bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg transition-all">
+                <Save size={18} className="mr-2" /> บันทึกคอร์ส
             </Button>
         </>
     );
@@ -259,7 +265,7 @@ export default function CreateCoursePage() {
     return (
         <AdminFormLayout
             title="สร้างคอร์สใหม่"
-            description="กรอกข้อมูลคอร์สเพื่อเริ่มสอน"
+            description="กรอกข้อมูลคอร์สเพื่อเริ่มสอน คอร์สที่สร้างจะแสดงในหน้าค้นหาคอร์ส (รวมคอร์ส) อัตโนมัติ"
             breadcrumbs={[
                 { label: 'แดชบอร์ด', href: '/admin' },
                 { label: 'จัดการคอร์ส', href: '/admin/courses' },
@@ -276,7 +282,21 @@ export default function CreateCoursePage() {
                                 <label className={labelClass}>ชื่อคอร์ส <span className="text-red-500">*</span></label>
                                 <input type="text" value={form.title} onChange={(e) => updateForm("title", e.target.value)} placeholder="เช่น ฟิสิกส์ A-Level ฉบับแม่นยำ" className={inputClass} />
                             </div>
-                            <RichTextarea label="คำอธิบายคอร์ส" value={form.description || ""} onChange={(val) => updateForm("description", val)} placeholder="รายละเอียดเนื้อหา สิ่งที่จะได้รับ…" rows={6} />
+                            <div>
+                                <label className={labelClass}>รหัสคอร์ส</label>
+                                <input type="text" value={form.courseCode || ""} onChange={(e) => updateForm("courseCode", e.target.value)} placeholder="เช่น PHYS-A001" className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>คำอธิบายสั้นๆ (แสดงหน้าคอร์ส) <span className="text-red-500">*</span></label>
+                                <textarea 
+                                    value={form.shortDescription || ""} 
+                                    onChange={(e) => updateForm("shortDescription", e.target.value)} 
+                                    placeholder="คำอธิบายสั้นๆ ที่จะแสดงในหน้าคอร์ส (ประมาณ 1-2 บรรทัด)…" 
+                                    rows={3}
+                                    className={inputClass}
+                                />
+                            </div>
+                            <RichTextarea label="คำอธิบายเต็มๆ" value={form.description || ""} onChange={(val) => updateForm("description", val)} placeholder="รายละเอียดเนื้อหา สิ่งที่จะได้รับ…" rows={6} />
                         </div>
                     </SectionCard>
 
@@ -304,6 +324,68 @@ export default function CreateCoursePage() {
                         </div>
                     </SectionCard>
 
+                    {/* ── หมวดหมู่และวิชา ── */}
+                    <SectionCard title="หมวดหมู่และวิชา" icon={Folder}>
+                        <div className="space-y-4">
+                            {/* Quick Filters - 6 หมวดหมู่หลัก */}
+                            <div>
+                                <label className={labelClass}>หมวดหมู่หลัก <span className="text-red-500">*</span></label>
+                                <div className="flex flex-wrap gap-2">
+                                    {QUICK_FILTERS.map((filter) => (
+                                        <button
+                                            key={filter}
+                                            type="button"
+                                            onClick={() => handleQuickFilter(filter)}
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                                                activeQuickFilter === filter
+                                                    ? 'bg-secondary text-white shadow-md'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {filter}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* เลือกวิชา (Child Category) */}
+                            {rootCategoryId && childCategories.length > 0 && (
+                                <div>
+                                    <label className={labelClass}>เลือกวิชา <span className="text-red-500">*</span></label>
+                                    <select 
+                                        value={form.categoryId || ""} 
+                                        onChange={(e) => updateForm("categoryId", e.target.value || null)} 
+                                        className={inputClass}
+                                    >
+                                        <option value="" disabled>-- เลือกวิชา --</option>
+                                        {childCategories.map((cat) => (
+                                            <option key={cat.id} value={cat.id}>
+                                                {cat.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            
+                            {/* เลือกระดับชั้น */}
+                            <div>
+                                <label className={labelClass}>ระดับชั้น</label>
+                                <select 
+                                    value={form.levelId || ""} 
+                                    onChange={(e) => updateForm("levelId", e.target.value || null)} 
+                                    className={inputClass}
+                                >
+                                    <option value="">-- เลือกระดับชั้น --</option>
+                                    {levels.map((lvl) => (
+                                        <option key={lvl.id} value={lvl.id}>
+                                            {lvl.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </SectionCard>
+
                     <SectionCard title="ผู้สอน" icon={User}>
                         <div>
                             <label className={labelClass}>เลือกผู้สอน <span className="text-red-500">*</span></label>
@@ -317,6 +399,93 @@ export default function CreateCoursePage() {
                             </select>
                         </div>
                     </SectionCard>
+
+                    {/* Mobile: รูปแบบการสอน - แสดงก่อนตารางเรียน */}
+                    <div className="lg:hidden">
+                        <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
+                            <div className="space-y-2">
+                                {([
+                                    { value: "ONLINE", label: "Online (VDO)", icon: Monitor },
+                                    { value: "ONLINE_LIVE", label: "Live (Zoom)", icon: Video },
+                                    { value: "ONSITE", label: "Onsite", icon: MapPin }
+                                ] as const).map((type) => {
+                                    const IconComponent = type.icon;
+                                    return (
+                                        <button 
+                                            key={type.value} 
+                                            type="button" 
+                                            onClick={() => updateForm("courseType", type.value)} 
+                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${
+                                                form.courseType === type.value 
+                                                    ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" 
+                                                    : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                            }`}
+                                        >
+                                            <IconComponent 
+                                                size={18} 
+                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"} 
+                                            />
+                                            <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>
+                                                {type.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* ตั้งค่าคอร์ส Online Live */}
+                            {form.courseType === "ONLINE_LIVE" && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                    <div>
+                                        <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
+                                        <input 
+                                            type="url" 
+                                            value={form.zoomLink || ""} 
+                                            onChange={(e) => updateForm("zoomLink", e.target.value)} 
+                                            placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz" 
+                                            className={inputClass} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
+                                        <input 
+                                            type="text" 
+                                            value={form.meetingId || ""} 
+                                            onChange={(e) => updateForm("meetingId", e.target.value)} 
+                                            placeholder="123 456 7890" 
+                                            className={inputClass} 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* ตั้งค่าคอร์ส Onsite - Google Map */}
+                            {form.courseType === "ONSITE" && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                    <div>
+                                        <label className={labelClass}>สถานที่</label>
+                                        <input 
+                                            type="text" 
+                                            value={form.location || ""} 
+                                            onChange={(e) => updateForm("location", e.target.value)} 
+                                            placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม" 
+                                            className={inputClass} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>ลิงก์ Google Map</label>
+                                        <input 
+                                            type="url" 
+                                            value={form.mapUrl || ""} 
+                                            onChange={(e) => updateForm("mapUrl", e.target.value)} 
+                                            placeholder="https://maps.google.com/?q=..." 
+                                            className={inputClass} 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </SectionCard>
+                    </div>
 
                     <SectionCard title="ตารางเรียน" icon={CalendarDays}>
                         <ScheduleInput courseType={form.courseType as any} value={sessions} onChange={setSessions} />
@@ -336,20 +505,127 @@ export default function CreateCoursePage() {
 
                     <SectionCard title="ราคา" icon={DollarSign}>
                         <div className="space-y-4">
+                            <div>
+                                <label className={labelClass}>ช่วงราคา</label>
+                                <select 
+                                    value={form.priceRange || ""} 
+                                    onChange={(e) => updateForm("priceRange", e.target.value || null)} 
+                                    className={inputClass}
+                                >
+                                    <option value="">-- เลือกช่วงราคา --</option>
+                                    <option value="under-1000">ต่ำกว่า 1,000 บาท</option>
+                                    <option value="1000-3000">1,000 - 3,000 บาท</option>
+                                    <option value="3000-5000">3,000 - 5,000 บาท</option>
+                                    <option value="5000-10000">5,000 - 10,000 บาท</option>
+                                    <option value="above-10000">มากกว่า 10,000 บาท</option>
+                                </select>
+                            </div>
+                            <NumberInput label="ราคาตั้งต้น (บาท)" value={form.originalPrice || undefined} onChange={(val) => updateForm("originalPrice", val || null)} placeholder="ราคาเดิม" />
                             <NumberInput label="ราคาขาย (บาท) *" value={form.price} onChange={(val) => updateForm("price", val)} placeholder="0" />
                             <NumberInput label="ราคาโปรโมชั่น" value={form.promotionalPrice || undefined} onChange={(val) => updateForm("promotionalPrice", val || null)} placeholder="ราคาลด" />
                         </div>
                     </SectionCard>
 
-                    <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
-                        <div className="space-y-1.5">
-                            {([{ value: "ONLINE", label: "📹 Online (VDO)" }, { value: "ONLINE_LIVE", label: "🎥 Live (Zoom)" }, { value: "ONSITE", label: "🏫 Onsite" }] as const).map((type) => (
-                                <button key={type.value} type="button" onClick={() => updateForm("courseType", type.value)} className={`w-full px-3 py-2.5 text-left rounded-lg transition-all border ${form.courseType === type.value ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" : "border-transparent hover:bg-gray-50"}`}>
-                                    <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>{type.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </SectionCard>
+                    {/* Desktop: รูปแบบการสอน - แสดงใน sidebar */}
+                    <div className="hidden lg:block">
+                        <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
+                            <div className="space-y-2">
+                                {([
+                                    { value: "ONLINE", label: "Online (VDO)", icon: Monitor },
+                                    { value: "ONLINE_LIVE", label: "Live (Zoom)", icon: Video },
+                                    { value: "ONSITE", label: "Onsite", icon: MapPin }
+                                ] as const).map((type) => {
+                                    const IconComponent = type.icon;
+                                    return (
+                                        <button 
+                                            key={type.value} 
+                                            type="button" 
+                                            onClick={() => updateForm("courseType", type.value)} 
+                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${
+                                                form.courseType === type.value 
+                                                    ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" 
+                                                    : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                            }`}
+                                        >
+                                            <IconComponent 
+                                                size={18} 
+                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"} 
+                                            />
+                                            <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>
+                                                {type.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        
+                        {/* ตั้งค่าคอร์ส Online Live */}
+                        {form.courseType === "ONLINE_LIVE" && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                <div>
+                                    <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
+                                    <input 
+                                        type="url" 
+                                        value={form.zoomLink || ""} 
+                                        onChange={(e) => updateForm("zoomLink", e.target.value)} 
+                                        placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz" 
+                                        className={inputClass} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
+                                    <input 
+                                        type="text" 
+                                        value={form.meetingId || ""} 
+                                        onChange={(e) => updateForm("meetingId", e.target.value)} 
+                                        placeholder="123 456 7890" 
+                                        className={inputClass} 
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* ตั้งค่าคอร์ส Onsite - Google Map */}
+                        {form.courseType === "ONSITE" && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                <div>
+                                    <label className={labelClass}>สถานที่</label>
+                                    <input 
+                                        type="text" 
+                                        value={form.location || ""} 
+                                        onChange={(e) => updateForm("location", e.target.value)} 
+                                        placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม" 
+                                        className={inputClass} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>ลิงก์ Google Map</label>
+                                    <input 
+                                        type="url" 
+                                        value={form.mapUrl || ""} 
+                                        onChange={(e) => updateForm("mapUrl", e.target.value)} 
+                                        placeholder="https://maps.google.com/?q=..." 
+                                        className={inputClass} 
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        </SectionCard>
+                    </div>
+                    
+                    {/* จำนวนที่นั่งที่สุด - เฉพาะ ONLINE_LIVE และ ONSITE */}
+                    {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
+                        <SectionCard title="การตั้งค่า" icon={Users}>
+                            <div className="space-y-4">
+                                <NumberInput 
+                                    label="จำนวนที่นั่งที่สุด" 
+                                    value={form.maxSeats || undefined} 
+                                    onChange={(val) => updateForm("maxSeats", val || null)} 
+                                    placeholder="เช่น 30" 
+                                />
+                            </div>
+                        </SectionCard>
+                    )}
                 </div>
             </div>
         </AdminFormLayout>
