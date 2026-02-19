@@ -5,12 +5,14 @@ import bcrypt from 'bcryptjs';
 // const prisma = new PrismaClient(); // Removed
 
 async function main() {
-    const email = process.env.ADMIN_EMAIL || 'admin@sigma.com';
-    const password = process.env.ADMIN_PASSWORD || 'password123';
+    const email = process.env.ADMIN_EMAIL;
+    const password = process.env.ADMIN_PASSWORD;
 
-    if (!process.env.ADMIN_PASSWORD) {
-        console.warn('⚠️  Warning: Using default password. Set ADMIN_PASSWORD in .env for security.');
+    if (!email || !password) {
+        console.error('❌ Error: ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env');
+        process.exit(1);
     }
+
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
