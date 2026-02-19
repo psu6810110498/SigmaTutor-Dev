@@ -22,12 +22,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [bannerRes, courseRes] = await Promise.all([
-          bannerApi.getActive('EXPLORE_TOP'), // Use EXPLORE_TOP as agreed (or creating HOME_TOP later if needed)
-          courseApi.getMarketplace({ sort: 'popular', limit: 4 })
-        ]);
-
-        if (bannerRes.success && bannerRes.data) setActiveBanners(bannerRes.data);
+        const courseRes = await courseApi.getMarketplace({ sort: 'popular', limit: 4 });
         if (courseRes.success && courseRes.data) setPopularCourses(courseRes.data.courses);
       } catch (error) {
         console.error("Failed to fetch homepage data", error);
@@ -38,61 +33,52 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  const heroBanner = activeBanners.length > 0 ? activeBanners[0] : null;
-
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
 
-      {/* 1. Full Width Banner Strip (1920x600) */}
-      {activeBanners.length > 0 && (
-        <div className="w-full pt-20">
-          <BannerStrip banners={activeBanners} />
-        </div>
-      )}
+      {/* 2. Hero Section (Branding Mode) */}
+      <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
 
-      {/* 2. Fallback Hero Section (Branding Mode - Only if no banners) */}
-      {activeBanners.length === 0 && (
-        <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="text-center lg:text-left space-y-6">
-                <h1
-                  className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6"
-                  style={{ lineHeight: '1.6' }}
-                >
-                  <span className="block mb-2">อัปเกรดคะแนนให้พุ่ง</span>
-                  <span className="block">
-                    ด้วย <span className="text-primary">เทคนิคระดับท็อป</span>
-                  </span>
-                </h1>
-                <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 font-serif leading-relaxed">
-                  เรียนรู้และพัฒนาเพื่อเตรียมตัวสอบในโรงเรียน หรือสอบเข้ามหาวิทยาลัย
-                  ด้วยเนื้อหาที่เข้มข้นและอาจารย์ผู้สอนมืออาชีพระดับประเทศ
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-                  <Link href="/explore">
-                    <button className="bg-primary hover:bg-primary-hover text-white text-lg font-bold px-8 py-3.5 rounded-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1">
-                      สำรวจคอร์สเรียน ↗
-                    </button>
-                  </Link>
-                </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left space-y-6">
+              <h1
+                className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6"
+                style={{ lineHeight: '1.6' }}
+              >
+                <span className="block mb-2">อัปเกรดคะแนนให้พุ่ง</span>
+                <span className="block">
+                  ด้วย <span className="text-primary">เทคนิคระดับท็อป</span>
+                </span>
+              </h1>
+              <p className="text-lg text-gray-600 max-w-lg mx-auto lg:mx-0 font-serif leading-relaxed">
+                เรียนรู้และพัฒนาเพื่อเตรียมตัวสอบในโรงเรียน หรือสอบเข้ามหาวิทยาลัย
+                ด้วยเนื้อหาที่เข้มข้นและอาจารย์ผู้สอนมืออาชีพระดับประเทศ
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
+                <Link href="/explore">
+                  <button className="bg-primary hover:bg-primary-hover text-white text-lg font-bold px-8 py-3.5 rounded-xl shadow-xl shadow-primary/20 transition-all hover:-translate-y-1">
+                    สำรวจคอร์สเรียน ↗
+                  </button>
+                </Link>
               </div>
+            </div>
 
-              <div className="relative">
-                <div className="absolute -top-10 -right-10 w-72 h-72 bg-secondary-light rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-                <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-primary-light rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+            <div className="relative">
+              <div className="absolute -top-10 -right-10 w-72 h-72 bg-secondary-light rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+              <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-primary-light rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
-                <div className="relative h-[400px] lg:h-[500px] w-full bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden backdrop-blur-sm bg-white/50">
-                  <div className="text-center p-8 opacity-40">
-                    <p className="font-bold text-xl text-gray-400">พื้นที่สำหรับรูปภาพ</p>
-                    <p className="text-sm text-gray-400 mt-2">Hero Image Placeholder</p>
-                  </div>
+              <div className="relative h-[400px] lg:h-[500px] w-full bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden backdrop-blur-sm bg-white/50">
+                <div className="text-center p-8 opacity-40">
+                  <p className="font-bold text-xl text-gray-400">พื้นที่สำหรับรูปภาพ</p>
+                  <p className="text-sm text-gray-400 mt-2">Hero Image Placeholder</p>
                 </div>
               </div>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
+
 
       {/* 3. Stats Section */}
       <section className="py-10 bg-white border-y border-gray-50">

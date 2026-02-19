@@ -133,15 +133,23 @@ function MarketplaceContent() {
         return rootCategories;
     }, [categories, rootCategoryId, categoryId, childCategories, rootCategories]);
 
+    // Filter out Middle Banners that are already shown in Top Banners (Check ID & Image URL)
+    const uniqueMiddleBanners = useMemo(() => {
+        const topIds = new Set(topBanners.map(b => b.id));
+        const topImages = new Set(topBanners.map(b => b.imageUrl));
+
+        return middleBanners.filter(b => !topIds.has(b.id) && !topImages.has(b.imageUrl));
+    }, [topBanners, middleBanners]);
+
     return (
         <div className="min-h-screen bg-white">
 
             {/* 1. Banner (EXPLORE_TOP) */}
-            <div>
+            <div className="relative z-0">
                 {topBanners.length > 0 ? (
                     <BannerStrip banners={topBanners} />
                 ) : (
-                    /* Fallback Hero Banner */
+                    /* Fallback Hero Banner (Same content) */
                     <div className="relative overflow-hidden" style={{ height: 'clamp(200px, 30vw, 400px)' }}>
                         <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460]" />
                         {/* Decorative Shapes */}
@@ -160,14 +168,14 @@ function MarketplaceContent() {
             </div>
 
             {/* 2. Quick Filters — uses hardcoded 7 labels from component */}
-            <div className="sticky top-20 z-40 -mt-8">
-                <QuickFilters
-                    activeFilter={activeFilterLabel}
-                    onFilterChange={handleQuickFilterChange}
-                />
+            <div className="sticky top-20 z-50 -mt-8 relative pointer-events-none">
+                <div className="pointer-events-auto">
+                    <QuickFilters
+                        activeFilter={activeFilterLabel}
+                        onFilterChange={handleQuickFilterChange}
+                    />
+                </div>
             </div>
-
-
 
             {/* 3. Advanced Filter Bar */}
             <div className="max-w-7xl mx-auto px-4 mt-8">
@@ -206,12 +214,13 @@ function MarketplaceContent() {
                 </div>
             )}
 
-            {/* 5. Middle Banner */}
-            {middleBanners.length > 0 && (
+            {/* 5. Middle Banner (Deduped) */}
+            {uniqueMiddleBanners.length > 0 && (
                 <div className="mt-8 mb-4">
-                    <BannerStrip banners={middleBanners} />
+                    <BannerStrip banners={uniqueMiddleBanners} />
                 </div>
             )}
+
 
             {/* 6. Course Sections */}
             <div className="pb-24">
