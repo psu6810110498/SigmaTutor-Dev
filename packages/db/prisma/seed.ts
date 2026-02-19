@@ -47,16 +47,20 @@ const LEVELS = [
 async function main() {
     console.log("🌱 Seeding database...\n");
 
-    // Seed Categories
-    console.log("📚 Seeding categories...");
+    // Delete all existing categories first (clean slate)
+    // This ensures we only have the 6 desired root categories
+    console.log("🗑️  Deleting all existing categories...");
+    const deletedCount = await prisma.category.deleteMany({});
+    console.log(`   ✅ Deleted ${deletedCount.count} existing categories`);
+
+    // Seed Root Categories (6 categories: ประถม, ม.ต้น, ม.ปลาย, TCAS, SAT, IELTS)
+    console.log("📚 Seeding root categories...");
     for (const cat of CATEGORIES) {
-        await prisma.category.upsert({
-            where: { slug: cat.slug },
-            update: { name: cat.name },
-            create: cat,
+        await prisma.category.create({
+            data: cat,
         });
     }
-    console.log(`   ✅ ${CATEGORIES.length} categories seeded`);
+    console.log(`   ✅ ${CATEGORIES.length} root categories seeded`);
 
     // Seed Levels
     console.log("📊 Seeding levels...");
@@ -208,12 +212,13 @@ async function main() {
     // Helper to seed children
     const seedChildren = async (parentSlug: string, children: { name: string; slug: string }[]) => {
         const parentId = await getCatId(parentSlug);
-        if (!parentId) { console.warn(`⚠️ Parent "${parentSlug}" not found`); return; }
+        if (!parentId) { 
+            console.warn(`⚠️ Parent "${parentSlug}" not found`); 
+            return; 
+        }
         for (const sub of children) {
-            await prisma.category.upsert({
-                where: { slug: sub.slug },
-                update: { parentId, name: sub.name },
-                create: { ...sub, parentId },
+            await prisma.category.create({
+                data: { ...sub, parentId },
             });
         }
     };
@@ -224,6 +229,7 @@ async function main() {
         { name: "วิทย์ประถม", slug: "primary-science" },
         { name: "อังกฤษประถม", slug: "primary-english" },
         { name: "ภาษาไทยประถม", slug: "primary-thai" },
+        { name: "โปรแกรมมิ่ง", slug: "primary-programming" },
     ]);
 
     // ม.ต้น
@@ -233,6 +239,7 @@ async function main() {
         { name: "อังกฤษ ม.ต้น", slug: "ms-english" },
         { name: "ภาษาไทย ม.ต้น", slug: "ms-thai" },
         { name: "สังคม ม.ต้น", slug: "ms-social" },
+        { name: "โปรแกรมมิ่ง", slug: "ms-programming" },
     ]);
 
     // ม.ปลาย
@@ -244,6 +251,7 @@ async function main() {
         { name: "อังกฤษ ม.ปลาย", slug: "hs-english" },
         { name: "ภาษาไทย ม.ปลาย", slug: "hs-thai" },
         { name: "สังคม ม.ปลาย", slug: "hs-social" },
+        { name: "โปรแกรมมิ่ง", slug: "hs-programming" },
     ]);
 
     // TCAS
@@ -274,7 +282,11 @@ async function main() {
         { name: "Speaking", slug: "ielts-speaking" },
     ]);
 
-    console.log("   ✅ Sub-categories seeded");
+    // Count total child categories
+    const totalChildCategories = await prisma.category.count({
+        where: { parentId: { not: null } }
+    });
+    console.log(`   ✅ ${totalChildCategories} child categories seeded`);
 
     // ------------------------------------------------------------
     // Courses Generation

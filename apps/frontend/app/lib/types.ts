@@ -221,6 +221,7 @@ export interface CourseQueryParams {
     courseType?: CourseType | null;
     categoryId?: string;
     levelId?: string;
+    tutorId?: string;
     minPrice?: number | null;
     maxPrice?: number | null;
     rating?: number;

@@ -11,6 +11,8 @@ interface CourseGridSectionProps {
     title: string;
     subtitle?: string;
     categoryId?: string; // Optional: if null, might fetch all or based on other criteria
+    levelId?: string | null;
+    tutorId?: string | null;
     courseType?: string | null;
     minPrice?: number | null;
     maxPrice?: number | null;
@@ -24,6 +26,8 @@ export default function CourseGridSection({
     title,
     subtitle,
     categoryId,
+    levelId,
+    tutorId,
     courseType,
     minPrice,
     maxPrice,
@@ -38,16 +42,17 @@ export default function CourseGridSection({
     const [totalCourses, setTotalCourses] = useState(0);
 
     useEffect(() => {
+        setLoading(true);
         const fetchCourses = async () => {
             try {
-                // Fetch more if expanded, or just initial limit
-                // Optimization: Fetch all needed or paginate. 
-                // For simplified "Show All" in-place, we can fetch a larger set (e.g. 12) or 50.
-                // If user wants "Show All" to really show ALL, we might need pagination or large limit.
-                const limit = isExpanded ? 50 : initialLimit;
+                // Fetch all courses when expanded, or just initial limit
+                // Mobile and Desktop: Show all courses when expanded (no pagination, stay on same page)
+                const limit = isExpanded ? 1000 : initialLimit;
 
                 const res = await courseApi.getMarketplace({
                     categoryId,
+                    levelId: levelId || undefined,
+                    tutorId: tutorId || undefined,
                     // @ts-ignore - API supports these but types might be lagging in this file context, safe to ignore for now
                     courseType,
                     minPrice,
@@ -69,13 +74,22 @@ export default function CourseGridSection({
         };
 
         fetchCourses();
-    }, [categoryId, courseType, minPrice, maxPrice, search, isExpanded, initialLimit, title]);
+    }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, isExpanded, initialLimit, title]);
 
     if (loading) {
         return (
             <section className="py-12 px-4 max-w-7xl mx-auto">
                 <div className="h-8 w-64 bg-gray-100 rounded mb-4 animate-pulse" />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Mobile: Horizontal scroll skeleton */}
+                <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
+                    <div className="flex gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="h-[300px] w-[280px] bg-gray-50 rounded-2xl animate-pulse flex-shrink-0" />
+                        ))}
+                    </div>
+                </div>
+                {/* Desktop: Grid skeleton */}
+                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[...Array(4)].map((_, i) => (
                         <div key={i} className="h-[300px] bg-gray-50 rounded-2xl animate-pulse" />
                     ))}
@@ -113,10 +127,23 @@ export default function CourseGridSection({
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {courses.map((course) => (
-                        <CourseCard key={course.id} course={course} />
-                    ))}
+                {/* Mobile: Horizontal scroll (single row) */}
+                {/* Desktop: Vertical grid (all courses) */}
+                <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6">
+                    {/* Mobile: Horizontal scroll container */}
+                    <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">
+                        <div className="flex gap-4">
+                            {courses.map((course) => (
+                                <CourseCard key={course.id} course={course} />
+                            ))}
+                        </div>
+                    </div>
+                    {/* Desktop: Grid layout */}
+                    <div className="hidden md:contents">
+                        {courses.map((course) => (
+                            <CourseCard key={course.id} course={course} />
+                        ))}
+                    </div>
                 </div>
 
                 {/* Mobile Toggle Button */}

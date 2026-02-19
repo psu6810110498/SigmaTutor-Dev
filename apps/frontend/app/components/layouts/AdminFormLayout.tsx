@@ -24,20 +24,24 @@ export function AdminFormLayout({
 }: AdminFormLayoutProps) {
     return (
         <div className="min-h-screen bg-gray-50 pb-24 md:pb-12 -mt-6 -mx-6 lg:-mt-10 lg:-mx-10">
-            {/* Header — breaks out of parent padding, sticks below mobile nav */}
-            <div className="sticky top-16 lg:top-0 z-40 bg-white border-b shadow-sm">
-                <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
+            {/* Header — Enhanced UX/UI with better visual hierarchy */}
+            <div className="sticky top-16 lg:top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+                <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <Breadcrumb items={breadcrumbs} className="mb-2" />
-                            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-                            {description && (
-                                <p className="text-sm text-gray-500 mt-1">{description}</p>
-                            )}
+                        <div className="flex-1">
+                            <Breadcrumb items={breadcrumbs} className="mb-3" />
+                            <div className="flex items-start gap-3">
+                                <div className="flex-1">
+                                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
+                                    {description && (
+                                        <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Desktop Actions */}
-                        <div className="hidden sm:flex items-center gap-3">
+                        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
                             {actions}
                         </div>
                     </div>
