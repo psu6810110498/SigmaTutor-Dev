@@ -9,13 +9,16 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
+// ✅ ตรวจสอบ JWT_SECRET เพื่อความปลอดภัยของระบบ
 if (!JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET is not defined in environment variables.');
 }
 
+// ✅ ตัด profileImage ออกจาก Token เพื่อป้องกัน Token อ้วน (Database พัง)
 export interface TokenPayload {
   userId: string;
   email: string;
+  name: string;
   role: string;
 }
 
@@ -35,7 +38,7 @@ export class AuthService {
       subject: 'รีเซ็ตรหัสผ่านของคุณ - Sigma Tutor',
       html: `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; background-color: #f9f9f9;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 20px; shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <h2 style="color: #1e40af; margin-bottom: 24px;">สวัสดีครับ/ค่ะ</h2>
             <p style="color: #4b5563; line-height: 1.6;">เราได้รับคำขอให้รีเซ็ตรหัสผ่านสำหรับบัญชี Sigma Tutor ของคุณ หากคุณเป็นคนส่งคำขอนี้ โปรดคลิกที่ปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
             <div style="text-align: center; margin: 40px 0;">
@@ -62,11 +65,41 @@ export class AuthService {
 
   async login(input: LoginInput) {
     const user = await prisma.user.findUnique({ where: { email: input.email } });
-    if (!user) throw new Error('Invalid email or password');
+    
+    // ✅ แก้ไข: เพิ่ม !user.password เพื่อดักกรณี Google User ที่ไม่มีรหัสผ่าน
+    // และเพื่อให้ TypeScript มั่นใจว่าบรรทัดถัดไป user.password จะไม่เป็น null ครับ
+    if (!user || !user.password) {
+      throw new Error('Invalid email or password');
+    }
+    
     const isValidPassword = await bcrypt.compare(input.password, user.password);
-    if (!isValidPassword) throw new Error('Invalid email or password');
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
-    return { user: { id: user.id, email: user.email, name: user.name, role: user.role }, ...tokens };
+    if (!isValidPassword) {
+      throw new Error('Invalid email or password');
+    }
+    
+    // ✅ สร้าง Token โดยไม่เอา profileImage เข้าไป (ตามที่เรา Merge มา)
+    const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role);
+    return { 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        name: user.name, 
+        role: user.role, 
+        profileImage: user.profileImage 
+      }, 
+      ...tokens 
+    };
+  }
+
+  // ✅ ฟังก์ชันนี้จะหายแดงเมื่อคุณแก้ user.prisma และสั่ง npx prisma generate ครับ
+  async getUserById(id: string) {
+    return await prisma.user.findUnique({
+      where: { id },
+      select: { 
+        id: true, email: true, name: true, role: true, profileImage: true,
+        phone: true, address: true, school: true, educationLevel: true, province: true, birthday: true
+      }
+    });
   }
 
   async forgotPassword(email: string) {
@@ -83,10 +116,8 @@ export class AuthService {
 
     try {
       await this.sendResetEmail(email, resetLink);
-      console.log(`[Email Sent] Reset link sent to: ${email}`);
       return { success: true, message: 'ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลของคุณแล้ว' };
     } catch (error: any) {
-      console.error('Nodemailer Error:', error.message);
       throw new Error('ไม่สามารถส่งอีเมลได้ในขณะนี้ กรุณาลองใหม่ภายหลัง');
     }
   }
@@ -96,6 +127,7 @@ export class AuthService {
       const hasUpperCase = /[A-Z]/.test(newPassword);
       const hasNumber = /[0-9]/.test(newPassword);
 
+      // ✅ รวมเงื่อนไขความปลอดภัยให้ครบถ้วน
       if (newPassword.length < 8 || !hasUpperCase || !hasNumber) {
         throw new Error('รหัสผ่านไม่เป็นไปตามมาตรฐานความปลอดภัย');
       }
@@ -113,37 +145,25 @@ export class AuthService {
     }
   }
 
-  /**
-   * ✅ เพิ่มส่วนนี้: สำหรับจัดการข้อมูลผู้ใช้ที่ล็อกอินผ่าน Google
-   */
   async validateGoogleUser(profile: any) {
     try {
       const email = profile.emails[0].value;
       const name = profile.displayName;
+      const profileImage = profile.photos?.[0]?.value;
 
-      // 1. ค้นหาผู้ใช้จากอีเมล
       let user = await prisma.user.findUnique({ where: { email } });
 
-      // 2. ถ้าไม่มี ให้สร้างบัญชีใหม่ทันที (Auto-Register)
       if (!user) {
         user = await prisma.user.create({
-          data: {
-            email,
-            name,
-            // สำหรับ Social Login เราจะปล่อยรหัสผ่านเป็นค่าว่าง
-            // (อย่าลืมแก้ schema.prisma ให้ password เป็น optional ด้วยนะครับ)
-            password: '',
-            role: 'USER',
-          },
+          // ✅ บันทึกรูปโปรไฟล์ลง DB แต่ไม่เอาไปแบกไว้ใน Token
+          data: { email, name, password: '', role: 'USER', profileImage },
         });
-        console.log(`[Google Login] Created new user: ${email}`);
       }
 
-      // 3. ออก Token ให้ผู้ใช้เหมือนการล็อกอินปกติ
-      return await this.generateTokens(user.id, user.email, user.role);
+      return await this.generateTokens(user.id, user.email, user.name || '', user.role);
     } catch (error: any) {
-      console.error('Google Auth Validation Error:', error.message);
-      throw new Error('เกิดข้อผิดพลาดในการยืนยันตัวตนด้วย Google');
+      console.error("🔥 Google Auth Error:", error);
+      throw new Error(`ระบบขัดข้อง: ${error.message || 'ไม่ทราบสาเหตุ'}`);
     }
   }
 
@@ -154,15 +174,16 @@ export class AuthService {
       throw new Error('Invalid or expired refresh token');
     }
     await prisma.session.delete({ where: { id: session.id } });
-    return await this.generateTokens(session.user.id, session.user.email, session.user.role);
+    return await this.generateTokens(session.user.id, session.user.email, session.user.name || '', session.user.role);
   }
 
   async logout(refreshToken: string) {
     await prisma.session.deleteMany({ where: { refreshToken } });
   }
 
-  private async generateTokens(userId: string, email: string, role: string) {
-    const payload: TokenPayload = { userId, email, role };
+  // ✅ ตัดการรับค่า profileImage ออกจาก Token Payload อย่างถาวร
+  private async generateTokens(userId: string, email: string, name: string, role: string) {
+    const payload: TokenPayload = { userId, email, name, role }; 
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
     const expiresIn = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
@@ -171,7 +192,9 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  verifyAccessToken(token: string): TokenPayload { return jwt.verify(token, JWT_SECRET) as TokenPayload; }
+  verifyAccessToken(token: string): TokenPayload { 
+    return jwt.verify(token, JWT_SECRET) as TokenPayload; 
+  }
 
   private parseExpiration(exp: string): number {
     const match = exp.match(/^(\d+)([smhd])$/);
