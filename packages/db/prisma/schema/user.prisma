@@ -1,24 +1,32 @@
 // User model
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  password     String
-  name         String
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  profileImage String?
-  bio          String?
-  title        String?
-  nickname     String?
+  id             String   @id @default(cuid())
+  email          String   @unique
+  // ✅ แก้เป็น String? เพื่อรองรับ Google Login ที่ไม่มีรหัสผ่าน
+  password       String?  
+  name           String?  // ปรับเป็น Optional เผื่อกรณีดึงชื่อจาก Social ไม่ได้
+  role           Role     @default(USER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  profileImage   String?
+  bio            String?
+  title          String?
+  nickname       String?
+
+  // ✅ ฟิลด์สำหรับหน้า Profile (ตรงกับที่เรียกใน AuthService.getUserById)
+  address        String?
+  phone          String?
+  birthday       DateTime?
+  educationLevel String?
+  school         String?
+  province       String?
 
   // Relations
-  // posts             Post[] // Removed missing model
-  sessions          Session[]
-  instructorCourses Course[]     @relation("InstructorCourses")
-  enrollments       Enrollment[]
-  payments          Payment[]
-  reviews           Review[]
+  sessions           Session[]
+  instructorCourses  Course[]     @relation("InstructorCourses")
+  enrollments        Enrollment[]
+  payments           Payment[]
+  reviews            Review[]
 
   @@index([email])
 }

@@ -1,15 +1,21 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-// 1. สร้างโครงสร้างข้อมูล
+// ✅ แก้ไข: เพิ่มฟิลด์เสริมเข้าไปใน Interface ให้ครบตาม Database
 export interface User {
   id: string;
   email: string;
   name: string;
   role: string;
   profileImage?: string;
+  phone?: string;
+  address?: string;
+  school?: string;
+  educationLevel?: string;
+  province?: string;
+  birthday?: string;
 }
 
 interface AuthContextType {
@@ -20,43 +26,47 @@ interface AuthContextType {
   checkAuth: () => Promise<void>;
 }
 
-// ⭐ จุดสำคัญ: ต้องประกาศบรรทัดนี้ไว้ "นอก" ฟังก์ชัน AuthProvider เพื่อให้หายแดงครับ
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:4000/api/auth/me', {
-        credentials: 'include', // Important!
-      });
-      const json = await res.json();
+        credentials: 'include',
+      }).catch(() => null); 
 
-      if (res.ok && json.success) {
-        setUser(json.data);
-      } else {
+      if (res && res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setUser(json.data);
+          localStorage.setItem('sigma_user', JSON.stringify(json.data));
+        }
+      } else if (res && res.status === 401) {
         setUser(null);
+        localStorage.removeItem('sigma_user');
       }
     } catch (error) {
-      console.error("Auth Check Failed", error);
-      setUser(null);
+      console.error("Auth Check Failed");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Check auth on mount or when pathname changes (optional, but good for re-verification)
   useEffect(() => {
+    const savedUser = localStorage.getItem('sigma_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
     checkAuth();
   }, [checkAuth]);
 
   const login = useCallback((userData: User) => {
     setUser(userData);
-    // No need to set localStorage
+    localStorage.setItem('sigma_user', JSON.stringify(userData));
   }, []);
 
   const logout = useCallback(async () => {
@@ -64,14 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await fetch('http://localhost:4000/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}), // Logout implementation might expect refreshToken, but cookie logout mainly clears cookies
-      });
+      }).catch(() => null);
     } catch (e) {
-      console.error("Logout error", e);
+      console.error("Logout error");
     }
-
     setUser(null);
+    localStorage.removeItem('sigma_user');
     router.push('/login');
   }, [router]);
 

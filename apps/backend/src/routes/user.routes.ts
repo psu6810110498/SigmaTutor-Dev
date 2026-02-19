@@ -7,8 +7,7 @@ import bcrypt from 'bcryptjs';
 const router: express.Router = express.Router();
 
 /**
- * GET /api/users/instructors
- * ดึงรายชื่อคุณครูทั้งหมด
+ * GET /api/users/instructors - ดึงรายชื่อคุณครูทั้งหมด (Admin เท่านั้น)
  */
 router.get(
   '/instructors',
@@ -31,23 +30,16 @@ router.get(
         },
         orderBy: { createdAt: 'desc' },
       });
-      res.json({
-        success: true,
-        data: instructors,
-      });
+      res.json({ success: true, data: instructors });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch instructors';
-      res.status(500).json({
-        success: false,
-        error: message,
-      });
+      res.status(500).json({ success: false, error: message });
     }
   }
 );
 
 /**
- * ✅ แก้ไขใหม่: GET /api/users/students
- * ดึงรายชื่อนักเรียนพร้อมเช็คสถานะ Online/Offline จากกิจกรรมล่าสุด
+ * GET /api/users/students - ดึงรายชื่อนักเรียนพร้อมเช็คสถานะ Online/Offline
  */
 router.get(
   '/students',
@@ -56,14 +48,13 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const students = await prisma.user.findMany({
-        where: { role: 'USER' }, // ✅ กรองเฉพาะนักเรียน
+        where: { role: 'USER' },
         select: {
           id: true,
           name: true,
           email: true,
           createdAt: true,
-          updatedAt: true, // ✅ ดึงเวลาอัปเดตล่าสุดมาเช็คสถานะออนไลน์
-          // ดึงข้อมูลการลงทะเบียนและครูผู้สอน
+          updatedAt: true,
           enrollments: {
             select: {
               course: {
@@ -74,7 +65,6 @@ router.get(
               }
             }
           },
-          // ดึงข้อมูลการจ่ายเงินเพื่อคำนวณยอดรวม
           payments: {
             where: { status: 'COMPLETED' },
             select: { amount: true }
@@ -84,9 +74,8 @@ router.get(
       });
 
       const now = new Date();
-      // ปรับโครงสร้างข้อมูลให้ Frontend ใช้ง่าย พร้อมคำนวณสถานะ Online
       const formattedStudents = students.map(s => {
-        // ✅ ตรรกะ Online: หากมีการเคลื่อนไหว (updatedAt) ภายใน 5 นาทีล่าสุด
+        // ตรรกะ Online: มีการเคลื่อนไหวภายใน 5 นาทีล่าสุด
         const diffMinutes = Math.floor((now.getTime() - new Date(s.updatedAt).getTime()) / 60000);
         const isOnline = diffMinutes <= 5;
 
@@ -95,7 +84,7 @@ router.get(
           name: s.name,
           email: s.email,
           createdAt: s.createdAt,
-          status: isOnline ? 'Online' : 'Offline', // ✅ ส่งสถานะจริงไปให้หน้าบ้าน
+          status: isOnline ? 'Online' : 'Offline',
           enrolledCourses: s.enrollments.map(e => ({
             title: e.course.title,
             instructorName: e.course.instructor.name
@@ -112,8 +101,7 @@ router.get(
 );
 
 /**
- * POST /api/users/instructors
- * แอดมินสร้างบัญชีคุณครูใหม่
+ * POST /api/users/instructors - แอดมินสร้างบัญชีคุณครูใหม่
  */
 router.post(
   '/instructors',
@@ -148,24 +136,19 @@ router.post(
       res.status(201).json({ success: true, data: newTeacher });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create instructor';
-      res.status(500).json({
-        success: false,
-        error: message,
-      });
+      res.status(500).json({ success: false, error: message });
     }
   }
 );
 
 /**
- * GET /api/users
- * Get all users (admin only)
+ * GET /api/users - ดึงรายชื่อผู้ใช้ทั้งหมด (Admin เท่านั้น)
  */
 router.get(
   '/',
   authenticate as express.RequestHandler,
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
-    const _req = req as AuthRequest;
     try {
       const users = await prisma.user.findMany({
         select: {
@@ -177,23 +160,16 @@ router.get(
           updatedAt: true,
         },
       });
-      res.json({
-        success: true,
-        data: users,
-      });
+      res.json({ success: true, data: users });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch users';
-      res.status(500).json({
-        success: false,
-        error: message,
-      });
+      res.status(500).json({ success: false, error: message });
     }
   }
 );
 
 /**
- * GET /api/users/:id
- * Get user by ID
+ * GET /api/users/:id - ดึงข้อมูลผู้ใช้รายบุคคล (พร้อมฟิลด์ Profile ครบถ้วน)
  */
 router.get('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
@@ -208,7 +184,19 @@ router.get('/:id', authenticate as express.RequestHandler, async (req: Request, 
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
-        id: true, email: true, name: true, role: true, createdAt: true, updatedAt: true,
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        profileImage: true,
+        phone: true,
+        address: true,
+        school: true,
+        educationLevel: true,
+        province: true,
+        birthday: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -225,15 +213,14 @@ router.get('/:id', authenticate as express.RequestHandler, async (req: Request, 
 });
 
 /**
- * PATCH /api/users/:id
- * Update user
+ * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้ (รองรับข้อมูล Profile ใหม่ทั้งหมด)
  */
 router.patch('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const id = req.params.id as string;
 
   try {
-    const { name } = req.body;
+    const { name, phone, birthday, educationLevel, school, province, address, profileImage } = req.body;
 
     if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
       res.status(403).json({ success: false, error: 'Access denied' });
@@ -242,8 +229,30 @@ router.patch('/:id', authenticate as express.RequestHandler, async (req: Request
 
     const user = await prisma.user.update({
       where: { id },
-      data: { name },
-      select: { id: true, email: true, name: true, role: true, createdAt: true, updatedAt: true },
+      data: { 
+        name,
+        phone,
+        educationLevel,
+        school,
+        province,
+        address,
+        profileImage,
+        birthday: birthday ? new Date(birthday) : undefined,
+      },
+      select: { 
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        profileImage: true,
+        phone: true,
+        address: true,
+        school: true,
+        educationLevel: true,
+        province: true,
+        birthday: true,
+        updatedAt: true
+      },
     });
 
     res.json({ success: true, data: user });
@@ -254,8 +263,7 @@ router.patch('/:id', authenticate as express.RequestHandler, async (req: Request
 });
 
 /**
- * DELETE /api/users/:id
- * Delete user (admin only)
+ * DELETE /api/users/:id - ลบผู้ใช้ (Admin เท่านั้น)
  */
 router.delete(
   '/:id',
@@ -263,7 +271,6 @@ router.delete(
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     const id = req.params.id as string;
-    
     try {
       await prisma.user.delete({ where: { id } });
       res.json({ success: true, message: 'User deleted successfully' });
