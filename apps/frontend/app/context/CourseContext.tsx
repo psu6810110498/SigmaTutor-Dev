@@ -1,9 +1,11 @@
-"use client";
+'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { Course as APICourse } from '@/app/lib/types';
 
-export interface Course {
-  id: string | number;
+// ✅ ใช้ CartItem ตามกิ่ง main เพื่อรองรับ UUID (String) 
+export interface CartItem {
+  id: string;
   title: string;
   price: number;
   image: string;
@@ -12,49 +14,57 @@ export interface Course {
   instructor?: string;
 }
 
-export const ALL_COURSES: Course[] = [
-  { id: 1, title: "ฟิสิกส์ A-Level (ฉบับแม่นยำ)", price: 2499, image: "/course-placeholder-1.jpg", category: "ฟิสิกส์", level: "ม.ปลาย", instructor: "อ.โรเบิร์ต" },
-  { id: 2, title: "คณิตศาสตร์ ม.ปลาย (Calculus)", price: 2890, image: "/course-placeholder-2.jpg", category: "คณิตศาสตร์", level: "ม.ปลาย", instructor: "ครูพี่แอน" },
-  { id: 3, title: "เคมี อินทรีย์ (Organic Chem)", price: 3200, image: "/course-placeholder-3.jpg", category: "เคมี", level: "มหาวิทยาลัย", instructor: "ดร.สมศักดิ์" },
-  { id: 4, title: "ภาษาอังกฤษ IELTS Preparation", price: 4500, image: "/course-placeholder-4.jpg", category: "ภาษาอังกฤษ", level: "ทั่วไป", instructor: "Teacher Sarah" },
-  { id: 5, title: "ชีววิทยา ม.4: เซลล์และโครงสร้าง", price: 1200, image: "/course-placeholder-5.jpg", category: "ชีววิทยา", level: "ม.4", instructor: "อ.วิชัย" },
-  { id: 6, title: "พื้นฐานบัญชีเบื้องต้น", price: 890, image: "/course-placeholder-6.jpg", category: "บัญชี", level: "ทั่วไป", instructor: "พี่เมย์ บัญชี" },
-];
-
-export function toCartItem(realCourse: any): Course {
+/**
+ * ฟังก์ชันแปลงข้อมูลจาก API เป็น Item สำหรับตะกร้าสินค้า
+ */
+export function toCartItem(course: APICourse): CartItem {
   return {
-    id: realCourse.id,
-    title: realCourse.title,
-    price: realCourse.promotionalPrice || realCourse.price,
-    image: realCourse.thumbnail || '/course-placeholder-1.jpg',
-    category: realCourse.category?.name,
-    level: realCourse.level?.name,
-    instructor: realCourse.instructor?.name
+    id: course.id,
+    title: course.title,
+    price: course.promotionalPrice || course.price,
+    image: course.thumbnail || course.thumbnailSm || '/course-placeholder.jpg',
+    category: course.category?.name,
+    level: course.level?.name,
+    instructor: course.instructor?.name,
   };
 }
 
 interface CourseContextType {
-  cartItems: Course[];
-  wishlistItems: Course[];
-  addToCart: (course: Course) => void;
-  removeFromCart: (id: string | number) => void;
-  addToWishlist: (course: Course) => void;
-  removeFromWishlist: (id: string | number) => void;
-  isInCart: (id: string | number) => boolean;
-  isInWishlist: (id: string | number) => boolean;
+  cartItems: CartItem[];
+  wishlistItems: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: string) => void;
+  addToWishlist: (item: CartItem) => void;
+  removeFromWishlist: (id: string) => void;
+  isInCart: (id: string) => boolean;
+  isInWishlist: (id: string) => boolean;
+  clearCart: () => void; // ✅ เพิ่มจากระบบ Payment ของเพื่อน
 }
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
 
 export function CourseProvider({ children }: { children: ReactNode }) {
-  const [cartItems, setCartItems] = useState<Course[]>([]);
-  const [wishlistItems, setWishlistItems] = useState<Course[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
+    // โหลดข้อมูลจาก LocalStorage เมื่อเปิดหน้าเว็บ
     const savedCart = localStorage.getItem('sigma_cart');
     const savedWishlist = localStorage.getItem('sigma_wishlist');
-    if (savedCart) setCartItems(JSON.parse(savedCart));
-    if (savedWishlist) setWishlistItems(JSON.parse(savedWishlist));
+    
+    // ตรวจสอบข้อมูลเก่า (ถ้า ID เป็นตัวเลขให้กรองออกเพื่อป้องกันระบบพัง)
+    const isValidItem = (item: CartItem) => typeof item.id === 'string' && item.id.length > 5;
+
+    if (savedCart) {
+      const parsed = JSON.parse(savedCart) as CartItem[];
+      const valid = parsed.filter(isValidItem);
+      setCartItems(valid);
+    }
+    if (savedWishlist) {
+      const parsed = JSON.parse(savedWishlist) as CartItem[];
+      const valid = parsed.filter(isValidItem);
+      setWishlistItems(valid);
+    }
   }, []);
 
   useEffect(() => {
@@ -62,31 +72,44 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('sigma_wishlist', JSON.stringify(wishlistItems));
   }, [cartItems, wishlistItems]);
 
-  const addToCart = (course: Course) => {
-    if (!cartItems.find(item => item.id === course.id)) {
-      setCartItems([...cartItems, course]);
+  const addToCart = (item: CartItem) => {
+    if (!cartItems.find((c) => c.id === item.id)) {
+      setCartItems([...cartItems, item]);
     }
   };
 
-  const removeFromCart = (id: string | number) => {
-    setCartItems(cartItems.filter(item => item.id !== id));
+  const removeFromCart = (id: string) => {
+    setCartItems(cartItems.filter((item) => item.id !== id));
   };
 
-  const addToWishlist = (course: Course) => {
-    if (!wishlistItems.find(item => item.id === course.id)) {
-      setWishlistItems([...wishlistItems, course]);
+  const addToWishlist = (item: CartItem) => {
+    if (!wishlistItems.find((c) => c.id === item.id)) {
+      setWishlistItems([...wishlistItems, item]);
     }
   };
 
-  const removeFromWishlist = (id: string | number) => {
-    setWishlistItems(wishlistItems.filter(item => item.id !== id));
+  const removeFromWishlist = (id: string) => {
+    setWishlistItems(wishlistItems.filter((item) => item.id !== id));
   };
 
-  const isInCart = (id: string | number) => cartItems.some(item => item.id === id);
-  const isInWishlist = (id: string | number) => wishlistItems.some(item => item.id === id);
+  const isInCart = (id: string) => cartItems.some((item) => item.id === id);
+  const isInWishlist = (id: string) => wishlistItems.some((item) => item.id === id);
+  const clearCart = () => setCartItems([]);
 
   return (
-    <CourseContext.Provider value={{ cartItems, wishlistItems, addToCart, removeFromCart, addToWishlist, removeFromWishlist, isInCart, isInWishlist }}>
+    <CourseContext.Provider
+      value={{
+        cartItems,
+        wishlistItems,
+        addToCart,
+        removeFromCart,
+        addToWishlist,
+        removeFromWishlist,
+        isInCart,
+        isInWishlist,
+        clearCart,
+      }}
+    >
       {children}
     </CourseContext.Provider>
   );

@@ -1,83 +1,168 @@
 import { prisma } from '@sigma/db';
-import type { CreatePaymentInput } from '../schemas/course.schema.js';
+import { stripe } from '../lib/stripe.js';
+import type Stripe from 'stripe';
+
+interface CartItem {
+  courseId: string;
+  title: string;
+  price: number; // in THB (baht)
+}
+
+interface CreateCheckoutInput {
+  items: CartItem[];
+}
 
 export class PaymentService {
-    /**
-     * Create a payment record (stub — Stripe integration later)
-     */
-    async createCheckout(userId: string, input: CreatePaymentInput) {
-        // Check if course exists and is published
-        const course = await prisma.course.findUnique({
-            where: { id: input.courseId },
-        });
+  /**
+   * Create a Stripe Checkout Session for card + PromptPay payments
+   */
+  async createCheckoutSession(userId: string, input: CreateCheckoutInput) {
+    const { items } = input;
 
-        if (!course) {
-            throw new Error('Course not found');
-        }
-
-        if (course.status !== 'PUBLISHED') {
-            throw new Error('Course is not available for purchase');
-        }
-
-        // Check if already enrolled
-        const existing = await prisma.enrollment.findUnique({
-            where: {
-                userId_courseId: { userId, courseId: input.courseId },
-            },
-        });
-
-        if (existing) {
-            throw new Error('Already enrolled in this course');
-        }
-
-        // Create payment record (pending — Stripe webhook will confirm)
-        const payment = await prisma.payment.create({
-            data: {
-                userId,
-                courseId: input.courseId,
-                amount: course.price,
-                status: 'PENDING',
-                // stripeId will be set after Stripe Checkout Session
-            },
-        });
-
-        // TODO: Create Stripe Checkout Session and return URL
-        // const session = await stripe.checkout.sessions.create({ ... })
-
-        return {
-            paymentId: payment.id,
-            amount: payment.amount,
-            // checkoutUrl: session.url (will be added with Stripe)
-            message: 'Payment created (Stripe integration pending)',
-        };
+    if (!items || items.length === 0) {
+      throw new Error('Cart is empty');
     }
 
-    /**
-     * Confirm payment and enroll user (will be called by Stripe webhook)
-     */
-    async confirmPayment(paymentId: string) {
-        const payment = await prisma.payment.findUnique({
-            where: { id: paymentId },
-        });
+    // Validate all courses exist and are published
+    for (const item of items) {
+      const course = await prisma.course.findUnique({
+        where: { id: item.courseId },
+      });
 
-        if (!payment) {
-            throw new Error('Payment not found');
-        }
+      if (!course) {
+        throw new Error(`Course not found: ${item.courseId}`);
+      }
 
-        // Update payment status and create enrollment in a transaction
-        return prisma.$transaction([
-            prisma.payment.update({
-                where: { id: paymentId },
-                data: { status: 'COMPLETED' },
-            }),
-            prisma.enrollment.create({
-                data: {
-                    userId: payment.userId,
-                    courseId: payment.courseId,
-                },
-            }),
-        ]);
+      if (course.status !== 'PUBLISHED') {
+        throw new Error(`Course is not available: ${item.title}`);
+      }
+
+      // Check if already enrolled
+      const existing = await prisma.enrollment.findUnique({
+        where: {
+          userId_courseId: { userId, courseId: item.courseId },
+        },
+      });
+
+      if (existing) {
+        throw new Error(`Already enrolled in: ${item.title}`);
+      }
     }
+
+    // Build Stripe line items (price in satang = THB * 100)
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => ({
+      price_data: {
+        currency: 'thb',
+        product_data: {
+          name: item.title,
+        },
+        unit_amount: Math.round(item.price * 100), // Convert THB to satang
+      },
+      quantity: 1,
+    }));
+
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000';
+
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card', 'promptpay'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/checkout/cancel`,
+      metadata: {
+        userId,
+        courseIds: items.map((i) => i.courseId).join(','),
+      },
+    });
+
+    // Create payment records for each course
+    for (const item of items) {
+      await prisma.payment.create({
+        data: {
+          userId,
+          courseId: item.courseId,
+          amount: item.price,
+          status: 'PENDING',
+          stripeId: session.id,
+        },
+      });
+    }
+
+    return {
+      checkoutUrl: session.url,
+      sessionId: session.id,
+    };
+  }
+
+  /**
+   * Handle Stripe webhook events
+   */
+  async handleWebhook(event: Stripe.Event) {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await this.handleCheckoutCompleted(session);
+        break;
+      }
+
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await this.handleCheckoutExpired(session);
+        break;
+      }
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+  }
+
+  /**
+   * Handle successful checkout — mark payments as completed + create enrollments
+   */
+  private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    const userId = session.metadata?.userId;
+    const courseIds = session.metadata?.courseIds?.split(',') || [];
+
+    if (!userId || courseIds.length === 0) {
+      console.error('Missing metadata in checkout session:', session.id);
+      return;
+    }
+
+    // Update ALL payment records with this session ID
+    await prisma.payment.updateMany({
+      where: { stripeId: session.id },
+      data: { status: 'COMPLETED' },
+    });
+
+    // Create enrollments for each course
+    for (const courseId of courseIds) {
+      // Skip if already enrolled (idempotent)
+      const existing = await prisma.enrollment.findUnique({
+        where: { userId_courseId: { userId, courseId } },
+      });
+
+      if (!existing) {
+        await prisma.enrollment.create({
+          data: { userId, courseId },
+        });
+      }
+    }
+
+    console.log(`✅ Checkout completed for user ${userId}, courses: ${courseIds.join(', ')}`);
+  }
+
+  /**
+   * Handle expired checkout — mark payments as failed
+   */
+  private async handleCheckoutExpired(session: Stripe.Checkout.Session) {
+    await prisma.payment.updateMany({
+      where: { stripeId: session.id },
+      data: { status: 'FAILED' },
+    });
+
+    console.log(`❌ Checkout expired for session ${session.id}`);
+  }
 }
 
 export const paymentService = new PaymentService();

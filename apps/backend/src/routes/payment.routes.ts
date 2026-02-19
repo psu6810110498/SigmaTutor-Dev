@@ -1,28 +1,60 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { paymentService } from '../services/payment.service.js';
-import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
-import { createPaymentSchema } from '../schemas/course.schema.js';
+import { stripe } from '../lib/stripe.js';
+import express from 'express';
 
 const router: Router = Router();
 
 /**
- * POST /api/payments/checkout
- * Create a payment / checkout session (authenticated users)
+ * POST /api/payments/create-checkout-session
+ * Create a Stripe Checkout Session (authenticated users)
  */
 router.post(
-    '/checkout',
-    authenticate,
-    validate(createPaymentSchema),
-    async (req: AuthRequest, res: Response): Promise<void> => {
-        try {
-            const result = await paymentService.createCheckout(req.user!.userId, req.body);
-            res.status(201).json({ success: true, data: result });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Payment failed';
-            res.status(400).json({ success: false, error: message });
-        }
+  '/create-checkout-session',
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const result = await paymentService.createCheckoutSession(req.user!.userId, req.body);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create checkout session';
+      res.status(400).json({ success: false, error: message });
     }
+  }
+);
+
+/**
+ * POST /api/payments/webhook
+ * Stripe webhook endpoint — verifies signature and processes events
+ * NOTE: This route uses express.raw() middleware, set up in index.ts
+ */
+router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req: Request, res: Response): Promise<void> => {
+    const sig = req.headers['stripe-signature'];
+
+    if (!sig) {
+      res.status(400).json({ error: 'Missing stripe-signature header' });
+      return;
+    }
+
+    try {
+      const event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET || ''
+      );
+
+      await paymentService.handleWebhook(event);
+      res.status(200).json({ received: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Webhook error';
+      console.error('❌ Webhook error:', message);
+      res.status(400).json({ error: `Webhook Error: ${message}` });
+    }
+  }
 );
 
 export default router;
