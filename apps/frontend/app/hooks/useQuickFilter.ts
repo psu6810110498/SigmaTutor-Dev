@@ -59,6 +59,20 @@ export function useQuickFilter({
     const handleQuickFilterChange = useCallback((label: string) => {
         const normalizedLabel = label.trim();
 
+        // Debug: Log current state
+        console.log('🔍 QuickFilter Change:', {
+            label: normalizedLabel,
+            categoriesCount: categories.length,
+            rootCategoriesCount: rootCategories.length,
+            rootCategories: rootCategories.map(c => ({ name: c.name, slug: c.slug, id: c.id }))
+        });
+
+        // Check if categories are loaded
+        if (rootCategories.length === 0) {
+            console.warn('⚠️ QuickFilter: Categories not loaded yet. Please wait...');
+            return; // Early return if categories not loaded
+        }
+
         // "ทั้งหมด" → clear all
         if (normalizedLabel === "ทั้งหมด") {
             onRootCategoryChange(null);
@@ -71,6 +85,7 @@ export function useQuickFilter({
         const found = rootCategories.find(c => c.name === normalizedLabel);
         
         if (found) {
+            console.log('✅ QuickFilter: Found category by name:', found.name, found.id);
             // Set root category → child categories จะอัปเดตอัตโนมัติ
             onRootCategoryChange(found.id);
             onCategoryChange(null); // Clear child category
@@ -83,18 +98,30 @@ export function useQuickFilter({
         if (slugTarget) {
             const foundBySlug = rootCategories.find(c => c.slug === slugTarget);
             if (foundBySlug) {
+                console.log('✅ QuickFilter: Found category by slug:', foundBySlug.name, foundBySlug.id);
                 onRootCategoryChange(foundBySlug.id);
                 onCategoryChange(null);
                 onLevelChange(null);
                 return;
             }
         }
-    }, [rootCategories, onRootCategoryChange, onCategoryChange, onLevelChange]);
+
+        // If still not found, log warning
+        console.warn('❌ QuickFilter: Category not found', {
+            label: normalizedLabel,
+            availableCategories: rootCategories.map(c => c.name),
+            slugTarget
+        });
+    }, [categories.length, rootCategories, onRootCategoryChange, onCategoryChange, onLevelChange]);
+
+    // Check if categories are ready
+    const isReady = rootCategories.length > 0;
 
     return {
         rootCategories,
         childCategories,
         activeFilterLabel,
         handleQuickFilterChange,
+        isReady, // Export loading state
     };
 }

@@ -7,16 +7,23 @@ interface QuickFiltersProps {
     filters?: string[];
     activeFilter?: string;
     onFilterChange: (filter: string) => void;
+    disabled?: boolean;
 }
 
 export default function QuickFilters({
     filters = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"],
     activeFilter = "ทั้งหมด",
-    onFilterChange
+    onFilterChange,
+    disabled = false
 }: QuickFiltersProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
+
+    // Debug: Log props changes
+    useEffect(() => {
+        console.log('🎨 QuickFilters props:', { activeFilter, disabled, filtersCount: filters.length });
+    }, [activeFilter, disabled, filters]);
 
     // Check scroll position
     const checkScroll = () => {
@@ -56,7 +63,12 @@ export default function QuickFilters({
 
     // Handle filter click
     const handleFilterClick = (filter: string) => {
-        console.log('🎯 QuickFilter clicked:', filter);
+        console.log('🎯 QuickFilter handleFilterClick called:', { filter, disabled, activeFilter });
+        if (disabled) {
+            console.warn('⚠️ QuickFilter disabled - categories not loaded yet');
+            return;
+        }
+        console.log('✅ QuickFilter calling onFilterChange:', filter);
         onFilterChange(filter);
     };
 
@@ -75,6 +87,7 @@ export default function QuickFilters({
                                     e.stopPropagation();
                                     handleFilterClick(filter);
                                 }}
+                                disabled={disabled}
                                 className={`
                                     relative z-50
                                     px-3 py-1.5
@@ -84,18 +97,20 @@ export default function QuickFilters({
                                     transition-all
                                     duration-200
                                     whitespace-nowrap
-                                    cursor-pointer
                                     select-none
                                     focus:outline-none
                                     focus:ring-2
                                     focus:ring-primary
                                     focus:ring-offset-1
-                                    ${isActive
-                                        ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105'
-                                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300 shadow-sm'
+                                    ${disabled
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                        : isActive
+                                            ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105 cursor-pointer'
+                                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300 shadow-sm cursor-pointer'
                                     }
                                 `}
                                 aria-pressed={isActive}
+                                aria-disabled={disabled}
                                 aria-label={`กรองตาม ${filter}`}
                             >
                                 {filter}
@@ -141,6 +156,7 @@ export default function QuickFilters({
                                         e.stopPropagation();
                                         handleFilterClick(filter);
                                     }}
+                                    disabled={disabled}
                                     className={`
                                         relative z-50
                                         px-6 lg:px-8
@@ -151,18 +167,20 @@ export default function QuickFilters({
                                         transition-all
                                         duration-200
                                         whitespace-nowrap
-                                        cursor-pointer
                                         select-none
                                         focus:outline-none
                                         focus:ring-2
                                         focus:ring-primary
                                         focus:ring-offset-2
-                                        ${isActive
-                                            ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105'
-                                            : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+                                        ${disabled
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                            : isActive
+                                                ? 'bg-secondary text-white shadow-md shadow-secondary/30 scale-105 cursor-pointer'
+                                                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md cursor-pointer'
                                         }
                                     `}
                                     aria-pressed={isActive}
+                                    aria-disabled={disabled}
                                     aria-label={`กรองตาม ${filter}`}
                                 >
                                     {filter}

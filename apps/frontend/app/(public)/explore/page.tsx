@@ -29,6 +29,15 @@ function MarketplaceContent() {
         setPriceRange, clearAll, setSearch, toggleTutor
     } = useMarketplaceFilters();
 
+    // Optimistic root category: อัปเดตทันทีเมื่อคลิก QuickFilter เพราะ useSearchParams อาจยังไม่ sync ทันที
+    const [optimisticRootId, setOptimisticRootId] = useState<string | null>(null);
+    const effectiveRootCategoryId = rootCategoryId ?? optimisticRootId;
+
+    // เมื่อ URL อัปเดตแล้ว ให้เลิกใช้ optimistic
+    useEffect(() => {
+        if (rootCategoryId != null) setOptimisticRootId(null);
+    }, [rootCategoryId]);
+
     // State
     const [topBanners, setTopBanners] = useState<Banner[]>([]);
     const [middleBanners, setMiddleBanners] = useState<Banner[]>([]);
@@ -89,24 +98,42 @@ function MarketplaceContent() {
         };
     }, []);
 
-    // ── QuickFilter Hook (Clean & Fast) ─────────────────────────
+    // ── QuickFilter Hook (ใช้ effectiveRootCategoryId เพื่อให้ UI อัปเดตทันที)
     const {
         rootCategories,
         childCategories,
         activeFilterLabel,
         handleQuickFilterChange,
+        isReady: quickFilterReady,
     } = useQuickFilter({
         categories,
-        rootCategoryId,
-        onRootCategoryChange: setRootCategory,
+        rootCategoryId: effectiveRootCategoryId,
+        onRootCategoryChange: (id) => {
+            setOptimisticRootId(id);
+            setRootCategory(id);
+        },
         onCategoryChange: setCategory,
         onLevelChange: setLevel,
     });
 
+    // Debug: Log state changes
+    useEffect(() => {
+        console.log('📊 Explore Page State:', {
+            rootCategoryId,
+            activeFilterLabel,
+            childCategoriesCount: childCategories.length,
+            childCategories: childCategories.map(c => ({ name: c.name, id: c.id })),
+            categoriesCount: categories.length,
+            quickFilterReady,
+            loading,
+            url: typeof window !== 'undefined' ? window.location.href : 'SSR',
+        });
+    }, [rootCategoryId, activeFilterLabel, childCategories.length, categories.length, quickFilterReady, loading]);
+
     // Find the selected root category object (for display)
     const selectedRoot = useMemo(
-        () => rootCategories.find(c => c.id === rootCategoryId),
-        [rootCategories, rootCategoryId]
+        () => rootCategories.find(c => c.id === effectiveRootCategoryId),
+        [rootCategories, effectiveRootCategoryId]
     );
 
     // Find the selected level object (for display)
@@ -135,7 +162,7 @@ function MarketplaceContent() {
         }
     }
 
-    // Determine what sections to show with priority sorting
+    // Determine what sections to show with priority sorting (ใช้ effectiveRootCategoryId)
     const sectionsToShow = useMemo(() => {
         // Specific child selected → single section (highest priority)
         if (categoryId) {
@@ -144,24 +171,22 @@ function MarketplaceContent() {
         }
         
         // Root selected → show its children first, then other categories
-        if (rootCategoryId && childCategories.length > 0) {
-            // Selected root's children come first
+        if (effectiveRootCategoryId && childCategories.length > 0) {
             return childCategories;
         }
         
         // Root with no children → show root itself
-        if (rootCategoryId) {
-            const root = categories.find(c => c.id === rootCategoryId);
+        if (effectiveRootCategoryId) {
+            const root = categories.find(c => c.id === effectiveRootCategoryId);
             if (root) {
-                // Show selected root first, then other root categories
-                const otherRoots = rootCategories.filter(c => c.id !== rootCategoryId);
+                const otherRoots = rootCategories.filter(c => c.id !== effectiveRootCategoryId);
                 return [root, ...otherRoots];
             }
         }
         
         // "ทั้งหมด" → show all root categories (no specific order needed)
         return rootCategories;
-    }, [categories, rootCategoryId, categoryId, childCategories, rootCategories]);
+    }, [categories, effectiveRootCategoryId, categoryId, childCategories, rootCategories]);
 
     const uniqueMiddleBanners = useMemo(() => {
         const topIds = new Set(topBanners.map(b => b.id));
@@ -192,6 +217,7 @@ function MarketplaceContent() {
                 <QuickFilters
                     activeFilter={activeFilterLabel}
                     onFilterChange={handleQuickFilterChange}
+                    disabled={!quickFilterReady || loading}
                 />
             </div>
 
@@ -245,7 +271,7 @@ function MarketplaceContent() {
                 ) : sectionsToShow.length > 0 ? (
                     sectionsToShow.map((cat, index) => {
                         // Priority: selected category shows more courses and appears first
-                        const isSelectedCategory = rootCategoryId === cat.id || categoryId === cat.id;
+                        const isSelectedCategory = effectiveRootCategoryId === cat.id || categoryId === cat.id;
                         const isFirstSection = index === 0;
                         
                         return (

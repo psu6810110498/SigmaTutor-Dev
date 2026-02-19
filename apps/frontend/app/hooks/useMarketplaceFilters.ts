@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState, startTransition } from 'react';
 
 export function useMarketplaceFilters() {
     const searchParams = useSearchParams();
@@ -11,6 +11,16 @@ export function useMarketplaceFilters() {
     // Get current state from URL
     const rootCategoryId = searchParams.get('root');      // Quick Filter (parent)
     const categoryId = searchParams.get('categoryId');    // Subject (child)
+    
+    // Debug: Log URL changes (only when rootCategoryId actually changes)
+    useEffect(() => {
+        const currentCategoryId = searchParams.get('categoryId');
+        console.log('🌐 URL State Changed:', {
+            rootCategoryId,
+            categoryId: currentCategoryId,
+            fullUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
+        });
+    }, [rootCategoryId, categoryId]); // Only depend on actual values, not searchParams object
     const levelId = searchParams.get('levelId');
     const tutorId = searchParams.get('tutorId');
     const courseType = searchParams.get('courseType');
@@ -30,12 +40,24 @@ export function useMarketplaceFilters() {
     // Helper to update multiple params at once
     const updateParams = useCallback(
         (updates: Record<string, string | null>) => {
-            const params = new URLSearchParams(searchParams.toString());
+            // Use current URL from window if available, otherwise use searchParams
+            const currentSearch = typeof window !== 'undefined' 
+                ? window.location.search 
+                : searchParams.toString();
+            const params = new URLSearchParams(currentSearch);
+            
             for (const [key, value] of Object.entries(updates)) {
                 if (value === null) params.delete(key);
                 else params.set(key, value);
             }
-            router.push(pathname + '?' + params.toString(), { scroll: false });
+            const newUrl = pathname + '?' + params.toString();
+            console.log('🔧 updateParams:', { 
+                updates, 
+                newUrl, 
+                currentUrl: pathname + currentSearch,
+                paramsString: params.toString()
+            });
+            router.push(newUrl, { scroll: false });
         },
         [searchParams, router, pathname]
     );
@@ -52,10 +74,12 @@ export function useMarketplaceFilters() {
     );
 
     // Actions
-    const setRootCategory = (id: string | null) => {
+    const setRootCategory = useCallback((id: string | null) => {
+        console.log('🔧 setRootCategory called:', { id, currentRoot: rootCategoryId });
         // When changing root, clear child category
         updateParams({ root: id, categoryId: null });
-    };
+        console.log('🔧 setRootCategory: URL updated via updateParams');
+    }, [rootCategoryId, updateParams]);
 
     const setCategory = (id: string | null) => {
         router.push(pathname + '?' + createQueryString('categoryId', id), { scroll: false });

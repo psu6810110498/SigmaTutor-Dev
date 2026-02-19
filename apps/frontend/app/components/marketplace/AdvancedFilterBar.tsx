@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { Category, Level } from '@/app/lib/types';
 
@@ -35,6 +36,15 @@ export default function AdvancedFilterBar({
     onPriceChange,
     onSearchChange
 }: AdvancedFilterBarProps) {
+
+    // Debug: Log subjectCategories changes
+    useEffect(() => {
+        console.log('📚 AdvancedFilterBar subjectCategories:', {
+            count: subjectCategories.length,
+            categories: subjectCategories.map(c => ({ name: c.name, id: c.id })),
+            categoryId,
+        });
+    }, [subjectCategories, categoryId]);
 
     // Price Ranges Logic
     const handlePriceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
