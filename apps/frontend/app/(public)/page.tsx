@@ -20,9 +20,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ ดึงคอร์สยอดนิยม (ไม่ดึง Banner - Banner มีเฉพาะหน้า explore)
         const courseRes = await courseApi.getMarketplace({ sort: 'popular', limit: 4 });
-
         if (courseRes.success && courseRes.data) setPopularCourses(courseRes.data.courses);
       } catch (error) {
         console.error("Failed to fetch homepage data", error);
@@ -36,7 +34,7 @@ export default function HomePage() {
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
 
-      {/* 2. Hero Section */}
+      {/* 1. Hero Section */}
       <section className="pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden relative flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">

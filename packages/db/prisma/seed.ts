@@ -52,13 +52,10 @@ const LEVELS = [
 async function main() {
   console.log("🌱 Seeding database...\n");
 
-  // Delete all existing categories first (clean slate)
-  // This ensures we only have the 6 desired root categories
   console.log("🗑️  Deleting all existing categories...");
   const deletedCount = await prisma.category.deleteMany({});
   console.log(`   ✅ Deleted ${deletedCount.count} existing categories`);
 
-  // Seed Root Categories (6 categories: ประถม, ม.ต้น, ม.ปลาย, TCAS, SAT, IELTS)
   console.log("📚 Seeding root categories...");
   for (const cat of CATEGORIES) {
     await prisma.category.create({
@@ -67,7 +64,6 @@ async function main() {
   }
   console.log(`   ✅ ${CATEGORIES.length} root categories seeded`);
 
-  // Seed Levels
   console.log("📊 Seeding levels...");
   for (const lvl of LEVELS) {
     await prisma.level.upsert({
@@ -78,7 +74,6 @@ async function main() {
   }
   console.log(`   ✅ ${LEVELS.length} levels seeded`);
 
-  // Admin Seed
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
 

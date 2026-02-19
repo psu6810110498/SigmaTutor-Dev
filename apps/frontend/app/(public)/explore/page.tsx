@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Banner, Category, Level } from '@/app/lib/types';
 import { bannerApi, categoryApi, levelApi, courseApi } from '@/app/lib/api';
 import BannerStrip from '@/app/components/common/BannerStrip';
@@ -116,27 +116,11 @@ function MarketplaceContent() {
         onLevelChange: setLevel,
     });
 
-    // Debug: Log state changes
-    useEffect(() => {
-        console.log('📊 Explore Page State:', {
-            rootCategoryId,
-            activeFilterLabel,
-            childCategoriesCount: childCategories.length,
-            childCategories: childCategories.map(c => ({ name: c.name, id: c.id })),
-            categoriesCount: categories.length,
-            quickFilterReady,
-            loading,
-            url: typeof window !== 'undefined' ? window.location.href : 'SSR',
-        });
-    }, [rootCategoryId, activeFilterLabel, childCategories.length, categories.length, quickFilterReady, loading]);
-
-    // Find the selected root category object (for display)
     const selectedRoot = useMemo(
         () => rootCategories.find(c => c.id === effectiveRootCategoryId),
         [rootCategories, effectiveRootCategoryId]
     );
 
-    // Find the selected level object (for display)
     const selectedLevel = useMemo(
         () => levels.find(l => l.id === levelId),
         [levels, levelId]
@@ -162,20 +146,14 @@ function MarketplaceContent() {
         }
     }
 
-    // Determine what sections to show with priority sorting (ใช้ effectiveRootCategoryId)
     const sectionsToShow = useMemo(() => {
-        // Specific child selected → single section (highest priority)
         if (categoryId) {
             const cat = categories.find(c => c.id === categoryId);
             return cat ? [cat] : [];
         }
-        
-        // Root selected → show its children first, then other categories
         if (effectiveRootCategoryId && childCategories.length > 0) {
             return childCategories;
         }
-        
-        // Root with no children → show root itself
         if (effectiveRootCategoryId) {
             const root = categories.find(c => c.id === effectiveRootCategoryId);
             if (root) {
@@ -183,8 +161,6 @@ function MarketplaceContent() {
                 return [root, ...otherRoots];
             }
         }
-        
-        // "ทั้งหมด" → show all root categories (no specific order needed)
         return rootCategories;
     }, [categories, effectiveRootCategoryId, categoryId, childCategories, rootCategories]);
 
@@ -212,7 +188,6 @@ function MarketplaceContent() {
             </div>
 
             {/* 2. Quick Filters — separated from banner */}
-            {/* Mobile: Not sticky (scrolls with page), Desktop: Sticky (follows when scrolling) */}
             <div className="md:sticky md:top-20 z-40 mt-6 relative w-full flex justify-center">
                 <QuickFilters
                     activeFilter={activeFilterLabel}
