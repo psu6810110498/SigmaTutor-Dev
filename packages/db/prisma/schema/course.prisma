@@ -76,7 +76,7 @@ model Payment {
     courseId  String
     amount    Float
     status    PaymentStatus @default(PENDING)
-    stripeId  String?       @unique
+    stripeId  String?
     createdAt DateTime      @default(now())
 
     user   User   @relation(fields: [userId], references: [id])
