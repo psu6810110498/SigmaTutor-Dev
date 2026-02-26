@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { tutorApi, TutorProfile, TutorFilterParams } from '@/app/lib/api';
-import { CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronRight, Users } from 'lucide-react';
 
 interface TutorHighlightProps {
     activeTutorId?: string | null;
@@ -18,8 +18,9 @@ interface TutorHighlightProps {
 }
 
 /**
- * Displays a list of instructors filtered by the currently active marketplace filters.
- * Re-fetches automatically whenever any filter prop changes.
+ * Displays a filtered list of instructors based on the active marketplace filters.
+ * Re-fetches whenever any filter prop changes.
+ * Uses AbortController to cancel stale requests when filters change rapidly.
  */
 export default function TutorHighlight({
     activeTutorId,
@@ -34,11 +35,11 @@ export default function TutorHighlight({
     const [tutors, setTutors] = useState<TutorProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [isExpanded, setIsExpanded] = useState(false);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Re-fetch tutors whenever any filter changes
+    // Re-fetch tutors whenever any filter changes.
+    // AbortController cancels in-flight requests when filters change rapidly.
     useEffect(() => {
-        let cancelled = false;
+        const controller = new AbortController();
         setLoading(true);
 
         const params: TutorFilterParams = {
@@ -50,31 +51,46 @@ export default function TutorHighlight({
             search,
         };
 
-        tutorApi.getFiltered(params).then((res) => {
-            if (!cancelled && res.success && res.data) {
-                setTutors(res.data);
-            }
-        }).catch(() => {
-            // Silently fail — tutor list is non-critical
-        }).finally(() => {
-            if (!cancelled) setLoading(false);
-        });
+        tutorApi
+            .getFiltered(params)
+            .then((res) => {
+                // Skip if this request was aborted (newer fetch already in flight)
+                if (controller.signal.aborted) return;
+                if (res.success && res.data) {
+                    setTutors(res.data);
+                } else {
+                    setTutors([]);
+                }
+            })
+            .catch(() => {
+                // AbortError is expected — don't clear results on cancel
+                if (!controller.signal.aborted) setTutors([]);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
 
-        return () => { cancelled = true; };
+        return () => controller.abort();
     }, [categoryId, levelId, courseType, minPrice, maxPrice, search]);
 
-    // Display logic: show first 8 when collapsed, all when expanded
+    // Collapse back to first page when filters change
+    useEffect(() => {
+        setIsExpanded(false);
+    }, [categoryId, levelId, courseType, minPrice, maxPrice, search]);
+
     const displayedTutors = isExpanded ? tutors : tutors.slice(0, 8);
 
+    // ── Loading State ──────────────────────────────────────
     if (loading) {
         return (
             <section className="py-8 max-w-7xl mx-auto px-4">
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">TUTOR HIGHLIGHT</h2>
-                <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-4">
                     {[...Array(6)].map((_, i) => (
-                        <div key={i} className="flex flex-col items-center flex-shrink-0">
+                        <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-200 animate-pulse" />
-                            <div className="w-20 h-4 bg-gray-200 rounded mt-2 animate-pulse" />
+                            <div className="w-16 h-3 bg-gray-200 rounded animate-pulse" />
+                            <div className="w-12 h-2 bg-gray-100 rounded animate-pulse" />
                         </div>
                     ))}
                 </div>
@@ -82,14 +98,30 @@ export default function TutorHighlight({
         );
     }
 
-    if (tutors.length === 0) return null;
+    // ── Empty State ────────────────────────────────────────
+    if (tutors.length === 0) {
+        const hasActiveFilter = categoryId || levelId || courseType || minPrice || maxPrice || search;
+        return (
+            <section className="py-8 max-w-7xl mx-auto px-4">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">TUTOR HIGHLIGHT</h2>
+                <div className="flex items-center gap-3 text-gray-400 py-4 px-1">
+                    <Users size={20} className="flex-shrink-0" />
+                    <p className="text-sm">
+                        {hasActiveFilter
+                            ? 'ยังไม่มีติวเตอร์สำหรับตัวกรองที่เลือก — ลองปรับตัวกรองดูครับ'
+                            : 'ยังไม่มีติวเตอร์ในขณะนี้'}
+                    </p>
+                </div>
+            </section>
+        );
+    }
 
+    // ── Tutor List ─────────────────────────────────────────
     return (
         <section className="py-8 max-w-7xl mx-auto px-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900">TUTOR HIGHLIGHT</h2>
 
-                {/* Desktop: Toggle button */}
                 {tutors.length > 8 && (
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
@@ -105,7 +137,7 @@ export default function TutorHighlight({
             </div>
 
             {/* Mobile: Horizontal scroll */}
-            <div ref={scrollContainerRef} className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">
+            <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">
                 <div className="flex gap-4">
                     {tutors.map((tutor) => (
                         <TutorCard
@@ -121,7 +153,7 @@ export default function TutorHighlight({
 
             {/* Desktop: Grid layout */}
             <div className="hidden md:block">
-                <div className="grid grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6 transition-all duration-300">
+                <div className="grid grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
                     {displayedTutors.map((tutor) => (
                         <TutorCard
                             key={tutor.id}
@@ -133,7 +165,6 @@ export default function TutorHighlight({
                     ))}
                 </div>
 
-                {/* Mobile: Toggle button (inside desktop block for desktop layout — kept as-is) */}
                 {tutors.length > 8 && (
                     <div className="mt-8 text-center md:hidden">
                         <button
@@ -169,6 +200,8 @@ function TutorCard({ tutor, isActive, onTutorClick, size }: TutorCardProps) {
         <button
             onClick={() => onTutorClick(tutor.id)}
             className="flex flex-col items-center flex-shrink-0 group relative"
+            aria-label={`ติวเตอร์ ${tutor.name}`}
+            aria-pressed={isActive}
         >
             {/* Circle with gradient border */}
             <div className={`
@@ -184,6 +217,7 @@ function TutorCard({ tutor, isActive, onTutorClick, size }: TutorCardProps) {
                             src={tutor.profileImage}
                             alt={tutor.name}
                             fill
+                            sizes="(max-width: 768px) 80px, 96px"
                             className="object-cover"
                         />
                     ) : (
