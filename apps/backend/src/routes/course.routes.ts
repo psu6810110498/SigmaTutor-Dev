@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { courseService } from '../services/course.service.js';
-import { upload } from '../services/upload.service.js';
-import { uploadService } from '../services/upload.service.js';
+import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { publicApiLimiter } from '../middleware/rate-limit.middleware.js';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
 import {
   createCourseSchema,
   updateCourseSchema,
   updateCourseStatusSchema,
-  courseQuerySchema,
   marketplaceQuerySchema,
   MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
@@ -42,6 +41,7 @@ router.post(
  */
 router.get(
   '/marketplace',
+  publicApiLimiter,
   validate(marketplaceQuerySchema, 'query'),
   async (req: Request, res: Response): Promise<void> => {
     try {
