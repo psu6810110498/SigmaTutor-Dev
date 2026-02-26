@@ -49,7 +49,7 @@ export const courseQuerySchema = z.object({
  * Supports all public filter options with proper types
  */
 export const marketplaceQuerySchema = z.object({
-    search: z.string().optional(),
+    search: z.string().max(100).optional(),
     categoryId: z.string().optional(),
     levelId: z.string().optional(),
     tutorId: z.string().optional(),
@@ -71,7 +71,7 @@ export const tutorQuerySchema = z.object({
     courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).optional(),
     minPrice: z.coerce.number().min(0).optional(),
     maxPrice: z.coerce.number().min(0).optional(),
-    search: z.string().optional(),
+    search: z.string().max(100).optional(),
 });
 
 // --- Payment ---
