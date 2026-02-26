@@ -44,6 +44,36 @@ export const courseQuerySchema = z.object({
     order: z.enum(['asc', 'desc']).default('desc'),
 });
 
+/**
+ * Schema for GET /api/courses/marketplace
+ * Supports all public filter options with proper types
+ */
+export const marketplaceQuerySchema = z.object({
+    search: z.string().optional(),
+    categoryId: z.string().optional(),
+    levelId: z.string().optional(),
+    tutorId: z.string().optional(),
+    courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).optional(),
+    minPrice: z.coerce.number().min(0).optional(),
+    maxPrice: z.coerce.number().min(0).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(12),
+    sort: z.enum(['newest', 'price-asc', 'price-desc', 'popular']).default('newest'),
+});
+
+/**
+ * Schema for GET /api/tutors
+ * Returns instructors who have at least one published course matching the filters
+ */
+export const tutorQuerySchema = z.object({
+    categoryId: z.string().optional(),
+    levelId: z.string().optional(),
+    courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).optional(),
+    minPrice: z.coerce.number().min(0).optional(),
+    maxPrice: z.coerce.number().min(0).optional(),
+    search: z.string().optional(),
+});
+
 // --- Payment ---
 
 export const createPaymentSchema = z.object({
@@ -56,4 +86,6 @@ export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
 export type UpdateCourseStatusInput = z.infer<typeof updateCourseStatusSchema>;
 export type CourseQueryInput = z.infer<typeof courseQuerySchema>;
+export type MarketplaceQueryInput = z.infer<typeof marketplaceQuerySchema>;
+export type TutorQueryInput = z.infer<typeof tutorQuerySchema>;
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
