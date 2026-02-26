@@ -47,6 +47,8 @@ router.get(
     try {
       const query = req.query as unknown as MarketplaceQueryInput;
       const result = await courseService.getMarketplaceCourses(query);
+      // Allow CDN/browser to cache for 60s, serve stale while revalidating for 5 min
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
       res.json({ success: true, data: result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch courses';

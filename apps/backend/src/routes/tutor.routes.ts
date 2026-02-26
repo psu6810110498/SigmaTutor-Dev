@@ -20,6 +20,8 @@ router.get(
         try {
             const query = req.query as unknown as TutorQueryInput;
             const tutors = await tutorService.getFiltered(query);
+            // Allow CDN/browser to cache for 30s, serve stale while revalidating for 2 min
+            res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
             res.json({ success: true, data: tutors });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to fetch tutors';
