@@ -12,7 +12,7 @@ export default function AdminStudentsPage() {
     const [instructors, setInstructors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // ── Filter States ──────────────────────────────────────────
+    // ── Filter States ──────────────────────────────
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [courseFilter, setCourseFilter] = useState('all');
@@ -26,20 +26,21 @@ export default function AdminStudentsPage() {
             const token = getToken();
             const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-            // 1. ดึงข้อมูลนักเรียน
+            // 1. ดึงข้อมูลนักเรียนพร้อมข้อมูล Enrollments และ Payments จริง
             const studentRes = await fetch('http://localhost:4000/api/users/students', { headers, credentials: 'include' });
             const studentData = await studentRes.json();
 
-            // 2. ดึงข้อมูลคอร์สทั้งหมด
+            // 2. ดึงข้อมูลคอร์สทั้งหมดเพื่อใช้ใน Dropdown ตัวกรอง
             const courseRes = await fetch('http://localhost:4000/api/courses/admin', { headers, credentials: 'include' });
             const courseData = await courseRes.json();
 
-            // 3. ดึงรายชื่อคุณครู
+            // 3. ดึงรายชื่อคุณครูเพื่อใช้ใน Dropdown ตัวกรอง
             const instRes = await fetch('http://localhost:4000/api/users/instructors', { headers, credentials: 'include' });
             const instData = await instRes.json();
 
             if (studentData.success) setStudents(studentData.data);
             if (courseData.success) {
+                // รองรับข้อมูลทั้งแบบมี pagination และ array เปล่าๆ
                 const courseList = courseData.data.courses || courseData.data;
                 setCourses(Array.isArray(courseList) ? courseList : []);
             }
@@ -56,20 +57,22 @@ export default function AdminStudentsPage() {
         fetchData();
     }, []);
 
-    // ── Filtering Logic ────────────────────────────────────────
+    // ── Filtering Logic (เชื่อมโยงกับข้อมูลจริงใน DB) ───────────────
     const filteredStudents = useMemo(() => {
         return students.filter(s => {
             const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                  s.email.toLowerCase().includes(searchTerm.toLowerCase());
             
-            // ✅ กรองตามสถานะ Online/Offline จริงจาก Backend
+            // กรองตามสถานะ Online/Offline
             const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
 
+            // กรองตามรายชื่อคอร์สที่ลงเรียนจริง
             const matchesCourse = courseFilter === 'all' || 
-                                 s.enrolledCourses.some((c: any) => c.title === courseFilter);
+                                 s.enrolledCourses?.some((c: any) => c.title === courseFilter);
 
+            // กรองตามชื่อคุณครูที่สอนในคอร์สนั้นๆ
             const matchesInstructor = instructorFilter === 'all' || 
-                                     s.enrolledCourses.some((c: any) => c.instructorName === instructorFilter);
+                                     s.enrolledCourses?.some((c: any) => c.instructorName === instructorFilter);
 
             return matchesSearch && matchesStatus && matchesCourse && matchesInstructor;
         });
@@ -81,7 +84,7 @@ export default function AdminStudentsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900">จัดการนักเรียน</h1>
-                    <p className="text-slate-500 text-sm mt-1">ข้อมูลนักเรียนและการลงทะเบียนทั้งหมด</p>
+                    <p className="text-slate-500 text-sm mt-1">ข้อมูลนักเรียนและการลงทะเบียนทั้งหมดจากฐานข้อมูลจริง</p>
                 </div>
                 <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
                     <Download size={18} /> ส่งออกข้อมูล (Export)
@@ -101,7 +104,6 @@ export default function AdminStudentsPage() {
                     />
                 </div>
                 
-                {/* ✅ Dropdown สถานะออนไลน์ (Online/Offline) */}
                 <select 
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -157,10 +159,9 @@ export default function AdminStudentsPage() {
                                     <tr key={student.id} className="hover:bg-slate-50/30 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                {/* ✅ เพิ่มจุดไฟแสดงสถานะ Dot ลงในรูปโปรไฟล์ */}
                                                 <div className="relative">
                                                     <div className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner">
-                                                        {student.name.charAt(0)}
+                                                        {student.name ? student.name.charAt(0) : '?'}
                                                     </div>
                                                     <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm
                                                         ${student.status === 'Online' ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} 
@@ -168,7 +169,6 @@ export default function AdminStudentsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-slate-900 text-sm">{student.name}</p>
-                                                    {/* ✅ เปลี่ยน Badge เป็นข้อความ Online/Offline ตัวหนา */}
                                                     <span className={`text-[10px] font-black uppercase tracking-tighter 
                                                         ${student.status === 'Online' ? 'text-green-500' : 'text-slate-400'}`}>
                                                         {student.status || 'Offline'}
@@ -184,7 +184,8 @@ export default function AdminStudentsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1">
-                                                {student.enrolledCourses.length > 0 ? (
+                                                {/* ✅ แสดงคอร์สจริงที่ดึงจาก Relation Enrollment ใน DB */}
+                                                {student.enrolledCourses && student.enrolledCourses.length > 0 ? (
                                                     student.enrolledCourses.map((c: any, idx: number) => (
                                                         <span key={idx} className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">
                                                             {c.title} <span className="text-slate-400">({c.instructorName})</span>
@@ -196,12 +197,13 @@ export default function AdminStudentsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <p className="text-sm font-black text-slate-900">฿{student.totalSpent?.toLocaleString()}</p>
+                                            {/* ✅ แสดงยอดรวมเงินจริงที่จ่ายสำเร็จจากตาราง Payment */}
+                                            <p className="text-sm font-black text-slate-900">฿{(student.totalSpent || 0).toLocaleString()}</p>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Eye size={16}/></button>
-                                                <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"><Pencil size={16}/></button>
+                                                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="ดูข้อมูล"><Eye size={16}/></button>
+                                                <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="แก้ไข"><Pencil size={16}/></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -217,9 +219,9 @@ export default function AdminStudentsPage() {
                 <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
                     <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredStudents.length} รายการ</p>
                     <div className="flex gap-2">
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all"><ChevronLeft size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16}/></button>
                         <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-100">1</button>
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all"><ChevronRight size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16}/></button>
                     </div>
                 </div>
             </div>

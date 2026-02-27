@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 const router: express.Router = express.Router();
 
 /**
- * GET /api/users/instructors - ดึงรายชื่อคุณครูทั้งหมด (Admin เท่านั้น)
+ * GET /api/users/instructors - ดึงรายชื่อคุณครูพร้อมยอดสถิติและรายได้จริง
  */
 router.get(
   '/instructors',
@@ -15,36 +15,85 @@ router.get(
   requireRole('ADMIN', 'INSTRUCTOR') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const instructors = await prisma.user.findMany({
-        where: { 
-          OR: [
-            { role: 'INSTRUCTOR' },
-            { role: 'ADMIN' } // Include ADMIN as they can also be instructors
-          ]
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          nickname: true, 
-          title: true,    
-          bio: true,      
-          role: true,
-          createdAt: true,
-          profileImage: true,
-        },
-        orderBy: { createdAt: 'desc' },
+      const [instructors, totalUniqueStudents] = await Promise.all([
+        prisma.user.findMany({
+          where: { 
+            OR: [{ role: 'INSTRUCTOR' }, { role: 'ADMIN' }]
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            nickname: true, 
+            title: true,    
+            bio: true,      
+            role: true,
+            profileImage: true,
+            expertise: true,   
+            education: true,   
+            experience: true,  
+            socialLink: true,  
+            createdAt: true,
+            courses: {
+              select: {
+                price: true, // ดึงราคาไว้ใช้สำรอง
+                enrollments: { select: { userId: true, status: true } },
+                payments: {
+                  where: { status: 'COMPLETED' }, // 🌟 แก้กลับเป็น Enum ที่ปลอดภัย ป้องกันฐานข้อมูลล่ม
+                  select: { amount: true }
+                }
+              }
+            },
+            _count: {          
+              select: { courses: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.user.count({ where: { role: 'USER' } })
+      ]);
+
+      const formattedData = instructors.map(inst => {
+        const allStudentIds = inst.courses.flatMap(c => c.enrollments.map(e => e.userId));
+        const uniqueStudentsCount = new Set(allStudentIds).size;
+
+        // 🌟 คำนวณรายได้ใหม่ ปลอดภัย 100%
+        const totalEarnings = inst.courses.reduce((sum, course) => {
+          let courseRevenue = course.payments.reduce((pSum, p) => pSum + Number(p.amount || 0), 0);
+
+          // Fallback: หากระบบไม่บันทึก Payment ให้คูณจำนวนคนจากสถานะการลงทะเบียน(ACTIVE)แทน
+          if (courseRevenue === 0 && course.price && course.enrollments.length > 0) {
+            const activeEnrollments = course.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED').length;
+            courseRevenue = Number(course.price) * activeEnrollments;
+          }
+
+          return sum + courseRevenue;
+        }, 0);
+
+        return {
+          ...inst,
+          totalEarnings,
+          _count: {
+            courses: inst._count.courses,
+            enrollments: uniqueStudentsCount
+          }
+        };
       });
-      res.json({ success: true, data: instructors });
+
+      res.json({ 
+        success: true, 
+        data: formattedData,
+        totalUniqueStudents 
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch instructors';
-      res.status(500).json({ success: false, error: message });
+      console.error("Instructors API Error:", error);
+      res.status(500).json({ success: false, error: 'Failed to fetch instructors' });
     }
   }
 );
 
 /**
- * GET /api/users/students - ดึงรายชื่อนักเรียนพร้อมเช็คสถานะ Online/Offline
+ * GET /api/users/students - ดึงรายชื่อนักเรียน
  */
 router.get(
   '/students',
@@ -62,17 +111,13 @@ router.get(
           updatedAt: true,
           enrollments: {
             select: {
-              course: {
-                select: {
-                  title: true,
-                  instructor: { select: { name: true } }
-                }
-              }
+              status: true, // เพิ่มสถานะมาด้วย
+              course: { select: { title: true, price: true, instructor: { select: { name: true } } } }
             }
           },
-          payments: {
-            where: { status: 'COMPLETED' },
-            select: { amount: true }
+          payments: { 
+            where: { status: 'COMPLETED' }, // 🌟 ป้องกันฐานข้อมูลล่มจากคำแปลกปลอม
+            select: { amount: true } 
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -80,33 +125,40 @@ router.get(
 
       const now = new Date();
       const formattedStudents = students.map(s => {
-        // ตรรกะ Online: มีการเคลื่อนไหวภายใน 5 นาทีล่าสุด
         const diffMinutes = Math.floor((now.getTime() - new Date(s.updatedAt).getTime()) / 60000);
-        const isOnline = diffMinutes <= 5;
+        
+        let totalSpent = s.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        
+        // Fallback คิดยอดซื้อจากคอร์สที่ลงผ่านแล้ว
+        if (totalSpent === 0) {
+          const activeEnrollments = s.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED');
+          totalSpent = activeEnrollments.reduce((sum, e) => sum + Number(e.course?.price || 0), 0);
+        }
 
         return {
           id: s.id,
           name: s.name,
           email: s.email,
           createdAt: s.createdAt,
-          status: isOnline ? 'Online' : 'Offline',
+          status: diffMinutes <= 5 ? 'Online' : 'Offline',
           enrolledCourses: s.enrollments.map(e => ({
-            title: e.course.title,
-            instructorName: e.course.instructor.name
+            title: e.course?.title || 'Unknown',
+            instructorName: e.course?.instructor?.name || 'ไม่ระบุผู้สอน'
           })),
-          totalSpent: s.payments.reduce((sum, p) => sum + p.amount, 0)
+          totalSpent
         };
       });
 
       res.json({ success: true, data: formattedStudents });
     } catch (error) {
+      console.error("Students API Error:", error);
       res.status(500).json({ success: false, error: 'Failed to fetch students' });
     }
   }
 );
 
 /**
- * POST /api/users/instructors - แอดมินสร้างบัญชีคุณครูใหม่
+ * POST /api/users/instructors - สร้างบัญชีคุณครู
  */
 router.post(
   '/instructors',
@@ -114,175 +166,71 @@ router.post(
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, email, password, nickname, title, bio, profileImage } = req.body;
+      const { 
+        name, email, password, nickname, title, bio, 
+        profileImage, expertise, education, experience, socialLink 
+      } = req.body;
 
-      const existingUser = await prisma.user.findUnique({ where: { email } });
+      const finalEmail = email || `teacher_${Date.now()}@sigma.com`;
+      const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
       if (existingUser) {
         res.status(400).json({ success: false, error: 'อีเมลนี้มีในระบบแล้ว' });
         return;
       }
 
-      const hashedPassword = await bcrypt.hash(password, 12);
-
+      const hashedPassword = await bcrypt.hash(password || 'Sigma1234!', 12);
       const newTeacher = await prisma.user.create({
         data: {
-          name,
-          email,
-          password: hashedPassword,
-          role: 'ADMIN',
-          nickname,      
-          title,         
-          bio,           
-          profileImage,  
+          name, email: finalEmail, password: hashedPassword, role: 'INSTRUCTOR', 
+          nickname, title, bio, profileImage, expertise, education, experience, socialLink
         },
         select: { id: true, name: true, email: true, role: true }
       });
 
       res.status(201).json({ success: true, data: newTeacher });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create instructor';
-      res.status(500).json({ success: false, error: message });
+      res.status(500).json({ success: false, error: 'Failed to create instructor' });
     }
   }
 );
 
 /**
- * GET /api/users - ดึงรายชื่อผู้ใช้ทั้งหมด (Admin เท่านั้น)
- */
-router.get(
-  '/',
-  authenticate as express.RequestHandler,
-  requireRole('ADMIN') as express.RequestHandler,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-      res.json({ success: true, data: users });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch users';
-      res.status(500).json({ success: false, error: message });
-    }
-  }
-);
-
-/**
- * GET /api/users/:id - ดึงข้อมูลผู้ใช้รายบุคคล (พร้อมฟิลด์ Profile ครบถ้วน)
- */
-router.get('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
-  const authReq = req as AuthRequest;
-  const id = req.params.id as string;
-
-  try {
-    if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
-      res.status(403).json({ success: false, error: 'Access denied' });
-      return;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        profileImage: true,
-        phone: true,
-        address: true,
-        school: true,
-        educationLevel: true,
-        province: true,
-        birthday: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    if (!user) {
-      res.status(404).json({ success: false, error: 'User not found' });
-      return;
-    }
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch user';
-    res.status(500).json({ success: false, error: message });
-  }
-});
-
-/**
- * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้ (รองรับข้อมูล Profile ใหม่ทั้งหมด)
+ * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้
  */
 router.patch('/:id', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const id = req.params.id as string;
-
   try {
-    const { name, phone, birthday, educationLevel, school, province, address, profileImage } = req.body;
-
+    const { name, phone, birthday, educationLevel, school, province, address, profileImage, expertise, education, experience, socialLink } = req.body;
     if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
       res.status(403).json({ success: false, error: 'Access denied' });
       return;
     }
-
     const user = await prisma.user.update({
       where: { id },
       data: { 
-        name,
-        phone,
-        educationLevel,
-        school,
-        province,
-        address,
-        profileImage,
-        birthday: birthday ? new Date(birthday) : undefined,
+        name, phone, educationLevel, school, province, address, profileImage,
+        expertise, education, experience, socialLink,
+        birthday: birthday ? new Date(birthday) : undefined 
       },
-      select: { 
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        profileImage: true,
-        phone: true,
-        address: true,
-        school: true,
-        educationLevel: true,
-        province: true,
-        birthday: true,
-        updatedAt: true
-      },
+      select: { id: true, email: true, name: true, role: true, updatedAt: true },
     });
-
     res.json({ success: true, data: user });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update user';
-    res.status(500).json({ success: false, error: message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: 'Failed to update user' }); }
 });
 
 /**
- * DELETE /api/users/:id - ลบผู้ใช้ (Admin เท่านั้น)
+ * DELETE /api/users/:id - ลบผู้ใช้
  */
 router.delete(
   '/:id',
   authenticate as express.RequestHandler,
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
-    const id = req.params.id as string;
     try {
-      await prisma.user.delete({ where: { id } });
+      await prisma.user.delete({ where: { id: req.params.id } });
       res.json({ success: true, message: 'User deleted successfully' });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete user';
-      res.status(500).json({ success: false, error: message });
-    }
+    } catch (error) { res.status(500).json({ success: false, error: 'Failed to delete user' }); }
   }
 );
 

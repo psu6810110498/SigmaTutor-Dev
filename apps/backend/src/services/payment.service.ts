@@ -44,7 +44,8 @@ export class PaymentService {
         },
       });
 
-      if (existing) {
+      // 🌟 อนุญาตให้ซื้อซ้ำได้เฉพาะกรณีที่เคยทำรายการแต่ยังชำระไม่สำเร็จ
+      if (existing && existing.status === 'ACTIVE') {
         throw new Error(`Already enrolled in: ${item.title}`);
       }
     }
@@ -100,13 +101,15 @@ export class PaymentService {
    */
   async handleWebhook(event: Stripe.Event) {
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': { // 🌟 เพิ่ม Event ดักจับเงินเข้าจาก PromptPay
         const session = event.data.object as Stripe.Checkout.Session;
         await this.handleCheckoutCompleted(session);
         break;
       }
 
-      case 'checkout.session.expired': {
+      case 'checkout.session.expired':
+      case 'checkout.session.async_payment_failed': { // 🌟 เพิ่ม Event ดักจับจ่ายเงินล้มเหลว
         const session = event.data.object as Stripe.Checkout.Session;
         await this.handleCheckoutExpired(session);
         break;
@@ -121,11 +124,17 @@ export class PaymentService {
    * Handle successful checkout — mark payments as completed + create enrollments
    */
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    // 🌟 ยืนยันว่าตัดเงินสำเร็จจริงๆ ป้องกันกรณี PromptPay แค่สแกนแต่เงินยังไม่หัก
+    if (session.payment_status !== 'paid') {
+      console.log(`⚠️ Checkout ${session.id} is pending payment (e.g., waiting for PromptPay).`);
+      return;
+    }
+
     const userId = session.metadata?.userId;
     const courseIds = session.metadata?.courseIds?.split(',') || [];
 
     if (!userId || courseIds.length === 0) {
-      console.error('Missing metadata in checkout session:', session.id);
+      console.error('❌ Missing metadata in checkout session:', session.id);
       return;
     }
 
@@ -137,14 +146,23 @@ export class PaymentService {
 
     // Create enrollments for each course
     for (const courseId of courseIds) {
-      // Skip if already enrolled (idempotent)
       const existing = await prisma.enrollment.findUnique({
         where: { userId_courseId: { userId, courseId } },
       });
 
       if (!existing) {
         await prisma.enrollment.create({
-          data: { userId, courseId },
+          data: { 
+            userId, 
+            courseId,
+            status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
+          },
+        });
+      } else {
+        // 🌟 อัปเดตสถานะให้เป็น ACTIVE เผื่อกรณีลูกค้าเคยกดค้างไว้เป็น PENDING
+        await prisma.enrollment.update({
+          where: { userId_courseId: { userId, courseId } },
+          data: { status: 'ACTIVE' }
         });
       }
     }
@@ -161,7 +179,7 @@ export class PaymentService {
       data: { status: 'FAILED' },
     });
 
-    console.log(`❌ Checkout expired for session ${session.id}`);
+    console.log(`❌ Checkout expired or failed for session ${session.id}`);
   }
 }
 

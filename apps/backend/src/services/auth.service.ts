@@ -9,12 +9,10 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "30d";
 
-// ✅ ตรวจสอบ JWT_SECRET เพื่อความปลอดภัยของระบบ
 if (!JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET is not defined in environment variables.');
 }
 
-// ✅ ตัด profileImage ออกจาก Token เพื่อป้องกัน Token อ้วน (Database พัง)
 export interface TokenPayload {
   userId: string;
   email: string;
@@ -66,8 +64,6 @@ export class AuthService {
   async login(input: LoginInput) {
     const user = await prisma.user.findUnique({ where: { email: input.email } });
     
-    // ✅ แก้ไข: เพิ่ม !user.password เพื่อดักกรณี Google User ที่ไม่มีรหัสผ่าน
-    // และเพื่อให้ TypeScript มั่นใจว่าบรรทัดถัดไป user.password จะไม่เป็น null ครับ
     if (!user || !user.password) {
       throw new Error('Invalid email or password');
     }
@@ -77,7 +73,6 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
     
-    // ✅ สร้าง Token โดยไม่เอา profileImage เข้าไป (ตามที่เรา Merge มา)
     const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role);
     return { 
       user: { 
@@ -91,7 +86,6 @@ export class AuthService {
     };
   }
 
-  // ✅ ฟังก์ชันนี้จะหายแดงเมื่อคุณแก้ user.prisma และสั่ง npx prisma generate ครับ
   async getUserById(id: string) {
     return await prisma.user.findUnique({
       where: { id },
@@ -127,7 +121,6 @@ export class AuthService {
       const hasUpperCase = /[A-Z]/.test(newPassword);
       const hasNumber = /[0-9]/.test(newPassword);
 
-      // ✅ รวมเงื่อนไขความปลอดภัยให้ครบถ้วน
       if (newPassword.length < 8 || !hasUpperCase || !hasNumber) {
         throw new Error('รหัสผ่านไม่เป็นไปตามมาตรฐานความปลอดภัย');
       }
@@ -155,7 +148,6 @@ export class AuthService {
 
       if (!user) {
         user = await prisma.user.create({
-          // ✅ บันทึกรูปโปรไฟล์ลง DB แต่ไม่เอาไปแบกไว้ใน Token
           data: { email, name, password: '', role: 'USER', profileImage },
         });
       }
@@ -181,13 +173,15 @@ export class AuthService {
     await prisma.session.deleteMany({ where: { refreshToken } });
   }
 
-  // ✅ ตัดการรับค่า profileImage ออกจาก Token Payload อย่างถาวร
   private async generateTokens(userId: string, email: string, name: string, role: string) {
     const payload: TokenPayload = { userId, email, name, role }; 
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
-    const expiresIn = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
-    const expiresAt = new Date(Date.now() + expiresIn);
+    
+    // ✅ คำนวณวันหมดอายุสำหรับบันทึกใน Database (Session Table)
+    const expiresInMs = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
+    const expiresAt = new Date(Date.now() + expiresInMs);
+    
     await prisma.session.create({ data: { userId, refreshToken, expiresAt } });
     return { accessToken, refreshToken };
   }
@@ -205,7 +199,7 @@ export class AuthService {
       case 's': return value * 1000;
       case 'm': return value * 60 * 1000;
       case 'h': return value * 60 * 60 * 1000;
-      case 'd': return value * 24 * 60 * 60 * 1000;
+      case 'd': return value * 24 * 60 * 60 * 1000; // ✅ แก้ไข: ลบช่องว่างออกแล้ว
       default: return 7 * 24 * 60 * 60 * 1000;
     }
   }

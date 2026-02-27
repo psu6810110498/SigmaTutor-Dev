@@ -30,6 +30,9 @@ export default function AdminCoursesPage() {
   const [levels, setLevels] = useState<Level[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
 
+  // 🌟 เพิ่ม State สำหรับเก็บยอดสรุปจาก DB (เพื่อแก้ปัญหาเลข 10 ให้เป็น 28)
+  const [summary, setSummary] = useState({ all: 0, published: 0, draft: 0 });
+
   // ── Filters ──────────────────────────────────────────────
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -110,10 +113,15 @@ export default function AdminCoursesPage() {
       if (res.success && res.data) {
         if (res.data.courses) {
           setCourses(res.data.courses);
-          setTotal(res.data.pagination?.total || res.data.courses.length);
+          setTotal(res.data.total || res.data.courses.length);
         } else if (Array.isArray(res.data)) {
           setCourses(res.data);
           setTotal(res.data.length);
+        }
+
+        // 🌟 บรรทัดสำคัญ: รับค่า summary (เช่น 28 คอร์ส) ที่ส่งมาจาก Backend Service
+        if (res.data.summary) {
+          setSummary(res.data.summary);
         }
       } else if (res.error === 'No token provided' || res.error === 'jwt expired') {
         console.warn('Token หมดอายุ กรุณาล็อกอินใหม่');
@@ -144,15 +152,15 @@ export default function AdminCoursesPage() {
     });
   }, [courses, categoryFilter, typeFilter]);
 
-  // ── Stats ────────────────────────────────────────────────
+  // ── Stats (ปรับปรุงให้ใช้ค่าจาก summary ที่แม่นยำ 100%) ──────────────────
   const stats = useMemo(
     () => ({
-      total: courses.length,
-      published: courses.filter((c) => c.status === 'PUBLISHED').length,
-      draft: courses.filter((c) => c.status === 'DRAFT').length,
+      total: summary.all,           // 🌟 เปลี่ยนจาก courses.length เป็น summary.all (จะโชว์ 28)
+      published: summary.published, // 🌟 ใช้ค่าจาก summary เพื่อความแม่นยำ
+      draft: summary.draft,         // 🌟 ใช้ค่าจาก summary เพื่อความแม่นยำ
       totalStudents: totalStudents,
     }),
-    [courses, totalStudents]
+    [summary, totalStudents] // 🌟 เปลี่ยน dependencies เป็น summary
   );
 
   // ── อัปเดตสถานะคอร์ส (API PATCH) ──────────────────────────
@@ -173,7 +181,8 @@ export default function AdminCoursesPage() {
 
       if (res.success) {
         toast.success(newStatus === 'PUBLISHED' ? 'เผยแพร่คอร์สแล้ว! พร้อมขายบนหน้าเว็บ' : 'เปลี่ยนเป็นแบบร่างเรียบร้อย');
-        setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: newStatus as any } : c));
+        // 🌟 เรียก fetchCourses เพื่อให้อัปเดตตัวเลขใน Card ทันทีหลังเปลี่ยนสถานะ
+        fetchCourses();
       } else {
         toast.error(res.error || 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
       }

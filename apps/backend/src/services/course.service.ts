@@ -148,13 +148,12 @@ export class CourseService {
     // Build Where Clause
     const where: any = {
       status: 'PUBLISHED', // Always filter published for marketplace
-      published: true,     // ✅ แก้ไข: บังคับให้ published เป็น true เพื่อความชัวร์
+      published: true,     // ✅ บังคับให้ published เป็น true
       ...categoryFilter,
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },
-          // Search in tags if available in Schema
           { tags: { has: search } },
         ],
       }),
@@ -166,7 +165,6 @@ export class CourseService {
 
     // Build Order Clause
     let orderBy: any = { createdAt: 'desc' };
-    // Explicitly check sort strings to satisfy TypeScript
     const sortParam = sort as string;
     if (sortParam === 'price-asc') orderBy = { price: 'asc' };
     else if (sortParam === 'price-desc') orderBy = { price: 'desc' };
@@ -255,6 +253,7 @@ export class CourseService {
 
   /**
    * Admin/Instructor Course List
+   * 🌟 แก้ไข: เพิ่มระบบนับยอดรวมทั้งหมด (Summary) เพื่อแก้ปัญหาเลข 10 คอร์ส
    */
   async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
     const { search, status, instructorId } = query;
@@ -262,19 +261,22 @@ export class CourseService {
     const limit = Number(query.limit) || 10;
 
     const where: any = {
-      ...(status && { status }),
+      ...(status && status !== 'all' && { status }),
       ...(instructorId && { instructorId }),
       ...(search && {
         title: { contains: search, mode: 'insensitive' },
       }),
     };
 
-    const [courses, total] = await Promise.all([
+    // 🌟 ดึงยอดรวมจริงจาก Database โดยไม่สนการแบ่งหน้า (Pagination)
+    const statsWhere = instructorId ? { instructorId } : {};
+
+    const [courses, total, allCount, publishedCount, draftCount] = await Promise.all([
       prisma.course.findMany({
         where,
         include: {
           instructor: { select: { name: true, email: true } },
-          category: { select: { id: true, name: true, slug: true } }, // ✅ ดึงข้อมูลหมวดหมู่มาด้วย
+          category: { select: { id: true, name: true, slug: true } },
           _count: { select: { enrollments: true } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -282,9 +284,23 @@ export class CourseService {
         take: limit,
       }),
       prisma.course.count({ where }),
+      // นับยอดสรุปเพื่อใช้ใน Stats Cards
+      prisma.course.count({ where: statsWhere }),
+      prisma.course.count({ where: { ...statsWhere, status: 'PUBLISHED' } }),
+      prisma.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
     ]);
 
-    return { courses, total, totalPages: Math.ceil(total / limit) };
+    return { 
+      courses, 
+      total, 
+      totalPages: Math.ceil(total / limit),
+      // 🌟 ส่งค่าสรุปจริงกลับไปให้หน้าบ้าน
+      summary: {
+        all: allCount,
+        published: publishedCount,
+        draft: draftCount
+      }
+    };
   }
 
   /**
@@ -306,7 +322,7 @@ export class CourseService {
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
     await this.findById(id);
 
-    // ✅ แก้ไข: อัปเดต boolean 'published' ให้ตรงกับ 'status' เสมอ
+    // ✅ อัปเดต boolean 'published' ให้ตรงกับ 'status'
     const isPublished = input.status === 'PUBLISHED';
 
     return prisma.course.update({
