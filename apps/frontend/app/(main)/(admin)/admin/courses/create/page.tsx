@@ -178,11 +178,12 @@ export default function CreateCoursePage() {
             formData.append("file", file); 
 
             const token = getToken();
-            const res = await fetch('http://localhost:4000/api/upload', {
+            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 },
+                credentials: 'include',
                 body: formData
             });
             

@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
-  BarChart3,
 } from 'lucide-react';
 import { useToast } from '@/app/components/ui/Toast';
 import { ConfirmDialog } from '@/app/components/ui/ConfirmDialog';
@@ -29,6 +28,7 @@ export default function AdminCoursesPage() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
+  const [totalStudents, setTotalStudents] = useState<number>(0);
 
   // ── Filters ──────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -53,7 +53,7 @@ export default function AdminCoursesPage() {
     return '';
   };
 
-  // ── Load reference data ──────────────────────────────────
+  // ── Load reference data & Students Count ─────────────────
   useEffect(() => {
     categoryApi.list().then((r) => {
       if (r.success && r.data) setCategories(r.data);
@@ -61,6 +61,27 @@ export default function AdminCoursesPage() {
     levelApi.list().then((r) => {
       if (r.success && r.data) setLevels(r.data);
     });
+
+    const fetchStudentsCount = async () => {
+      try {
+        const token = getToken();
+        const response = await fetch('http://localhost:4000/api/users/students', {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json' 
+          },
+          credentials: 'include', // ✅ เพิ่มบรรทัดนี้แล้ว (สำคัญมากสำหรับการส่ง Cookie)
+        });
+        const res = await response.json();
+        if (res.success && res.data) {
+          setTotalStudents(res.data.pagination?.total || res.data.length || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch students count', error);
+      }
+    };
+    
+    fetchStudentsCount();
   }, []);
 
   // ── Fetch Courses ────────────────────────────────────────
@@ -69,7 +90,6 @@ export default function AdminCoursesPage() {
     try {
       const token = getToken();
 
-      // สร้าง Query String สำหรับส่งไป API
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
@@ -77,7 +97,6 @@ export default function AdminCoursesPage() {
       if (search) params.append('search', search);
       if (statusFilter !== 'all') params.append('status', statusFilter);
 
-      // ✅ ดึงข้อมูลแบบแนบ Token
       const response = await fetch(`http://localhost:4000/api/courses/admin?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -131,10 +150,38 @@ export default function AdminCoursesPage() {
       total: courses.length,
       published: courses.filter((c) => c.status === 'PUBLISHED').length,
       draft: courses.filter((c) => c.status === 'DRAFT').length,
-      archived: courses.filter((c) => c.status === 'ARCHIVED').length,
+      totalStudents: totalStudents,
     }),
-    [courses]
+    [courses, totalStudents]
   );
+
+  // ── อัปเดตสถานะคอร์ส (API PATCH) ──────────────────────────
+  const handleStatusChange = async (courseId: string, newStatus: string) => {
+    try {
+      const token = getToken();
+      const response = await fetch(`http://localhost:4000/api/courses/${courseId}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // ✅ เพิ่มบรรทัดนี้แล้ว! หมดปัญหา No token provided
+        body: JSON.stringify({ status: newStatus }),
+      });
+      
+      const res = await response.json();
+
+      if (res.success) {
+        toast.success(newStatus === 'PUBLISHED' ? 'เผยแพร่คอร์สแล้ว! พร้อมขายบนหน้าเว็บ' : 'เปลี่ยนเป็นแบบร่างเรียบร้อย');
+        setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: newStatus as any } : c));
+      } else {
+        toast.error(res.error || 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
+      }
+    } catch (error) {
+      console.error('Update Status Error:', error);
+      toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+    }
+  };
 
   // ── Delete ───────────────────────────────────────────────
   const handleDelete = async () => {
@@ -154,7 +201,7 @@ export default function AdminCoursesPage() {
       if (res.success) {
         toast.success('ลบคอร์สเรียบร้อยแล้ว');
         setDeletingId(null);
-        fetchCourses(); // โหลดตารางใหม่หลังลบเสร็จ
+        fetchCourses(); 
       } else {
         toast.error(res.error || 'เกิดข้อผิดพลาดในการลบคอร์ส');
       }
@@ -165,23 +212,6 @@ export default function AdminCoursesPage() {
   };
 
   const totalPages = Math.ceil(total / limit);
-
-  // ── Status Badge ─────────────────────────────────────────
-  const StatusBadge = ({ status }: { status: string }) => {
-    const config: Record<string, { bg: string; text: string; label: string }> = {
-      PUBLISHED: { bg: 'bg-green-50', text: 'text-green-700', label: 'เผยแพร่' },
-      DRAFT: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'แบบร่าง' },
-      ARCHIVED: { bg: 'bg-red-50', text: 'text-red-600', label: 'อาร์ไคฟ์' },
-    };
-    const c = config[status] || config.DRAFT;
-    return (
-      <span
-        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}
-      >
-        {c.label}
-      </span>
-    );
-  };
 
   // ── Course Type Label ────────────────────────────────────
   const courseTypeLabel = (type: string) => {
@@ -237,11 +267,11 @@ export default function AdminCoursesPage() {
             bg: 'bg-gray-100',
           },
           {
-            label: 'อาร์ไคฟ์',
-            value: stats.archived,
-            icon: BarChart3,
-            color: 'text-red-600',
-            bg: 'bg-red-50',
+            label: 'นักเรียนรวม',
+            value: stats.totalStudents,
+            icon: Users,
+            color: 'text-purple-600',
+            bg: 'bg-purple-50',
           },
         ].map((stat) => (
           <div
@@ -290,7 +320,6 @@ export default function AdminCoursesPage() {
             <option value="all">สถานะทั้งหมด</option>
             <option value="PUBLISHED">เผยแพร่แล้ว</option>
             <option value="DRAFT">แบบร่าง</option>
-            <option value="ARCHIVED">อาร์ไคฟ์</option>
           </select>
           {/* Toggle More Filters */}
           <button
@@ -449,9 +478,23 @@ export default function AdminCoursesPage() {
                         {course.instructor?.name || '-'}
                       </span>
                     </td>
+                    
                     <td className="px-5 py-4 text-center">
-                      <StatusBadge status={course.status} />
+                      <select
+                        value={course.status}
+                        onChange={(e) => handleStatusChange(course.id, e.target.value)}
+                        className={`text-xs font-semibold rounded-lg px-4 py-1.5 outline-none cursor-pointer border text-center shadow-sm hover:shadow transition-all ${
+                          course.status === 'PUBLISHED' 
+                            ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' 
+                            : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                        }`}
+                        style={{ WebkitAppearance: 'none', appearance: 'none' }} 
+                      >
+                        <option value="PUBLISHED" className="bg-white text-gray-900">เผยแพร่แล้ว</option>
+                        <option value="DRAFT" className="bg-white text-gray-900">แบบร่าง</option>
+                      </select>
                     </td>
+
                     <td className="px-5 py-4">
                       <div className="flex items-center justify-center gap-1">
                         <Link href={`/course/${course.id}`} target="_blank">

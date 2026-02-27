@@ -107,9 +107,6 @@ export class CourseService {
   }
 
   /**
-   * Query courses with filters, pagination, and sorting
-   */
-  /**
    * Get courses for Marketplace (Public View)
    * Optimized select & filtering
    */
@@ -151,6 +148,7 @@ export class CourseService {
     // Build Where Clause
     const where: any = {
       status: 'PUBLISHED', // Always filter published for marketplace
+      published: true,     // ✅ แก้ไข: บังคับให้ published เป็น true เพื่อความชัวร์
       ...categoryFilter,
       ...(search && {
         OR: [
@@ -160,7 +158,6 @@ export class CourseService {
           { tags: { has: search } },
         ],
       }),
-      // ...(categoryId && { categoryId }), <-- Removed
       ...(levelId && { levelId }),
       ...(tutorId && { instructorId: tutorId }),
       ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
@@ -247,9 +244,8 @@ export class CourseService {
             title: true,
             slug: true,
             thumbnail: true,
-            // progress: true, // Removed as field doesn't exist yet
             instructor: { select: { name: true } },
-            _count: { select: { chapters: true } }, // Count chapters instead of lessons for now
+            _count: { select: { chapters: true } }, 
           },
         },
       },
@@ -278,6 +274,7 @@ export class CourseService {
         where,
         include: {
           instructor: { select: { name: true, email: true } },
+          category: { select: { id: true, name: true, slug: true } }, // ✅ ดึงข้อมูลหมวดหมู่มาด้วย
           _count: { select: { enrollments: true } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -294,10 +291,8 @@ export class CourseService {
    * Update a course
    */
   async update(id: string, input: UpdateCourseInput) {
-    await this.findById(id); // throws if not found
+    await this.findById(id); 
 
-    // Prisma requires null relational IDs to be passed as-is;
-    // cast to any to allow null disconnection for optional relations.
     return prisma.course.update({
       where: { id },
       data: input as any,
@@ -311,9 +306,15 @@ export class CourseService {
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
     await this.findById(id);
 
+    // ✅ แก้ไข: อัปเดต boolean 'published' ให้ตรงกับ 'status' เสมอ
+    const isPublished = input.status === 'PUBLISHED';
+
     return prisma.course.update({
       where: { id },
-      data: { status: input.status },
+      data: { 
+        status: input.status,
+        published: isPublished 
+      },
     });
   }
 
