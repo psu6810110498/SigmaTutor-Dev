@@ -5,14 +5,12 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
-COPY package.json ./
-
-# Install dependencies
-RUN pnpm install
-
-# Copy source code
+# Copy entire repository so workspace packages are available
 COPY . .
+
+# Change to frontend app and install dependencies
+WORKDIR /app/apps/frontend
+RUN pnpm install
 
 # Expose port
 EXPOSE 3000
