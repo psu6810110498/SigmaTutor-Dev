@@ -28,24 +28,15 @@ jobs:
       - name: Resolve failed migrations (if any)
         run: |
           cd packages/db
-          # Retry up to 5 times to handle Neon cold start / auto-resume delay
-          for i in {1..5}; do
-            pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course && break || true
-            echo "Attempt $i failed, retrying in 5s..."
-            sleep 5
-          done
+          # Clear any failed state on this migration so Prisma can retry it.
+          # || true ensures this step never fails the workflow.
+          pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run Prisma Migrations
-        run: |
-          # Retry up to 5 times to handle Neon cold start / auto-resume delay
-          for i in {1..5}; do
-            pnpm --filter @sigma/db db:migrate:deploy && break
-            echo "Attempt $i failed, retrying in 5s..."
-            sleep 5
-          done
+        run: pnpm --filter @sigma/db db:migrate:deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DATABASE_URL }}
