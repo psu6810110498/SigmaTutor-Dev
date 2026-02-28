@@ -25,38 +25,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get install -y postgresql-client
-
-      - name: Wake up Neon database (pooler auto-resumes compute)
-        run: |
-          # Neon free tier suspends compute when idle.
-          # The pooler URL handles auto-resume — ping it first so the
-          # direct URL connection doesn't timeout during cold start.
-          until psql "$DATABASE_URL" -c "SELECT 1" > /dev/null 2>&1; do
-            echo "Waiting for Neon compute to wake up..."
-            sleep 3
-          done
-          echo "Neon database is ready."
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
       - name: Resolve failed migrations (if any)
         run: |
           cd packages/db
-          # Mark previously failed migration as rolled-back so Prisma can retry it cleanly.
-          # Uses || true so this step won't fail if no migration is in failed state.
-          pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
+          # Retry up to 5 times to handle Neon cold start / auto-resume delay
+          for i in {1..5}; do
+            pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course && break || true
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
         env:
-          # Note: using pooler URL — direct URL port 5432 is blocked on CI runners.
-          # Migration SQL is idempotent (IF NOT EXISTS) so pooler mode is safe.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run Prisma Migrations
-        run: pnpm --filter @sigma/db db:migrate:deploy
+        run: |
+          # Retry up to 5 times to handle Neon cold start / auto-resume delay
+          for i in {1..5}; do
+            pnpm --filter @sigma/db db:migrate:deploy && break
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
         env:
-          # Note: using pooler URL — direct URL port 5432 is blocked on CI runners.
-          # Migration SQL is idempotent (IF NOT EXISTS) so pooler mode is safe.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DATABASE_URL }}
