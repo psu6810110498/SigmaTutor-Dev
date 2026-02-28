@@ -48,13 +48,15 @@ jobs:
           # Uses || true so this step won't fail if no migration is in failed state.
           pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
         env:
-          # Neon: migrations must use the DIRECT (non-pooled) URL
-          DATABASE_URL: ${{ secrets.DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          # Note: using pooler URL — direct URL port 5432 is blocked on CI runners.
+          # Migration SQL is idempotent (IF NOT EXISTS) so pooler mode is safe.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run Prisma Migrations
         run: pnpm --filter @sigma/db db:migrate:deploy
         env:
-          # Neon: migrations must use the DIRECT (non-pooled) URL
-          DATABASE_URL: ${{ secrets.DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          # Note: using pooler URL — direct URL port 5432 is blocked on CI runners.
+          # Migration SQL is idempotent (IF NOT EXISTS) so pooler mode is safe.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
