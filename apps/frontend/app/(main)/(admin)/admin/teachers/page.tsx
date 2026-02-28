@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
-    Users, BookOpen, Plus, Trash2, Edit, Search, Filter, 
-    MoreVertical, Star, UserCheck, BarChart3, TrendingUp,
-    Wallet
+    Users, BookOpen, Plus, Trash2, Search, Filter, 
+    UserCheck, BarChart3, TrendingUp,
+    Eye, Pencil, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useToast } from "@/app/components/ui/Toast";
 import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
@@ -87,7 +87,6 @@ export default function AdminTeachersPage() {
     const statsData = useMemo(() => {
         const total = teachers.length;
         const courses = teachers.reduce((sum, t) => sum + (t._count?.courses || 0), 0);
-        // แปลงเป็น Number อีกชั้นเพื่อความปลอดภัยในฝั่ง Frontend
         const totalSystemEarnings = teachers.reduce((sum, t) => sum + Number(t.totalEarnings || 0), 0);
         
         return [
@@ -106,16 +105,16 @@ export default function AdminTeachersPage() {
     }, [teachers, searchTerm]);
 
     return (
-        <div className="p-6 space-y-8 bg-gray-50/30 min-h-screen">
+        <div className="p-6 space-y-6 animate-in fade-in duration-500 min-h-screen bg-slate-50/30">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">จัดการคุณครู</h1>
-                    <p className="text-sm text-gray-500 font-medium tracking-tight">ติดตามรายได้และประสิทธิภาพการสอนจากฐานข้อมูลจริง</p>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">จัดการคุณครู</h1>
+                    <p className="text-sm text-slate-500 mt-1">ติดตามรายได้และประสิทธิภาพการสอนจากฐานข้อมูลจริง</p>
                 </div>
                 <Link href="/admin/teachers/create">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-primary text-white text-sm font-bold rounded-2xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/25 active:scale-95">
-                        <Plus size={20} /> เพิ่มคุณครูใหม่
+                    <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                        <Plus size={18} /> เพิ่มคุณครูใหม่
                     </button>
                 </Link>
             </div>
@@ -123,51 +122,53 @@ export default function AdminTeachersPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statsData.map((stat, i) => (
-                    <div key={i} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow cursor-default group">
+                    <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow cursor-default group">
                         <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
                             <stat.icon size={24} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">{stat.label}</p>
-                            <p className="text-xl font-black text-gray-900 mt-1">{stat.value}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+                            <p className="text-xl font-black text-slate-900 mt-1">{stat.value}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Table Area */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50">
-                    <div className="relative w-full md:w-96">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="ค้นหาชื่อคุณครู..."
-                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary/10 transition-all outline-none"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button className="p-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all border border-gray-100"><Filter size={18} /></button>
-                        <button className="p-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all border border-gray-100"><BarChart3 size={18} /></button>
-                    </div>
+            {/* Dropdown Bar Section (สไตล์หน้านักเรียน) */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="ค้นหาชื่อคุณครู หรือชื่อเล่น..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 text-sm outline-none"
+                    />
                 </div>
+                
+                <div className="flex items-center gap-2">
+                    <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><Filter size={18} /></button>
+                    <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><BarChart3 size={18} /></button>
+                </div>
+            </div>
 
+            {/* Table Section (สไตล์หน้านักเรียน) */}
+            <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xl shadow-slate-200/40">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50/50">
-                                <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">คุณครู / โปรไฟล์</th>
-                                <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">รายได้สะสม (จริง)</th>
-                                <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">คอร์สที่สอน</th>
-                                <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">นักเรียนจริง</th>
-                                <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">จัดการ</th>
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50/50 border-b border-slate-100">
+                            <tr>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">คุณครู / โปรไฟล์</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">รายได้สะสม (จริง)</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">คอร์สที่สอน</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">นักเรียนจริง</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">จัดการ</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-slate-50">
                             {loading ? (
-                                <tr><td colSpan={5} className="py-20 text-center text-gray-400 animate-pulse font-bold tracking-tight">กำลังซิงค์ข้อมูลสถิติจริง...</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 animate-pulse font-bold">กำลังซิงค์ข้อมูลสถิติจริง...</td></tr>
                             ) : filteredTeachers.length > 0 ? (
                                 filteredTeachers.map((teacher) => {
                                     const courseCount = teacher._count?.courses || 0;
@@ -175,83 +176,81 @@ export default function AdminTeachersPage() {
                                     const earnings = Number(teacher.totalEarnings || 0); 
                                     
                                     return (
-                                        <tr key={teacher.id} className="group hover:bg-gray-50/80 transition-all cursor-default">
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center gap-4">
+                                        <tr key={teacher.id} className="hover:bg-slate-50/30 transition-colors group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
                                                     <div className="relative">
                                                         <img 
                                                             src={teacher.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${teacher.id}`} 
-                                                            className="w-14 h-14 rounded-2xl object-cover ring-4 ring-white shadow-md group-hover:scale-105 transition-transform" 
+                                                            className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white" 
                                                             alt=""
                                                         />
-                                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>
+                                                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm bg-green-500"></div>
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <p className="text-sm font-black text-gray-900 leading-none">{teacher.name}</p>
+                                                            <p className="font-bold text-slate-900 text-sm">{teacher.name}</p>
                                                             {teacher.nickname && (
                                                                 <span className="text-[10px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter border border-indigo-100">
                                                                     {teacher.nickname}
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{teacher.title || 'Sigma Instructor'}</p>
+                                                        <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
+                                                            {teacher.title || 'Sigma Instructor'}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Wallet size={16}/></div>
-                                                    <span className="text-base font-black text-slate-900">฿{earnings.toLocaleString()}</span>
-                                                </div>
+                                            <td className="px-6 py-4 text-right">
+                                                <p className="text-sm font-black text-slate-900">฿{earnings.toLocaleString()}</p>
                                             </td>
-                                            <td className="px-8 py-6 text-center">
-                                                <div className="inline-flex flex-col items-center">
-                                                    <span className="text-base font-black text-slate-900 leading-none">{courseCount}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">คอร์ส</span>
-                                                </div>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="text-sm font-black text-slate-900">{courseCount}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 ml-1">คอร์ส</span>
                                             </td>
-                                            <td className="px-8 py-6 text-center">
-                                                <div className="inline-flex flex-col items-center">
-                                                    <span className="text-base font-black text-indigo-600 leading-none">{studentCount}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">นักเรียน</span>
-                                                </div>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="text-sm font-black text-indigo-600">{studentCount}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 ml-1">คน</span>
                                             </td>
-                                            <td className="px-8 py-6 text-right">
-                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Link href={`/admin/teachers/${teacher.id}`}>
+                                                        <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="ดูรายละเอียด">
+                                                            <Eye size={16}/>
+                                                        </button>
+                                                    </Link>
                                                     <Link href={`/admin/teachers/${teacher.id}/edit`}>
-                                                        <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-blue-100 active:scale-95" title="แก้ไขข้อมูล">
-                                                            <Edit size={18} />
+                                                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="แก้ไข">
+                                                            <Pencil size={16}/>
                                                         </button>
                                                     </Link>
                                                     <button 
                                                         onClick={() => setDeletingId(teacher.id)}
-                                                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm border border-transparent hover:border-red-100 active:scale-95" title="ลบคุณครู"
+                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                                                        title="ลบ"
                                                     >
-                                                        <Trash2 size={18} />
+                                                        <Trash2 size={16}/>
                                                     </button>
-                                                    <Link href={`/admin/teachers/${teacher.id}`}>
-                                                        <button className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all active:scale-95" title="ดูรายละเอียดเพิ่มเติม">
-                                                            <MoreVertical size={18} />
-                                                        </button>
-                                                    </Link>
                                                 </div>
                                             </td>
                                         </tr>
                                     );
                                 })
                             ) : (
-                                <tr><td colSpan={5} className="px-8 py-20 text-center text-gray-400 text-sm font-bold tracking-tight">ไม่พบข้อมูลที่คุณค้นหาในฐานข้อมูลขณะนี้</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 italic font-bold">ไม่พบข้อมูลที่คุณค้นหาในฐานข้อมูลขณะนี้</td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
 
-                <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <p>Total Sync: {teachers.length} Active Instructors Found</p>
-                    <div className="flex gap-2 font-black uppercase">
-                        <button className="px-5 py-2 bg-white border border-gray-200 rounded-xl opacity-50 cursor-not-allowed shadow-sm">Previous</button>
-                        <button className="px-5 py-2 bg-white border border-gray-200 rounded-xl opacity-50 cursor-not-allowed shadow-sm">Next</button>
+                {/* Pagination (สไตล์หน้านักเรียน) */}
+                <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredTeachers.length} รายการ</p>
+                    <div className="flex gap-2">
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16}/></button>
+                        <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-100">1</button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16}/></button>
                     </div>
                 </div>
             </div>

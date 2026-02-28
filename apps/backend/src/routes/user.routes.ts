@@ -108,6 +108,8 @@ router.get(
           email: true,
           createdAt: true,
           updatedAt: true,
+          lastActive: true,
+          profileImage: true,
           enrollments: {
             select: {
               status: true,
@@ -124,7 +126,10 @@ router.get(
 
       const now = new Date();
       const formattedStudents = students.map(s => {
-        const diffMinutes = Math.floor((now.getTime() - new Date(s.updatedAt).getTime()) / 60000);
+        // 🌟 เปลี่ยนมาคำนวณจาก lastActive แทน ถ้าไม่มีค่อยใช้ updatedAt สำรอง
+        const activeTime = s.lastActive ? new Date(s.lastActive).getTime() : new Date(s.updatedAt).getTime();
+        const diffMinutes = Math.floor((now.getTime() - activeTime) / 60000);
+        
         let totalSpent = s.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         if (totalSpent === 0) {
           const activeEnrollments = s.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED');
@@ -134,8 +139,9 @@ router.get(
           id: s.id,
           name: s.name,
           email: s.email,
+          profileImage: s.profileImage,
           createdAt: s.createdAt,
-          status: diffMinutes <= 5 ? 'Online' : 'Offline',
+          status: (diffMinutes >= 0 && diffMinutes <= 5) ? 'Online' : 'Offline',
           enrolledCourses: s.enrollments.map(e => ({
             title: e.course?.title || 'Unknown',
             instructorName: e.course?.instructor?.name || 'ไม่ระบุผู้สอน'
@@ -145,6 +151,7 @@ router.get(
       });
       res.json({ success: true, data: formattedStudents });
     } catch (error) {
+      console.error("🔥 Fetch Students Error:", error); // 🌟 สั่งให้ฟ้อง Error ออกมาให้เราเห็น
       res.status(500).json({ success: false, error: 'Failed to fetch students' });
     }
   }

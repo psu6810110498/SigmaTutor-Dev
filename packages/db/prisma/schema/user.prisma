@@ -7,6 +7,7 @@ model User {
   role           Role     @default(USER)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  lastActive    DateTime  @default(now())
   profileImage   String?
   bio            String?
   title          String?

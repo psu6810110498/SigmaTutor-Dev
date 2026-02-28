@@ -5,6 +5,7 @@ import { authService } from '../services/auth.service.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../schemas/auth.schema.js';
+import { prisma } from '@sigma/db'; // 🌟 เพิ่มการนำเข้า prisma สำหรับอัปเดตเวลา
 
 const router: express.Router = express.Router();
 
@@ -16,7 +17,7 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 🌟 แก้ไข: ตั้งค่าให้คุกกี้อยู่ได้ 7 วัน
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   res.cookie('refreshToken', refreshToken, {
@@ -98,6 +99,17 @@ router.get('/me', authenticate as express.RequestHandler, async (req: Request, r
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
+
+    // 🌟 แอบอัปเดตเวลา พร้อม "ตัวกันชน" ป้องกันระบบล่ม
+    try {
+      await prisma.user.update({
+        where: { id: authReq.user.userId },
+        data: { lastActive: new Date() }
+      });
+    } catch (updateError) {
+      console.error("⚠️ ไม่สามารถอัปเดต lastActive ได้:", updateError);
+    }
+
     const user = await authService.getUserById(authReq.user.userId);
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
@@ -105,6 +117,7 @@ router.get('/me', authenticate as express.RequestHandler, async (req: Request, r
     }
     res.json({ success: true, payment: true, data: user });
   } catch (error) {
+    console.error("🔥 Auth /me Error:", error); // 🌟 สั่งให้ฟ้อง Error ออกมาตรงๆ
     res.status(500).json({ success: false, error: 'Auth check failed' });
   }
 });
