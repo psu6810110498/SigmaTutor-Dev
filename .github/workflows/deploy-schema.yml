@@ -25,6 +25,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Wake up Neon database (pooler auto-resumes compute)
+        run: |
+          # Neon free tier suspends compute when idle.
+          # The pooler URL handles auto-resume — ping it first so the
+          # direct URL connection doesn't timeout during cold start.
+          until psql "$DATABASE_URL" -c "SELECT 1" > /dev/null 2>&1; do
+            echo "Waiting for Neon compute to wake up..."
+            sleep 3
+          done
+          echo "Neon database is ready."
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Resolve failed migrations (if any)
         run: |
           cd packages/db
