@@ -4,6 +4,7 @@ import type {
   UpdateCourseInput,
   UpdateCourseStatusInput,
   CourseQueryInput,
+  MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
 
 export class CourseService {
@@ -107,31 +108,19 @@ export class CourseService {
   }
 
   /**
-   * Query courses with filters, pagination, and sorting
-   */
-  /**
    * Get courses for Marketplace (Public View)
    * Optimized select & filtering
    */
-  async getMarketplaceCourses(
-    query: CourseQueryInput & {
-      categoryId?: string;
-      levelId?: string;
-      tutorId?: string;
-      minPrice?: number;
-      maxPrice?: number;
-      rating?: number;
-    }
-  ) {
-    const search = query.search as string | undefined;
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 12;
-    const sort = query.sort || 'newest';
-    const categoryId = query.categoryId as string | undefined;
-    const levelId = query.levelId as string | undefined;
-    const tutorId = query.tutorId as string | undefined;
-    const minPrice = query.minPrice ? Number(query.minPrice) : undefined;
-    const maxPrice = query.maxPrice ? Number(query.maxPrice) : undefined;
+  async getMarketplaceCourses(query: MarketplaceQueryInput) {
+    const search = query.search;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 12;
+    const sort = query.sort ?? 'newest';
+    const categoryId = query.categoryId;
+    const levelId = query.levelId;
+    const tutorId = query.tutorId;
+    const minPrice = query.minPrice;
+    const maxPrice = query.maxPrice;
 
     // Handle Category Hierarchy
     let categoryFilter: any = categoryId ? { categoryId } : {};
@@ -168,12 +157,10 @@ export class CourseService {
     };
 
     // Build Order Clause
-    let orderBy: any = { createdAt: 'desc' };
-    // Explicitly check sort strings to satisfy TypeScript
-    const sortParam = sort as string;
-    if (sortParam === 'price-asc') orderBy = { price: 'asc' };
-    else if (sortParam === 'price-desc') orderBy = { price: 'desc' };
-    else if (sortParam === 'popular') orderBy = { enrollments: { _count: 'desc' } };
+    let orderBy: Record<string, unknown> = { createdAt: 'desc' };
+    if (sort === 'price-asc') orderBy = { price: 'asc' };
+    else if (sort === 'price-desc') orderBy = { price: 'desc' };
+    else if (sort === 'popular') orderBy = { enrollments: { _count: 'desc' } };
 
     const [courses, total] = await Promise.all([
       prisma.course.findMany({
@@ -235,7 +222,7 @@ export class CourseService {
   }
 
   /**
-   * Get courses enrolled by a user (My Courses)
+   * Get courses enrolled by a user (My Courses — enrolled endpoint)
    */
   async getUserEnrolledCourses(userId: string) {
     return prisma.enrollment.findMany({
@@ -247,14 +234,43 @@ export class CourseService {
             title: true,
             slug: true,
             thumbnail: true,
-            // progress: true, // Removed as field doesn't exist yet
             instructor: { select: { name: true } },
-            _count: { select: { chapters: true } }, // Count chapters instead of lessons for now
+            _count: { select: { chapters: true } },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Get enrolled courses for the authenticated user (my-courses route).
+   * Returns a simplified course list with enrollment status and progress.
+   */
+  async getMyCourses(userId: string) {
+    const enrollments = await prisma.enrollment.findMany({
+      where: { userId },
+      include: {
+        course: {
+          include: {
+            instructor: { select: { name: true } },
+            category: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return enrollments.map((en) => ({
+      id: en.course.id,
+      title: en.course.title,
+      thumbnail: en.course.thumbnail,
+      categoryName: en.course.category?.name ?? 'ทั่วไป',
+      instructor: en.course.instructor?.name ?? 'ไม่ระบุผู้สอน',
+      courseType: en.course.courseType,
+      status: en.status,
+      progress: en.status === 'COMPLETED' ? 100 : 0,
+    }));
   }
 
   /**

@@ -27,3 +27,19 @@ export const authLimiter = rateLimit({
         error: 'Too many login attempts, please try again later',
     },
 });
+
+/**
+ * Rate limiter for public (unauthenticated) read endpoints.
+ * Applied to /courses/marketplace and /tutors.
+ * Allows 100 requests per minute per IP.
+ */
+export const publicApiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        error: 'Too many requests. Please slow down and try again.',
+    },
+});

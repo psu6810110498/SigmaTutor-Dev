@@ -1,15 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { courseService } from '../services/course.service.js';
-import { upload, getFileUrl } from '../services/upload.service.js';
+import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
+import { publicApiLimiter } from '../middleware/rate-limit.middleware.js';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
 import {
   createCourseSchema,
   updateCourseSchema,
   updateCourseStatusSchema,
-  courseQuerySchema,
+  marketplaceQuerySchema,
+  MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
-import { prisma } from '@sigma/db'; // ✅ เพิ่ม import prisma สำหรับใช้ดึงคอร์สของฉัน
+import { prisma } from '@sigma/db';
 
 const router: Router = Router();
 
@@ -37,18 +39,23 @@ router.post(
  * GET /api/courses/marketplace
  * Public marketplace listing with advanced filters
  */
-router.get('/marketplace', async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Allow unknown keys for new filters (categoryId, etc) which might not be in legacy schema
-    // Or better: cast to any for now if schema is strict
-    const query = req.query as any;
-    const result = await courseService.getMarketplaceCourses(query);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch courses';
-    res.status(400).json({ success: false, error: message });
+router.get(
+  '/marketplace',
+  publicApiLimiter,
+  validate(marketplaceQuerySchema, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const query = req.query as unknown as MarketplaceQueryInput;
+      const result = await courseService.getMarketplaceCourses(query);
+      // Allow CDN/browser to cache for 60s, serve stale while revalidating for 5 min
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      res.json({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch courses';
+      res.status(400).json({ success: false, error: message });
+    }
   }
-});
+);
 
 /**
  * GET /api/courses/enrolled
@@ -84,64 +91,27 @@ router.get(
   }
 );
 
-/**
- * GET /api/courses
- * Query courses (public) - DEPRECATED: Use /marketplace
- */
-router.get('/', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const query = courseQuerySchema.parse(req.query);
-    const result = await courseService.getMarketplaceCourses(query as any);
-    res.json({ success: true, data: result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch courses';
-    res.status(400).json({ success: false, error: message });
-  }
-});
 
 /**
  * GET /api/courses/my-courses
- * ✅ ดึงข้อมูลคอร์สเรียนที่ผู้ใช้ล็อกอินลงทะเบียนไว้
- * ⚠️ วางไว้ตรงนี้ถูกต้องแล้ว (ก่อนถึง /:id) เพื่อไม่ให้ Express routing สับสน
+ * Returns enrolled courses for the authenticated user.
+ * Note: placed before /:id to avoid Express routing conflicts.
  */
 router.get('/my-courses', authenticate, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
 
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+
   try {
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-      return;
-    }
-
-    const enrollments = await prisma.enrollment.findMany({
-      where: { userId: userId },
-      include: {
-        course: {
-          include: {
-            instructor: { select: { name: true } },
-            category: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const myCourses = enrollments.map((en) => ({
-      id: en.course.id,
-      title: en.course.title,
-      thumbnail: en.course.thumbnail,
-      category: en.course.categoryId ? 'หมวดหมู่วิชา' : 'ทั่วไป',
-      instructor: en.course.instructor?.name || 'ไม่ระบุผู้สอน',
-      courseType: en.course.courseType,
-      status: en.status,
-      progress: en.status === 'COMPLETED' ? 100 : 0,
-    }));
-
+    const myCourses = await courseService.getMyCourses(userId);
     res.json({ success: true, data: myCourses });
   } catch (error) {
-    console.error('Fetch my-courses error:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch my courses' });
+    const message = error instanceof Error ? error.message : 'Failed to fetch my courses';
+    res.status(500).json({ success: false, error: message });
   }
 });
 
