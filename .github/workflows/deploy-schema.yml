@@ -25,23 +25,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Reset migration history for fresh deploy
-        run: |
-          cd packages/db
-          # Delete the baseline migration record from _prisma_migrations so Prisma re-runs it.
-          # This is needed because the baseline was marked as "applied" without actually running SQL.
-          # Uses || true so it won't fail if the record doesn't exist (already cleaned up).
-          pnpm prisma db execute --stdin <<< "
-            DELETE FROM \"_prisma_migrations\"
-            WHERE migration_name = '20260228101509_init_baseline';
-          " || true
-
-          # Also resolve the second migration as rolled-back in case it's in failed state
-          pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DATABASE_URL }}
-
       - name: Run Prisma Migrations
         run: pnpm --filter @sigma/db db:migrate:deploy
         env:
