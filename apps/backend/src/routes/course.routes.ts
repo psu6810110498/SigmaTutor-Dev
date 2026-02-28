@@ -75,7 +75,8 @@ router.get(
   validate(marketplaceQuerySchema, 'query'),
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const query = req.query as unknown as MarketplaceQueryInput;
+      // Parse through schema again to ensure proper type coercion (string → number etc.)
+      const query = marketplaceQuerySchema.parse(req.query);
       const result = await courseService.getMarketplaceCourses(query);
       // Allow CDN/browser to cache for 60s, serve stale while revalidating for 5 min
       res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
@@ -120,7 +121,6 @@ router.get(
     }
   }
 );
-
 
 /**
  * GET /api/courses/my-courses
