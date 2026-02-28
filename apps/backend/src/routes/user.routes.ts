@@ -126,7 +126,6 @@ router.get(
 
       const now = new Date();
       const formattedStudents = students.map(s => {
-        // 🌟 เปลี่ยนมาคำนวณจาก lastActive แทน ถ้าไม่มีค่อยใช้ updatedAt สำรอง
         const activeTime = s.lastActive ? new Date(s.lastActive).getTime() : new Date(s.updatedAt).getTime();
         const diffMinutes = Math.floor((now.getTime() - activeTime) / 60000);
         
@@ -151,7 +150,7 @@ router.get(
       });
       res.json({ success: true, data: formattedStudents });
     } catch (error) {
-      console.error("🔥 Fetch Students Error:", error); // 🌟 สั่งให้ฟ้อง Error ออกมาให้เราเห็น
+      console.error("🔥 Fetch Students Error:", error);
       res.status(500).json({ success: false, error: 'Failed to fetch students' });
     }
   }
@@ -191,8 +190,6 @@ router.post(
 /**
  * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้ (รองรับ FormData)
  */
-// ... ส่วนของ import และ multer config ...
-
 router.patch(
   '/:id', 
   authenticate as express.RequestHandler, 
@@ -250,6 +247,34 @@ router.delete(
       await prisma.user.delete({ where: { id: req.params.id } });
       res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) { res.status(500).json({ success: false, error: 'Failed to delete user' }); }
+  }
+);
+
+/**
+ * 🌟 GET /api/users/:id - ดึงข้อมูลผู้ใช้รายบุคคล (สำหรับหน้าดูข้อมูลและแก้ไข)
+ */
+router.get(
+  '/:id',
+  authenticate as express.RequestHandler,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.params.id },
+      });
+      
+      if (!user) {
+        res.status(404).json({ success: false, error: 'User not found' });
+        return;
+      }
+      
+      // ลบรหัสผ่านทิ้งก่อนส่งให้หน้าบ้านเพื่อความปลอดภัย
+      const { password, ...userData } = user; 
+      
+      res.json({ success: true, data: userData });
+    } catch (error) {
+      console.error("🔥 Fetch User by ID Error:", error);
+      res.status(500).json({ success: false, error: 'Failed to fetch user data' });
+    }
   }
 );
 

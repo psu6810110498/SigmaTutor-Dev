@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link'; // 🌟 1. เพิ่มการ Import Link
 import { 
     Users, Mail, Calendar, Search, Download, 
     Eye, Pencil, ChevronLeft, ChevronRight,
@@ -23,9 +24,8 @@ export default function AdminStudentsPage() {
 
     const getToken = () => localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
 
-    // 🌟 เพิ่ม parameter isSilent เพื่อบอกว่าเป็นการ "แอบโหลด" หรือไม่
     const fetchData = async (isSilent = false) => {
-        if (!isSilent) setLoading(true); // ถ้าแอบโหลด จะไม่โชว์วงกลมหมุนๆ ให้กวนใจ
+        if (!isSilent) setLoading(true); 
         try {
             const token = getToken();
             const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -54,9 +54,8 @@ export default function AdminStudentsPage() {
     };
 
     useEffect(() => {
-        fetchData(); // โหลดครั้งแรกตอนเปิดหน้าเว็บ
+        fetchData(); 
         
-        // 🌟 ตั้งเวลาให้แอบดึงข้อมูลใหม่ทุกๆ 1 นาที (60000 ms) เพื่ออัปเดตจุดสีเขียว
         const interval = setInterval(() => {
             fetchData(true); 
         }, 60000);
@@ -64,9 +63,7 @@ export default function AdminStudentsPage() {
         return () => clearInterval(interval);
     }, []);
 
-// ── Filtering & Sorting Logic ───────────────
     const filteredStudents = useMemo(() => {
-        // 1. กรองข้อมูลตามเงื่อนไข (Filter)
         const filtered = students.filter(s => {
             const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                  s.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -79,12 +76,9 @@ export default function AdminStudentsPage() {
             return matchesSearch && matchesStatus && matchesCourse && matchesInstructor;
         });
 
-        // 2. 🌟 จัดเรียงข้อมูล (Sort) ให้คน Online เด้งขึ้นไปอยู่บนสุด
         return filtered.sort((a, b) => {
-            if (a.status === 'Online' && b.status !== 'Online') return -1; // ให้ a (ที่ออนไลน์) ขึ้นก่อน
-            if (a.status !== 'Online' && b.status === 'Online') return 1;  // ให้ b (ที่ออนไลน์) ขึ้นก่อน
-            
-            // ถ้าสถานะเหมือนกัน (Online คู่ หรือ Offline คู่) ให้เรียงตามวันที่สมัคร (ใหม่สุดขึ้นก่อน)
+            if (a.status === 'Online' && b.status !== 'Online') return -1; 
+            if (a.status !== 'Online' && b.status === 'Online') return 1;  
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
     }, [students, searchTerm, statusFilter, courseFilter, instructorFilter]);
@@ -103,7 +97,6 @@ export default function AdminStudentsPage() {
 
     return (
         <div className="p-6 space-y-6 animate-in fade-in duration-500 relative">
-            {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900">จัดการนักเรียน</h1>
@@ -114,7 +107,6 @@ export default function AdminStudentsPage() {
                 </button>
             </div>
 
-            {/* Dropdown Bar Section */}
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:gap-3">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -160,7 +152,6 @@ export default function AdminStudentsPage() {
                 </select>
             </div>
 
-            {/* Table Section */}
             <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xl shadow-slate-200/40">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -183,7 +174,6 @@ export default function AdminStudentsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
-                                                    {/* 🌟 จุดที่ปรับแก้: โชว์รูปโปรไฟล์แบบเดียวกับหน้าคุณครู */}
                                                     <img 
                                                         src={student.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.id}`} 
                                                         className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white" 
@@ -227,8 +217,17 @@ export default function AdminStudentsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="ดูข้อมูล"><Eye size={16}/></button>
-                                                <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="แก้ไข"><Pencil size={16}/></button>
+                                                {/* 🌟 2. เชื่อม Link เข้ากับปุ่มดูและแก้ไข เพื่อให้กดใช้งานได้ */}
+                                                <Link href={`/admin/students/${student.id}`}>
+                                                    <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="ดูข้อมูล">
+                                                        <Eye size={16}/>
+                                                    </button>
+                                                </Link>
+                                                <Link href={`/admin/students/${student.id}/edit`}>
+                                                    <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="แก้ไข">
+                                                        <Pencil size={16}/>
+                                                    </button>
+                                                </Link>
                                             </div>
                                         </td>
                                     </tr>
@@ -240,7 +239,6 @@ export default function AdminStudentsPage() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
                     <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredStudents.length} รายการ</p>
                     <div className="flex gap-2">
@@ -251,7 +249,6 @@ export default function AdminStudentsPage() {
                 </div>
             </div>
 
-            {/* แผงสไลด์ด้านข้าง (Drawer Component) */}
             {isDrawerOpen && (
                 <div className="fixed inset-0 z-50 flex justify-end">
                     <div 
