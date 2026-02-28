@@ -1,0 +1,41 @@
+name: Check Migration Files
+
+on:
+  pull_request:
+    branches: ['main']
+    paths:
+      - 'packages/db/prisma/schema/**'
+
+jobs:
+  check-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for migration files
+        run: |
+          # Get the list of changed files in this PR
+          CHANGED_SCHEMA=$(git diff --name-only origin/main...HEAD -- 'packages/db/prisma/schema/')
+          CHANGED_MIGRATIONS=$(git diff --name-only origin/main...HEAD -- 'packages/db/prisma/migrations/')
+
+          echo "Changed schema files:"
+          echo "$CHANGED_SCHEMA"
+          echo ""
+          echo "Changed migration files:"
+          echo "$CHANGED_MIGRATIONS"
+
+          if [ -n "$CHANGED_SCHEMA" ] && [ -z "$CHANGED_MIGRATIONS" ]; then
+            echo ""
+            echo "❌ ERROR: Schema files were changed but no migration file was added!"
+            echo ""
+            echo "Please run the following command locally and commit the generated migration:"
+            echo "  pnpm --filter @sigma/db db:migrate:dev --name <describe-your-change>"
+            echo ""
+            echo "Example:"
+            echo "  pnpm --filter @sigma/db db:migrate:dev --name add_payment_status_to_contest"
+            exit 1
+          fi
+
+          echo "✅ Migration check passed!"

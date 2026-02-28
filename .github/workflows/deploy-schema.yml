@@ -7,7 +7,7 @@ on:
       - 'packages/db/prisma/**' # Only run when schema changes
 
 jobs:
-  db-push:
+  db-migrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Push Schema to Neon
-        run: pnpm --filter @sigma/db db:push
+      - name: Run Prisma Migrations
+        run: pnpm --filter @sigma/db db:migrate:deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
