@@ -35,7 +35,7 @@ export default function AdminLayout({
                     className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 flex flex-col transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
                         }`}
                 >
-                    {/* Logo */}{/* ... */}
+                    {/* Logo */}
                     <div className="h-24 flex items-center px-6">
                         <SigmaLogo size="md" href="/admin" />
                         <button
@@ -69,17 +69,20 @@ export default function AdminLayout({
 
                     {/* User Profile (Bottom) */}
                     <div className="p-4 mt-auto">
-                        <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 transition-colors cursor-pointer group">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-                                {user?.name?.charAt(0).toUpperCase() || 'A'}
+                        {/* 🌟 จุดที่ 1: เพิ่ม Link ตรงนี้ เพื่อป้องกันการเด้งผิดหน้า */}
+                        <Link href="/admin/settings" onClick={() => setSidebarOpen(false)} className="block">
+                            <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 transition-colors cursor-pointer group">
+                                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                                    {user?.name?.charAt(0).toUpperCase() || 'A'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-gray-900 truncate group-hover:text-primary transition-colors">
+                                        {user?.name || 'Admin'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">{user?.email || 'Loading...'}</p>
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-gray-900 truncate group-hover:text-primary transition-colors">
-                                    {user?.name || 'Admin'}
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">{user?.email || 'Loading...'}</p>
-                            </div>
-                        </div>
+                        </Link>
                         <button
                             onClick={logout}
                             className="flex items-center gap-2 text-gray-400 hover:text-red-500 text-xs font-medium mt-3 px-2 transition-colors w-full justify-center"
@@ -100,7 +103,7 @@ export default function AdminLayout({
 
                 {/* Main Content */}
                 <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-                    {/* Mobile Header */}{/* ... */}
+                    {/* Mobile Header */}
                     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:hidden sticky top-0 z-20">
                         <SigmaLogo size="sm" href="/admin" showText={false} />
                         <button

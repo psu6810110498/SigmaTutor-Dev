@@ -1,64 +1,81 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, User, Briefcase, Camera } from 'lucide-react';
+import { ArrowLeft, Save, User, Briefcase, Camera, AlertCircle } from 'lucide-react';
 import { useToast } from "@/app/components/ui/Toast";
 import { useAuth } from "@/app/context/AuthContext";
 
-export default function CreateTeacherPage() {
+export default function EditTeacherPage() {
     const router = useRouter();
+    const params = useParams();
     const { toast } = useToast();
-    const { token, user } = useAuth(); // 🌟 ใช้ระบบ Token จาก AuthContext
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [uploadingImage, setUploadingImage] = useState(false);
-    
-    // ไว้โชว์รูปที่เลือกทันที
+    const { user } = useAuth(); 
+
+    const [profileImage, setProfileImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-    const [formData, setFormData] = useState({ 
-        name: '', nickname: '', title: '', bio: '', 
-        profileImage: '', expertise: '', education: '', 
-        experience: '', socialLink: ''    
+    const [formData, setFormData] = useState({
+        name: '', nickname: '', title: '', bio: '', expertise: '', education: '', experience: '', socialLink: ''
     });
 
-    // 🌟 ฟังก์ชันจัดการรูปภาพ (ใช้โค้ดอัปโหลดเดิมของคุณ ผสมกับ UI ใหม่)
-    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // โชว์รูป Preview ให้แอดมินดูก่อน
-        const reader = new FileReader();
-        reader.onloadend = () => { setImagePreview(reader.result as string); };
-        reader.readAsDataURL(file);
-
-        setUploadingImage(true);
-        try {
-            const uploadData = new FormData();
-            uploadData.append("file", file);
-            
-            const currentToken = token || (user as any)?.token || localStorage.getItem('token');
-            
-            // ยิงไปที่ API อัปโหลดไฟล์เดิมของคุณ
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${currentToken}` },
-                credentials: 'include',
-                body: uploadData
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                // เก็บ URL ที่ได้จากการอัปโหลดลงใน formData
-                setFormData(prev => ({ ...prev, profileImage: data.url }));
-                toast.success("อัปโหลดรูปภาพโปรไฟล์เรียบร้อย");
+    useEffect(() => {
+        const fetchTeacherData = async () => {
+            try {
+                const res = await fetch(`http://localhost:4000/api/users/instructors?t=${Date.now()}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    const teacher = data.data.find((t: any) => String(t.id) === String(params.id));
+                    
+                    if (teacher) {
+                        setFormData({
+                            name: teacher.name || '', nickname: teacher.nickname || '', title: teacher.title || '',
+                            bio: teacher.bio || '', expertise: teacher.expertise || '', education: teacher.education || '',
+                            experience: teacher.experience || '', socialLink: teacher.socialLink || ''
+                        });
+                        if (teacher.profileImage) {
+                            setImagePreview(teacher.profileImage);
+                        } else {
+                            setImagePreview(`https://api.dicebear.com/7.x/avataaars/svg?seed=${params.id}`);
+                        }
+                    } else {
+                        toast.error("ไม่พบข้อมูลคุณครู");
+                        router.push('/admin/teachers');
+                    }
+                } else {
+                    console.error("API Error:", data.error);
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                toast.error("ดึงข้อมูลไม่สำเร็จ");
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            toast.error("อัปโหลดรูปภาพล้มเหลว");
-        } finally {
-            setUploadingImage(false);
+        };
+
+        if (params.id) {
+            fetchTeacherData();
+        }
+    }, [params.id, router, toast]);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) { toast.error("ไฟล์รูปภาพต้องไม่เกิน 2MB"); return; }
+            setProfileImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => { setImagePreview(reader.result as string); };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -69,44 +86,51 @@ export default function CreateTeacherPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
+        setSaving(true);
         try {
-            const currentToken = token || (user as any)?.token || localStorage.getItem('token');
-            const res = await fetch('http://localhost:4000/api/users/instructors', {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${currentToken}`, 
-                    'Content-Type': 'application/json'
-                },
+            const submitData = new FormData();
+            
+            if (profileImage) submitData.append('profileImage', profileImage);
+            Object.entries(formData).forEach(([key, value]) => { submitData.append(key, value); });
+
+            const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
+                method: 'PATCH',
                 credentials: 'include',
-                body: JSON.stringify(formData)
+                body: submitData
             });
             const data = await res.json();
-            
+
             if (data.success) {
-                toast.success('เพิ่มคุณครูใหม่เรียบร้อยแล้ว');
-                router.push('/admin/teachers'); 
+                toast.success('บันทึกข้อมูลสำเร็จ');
+                router.push('/admin/teachers');
             } else {
-                toast.error(data.error || 'เกิดข้อผิดพลาด');
+                toast.error(data.error || 'บันทึกไม่สำเร็จ');
             }
         } catch (error) {
-            toast.error('เซิร์ฟเวอร์ขัดข้อง โปรดลองอีกครั้ง');
+            toast.error('เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว');
         } finally {
-            setIsSubmitting(false);
+            setSaving(false);
         }
     };
 
+    if (loading) return (
+        <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-medium text-gray-500">กำลังโหลดข้อมูล...</p>
+        </div>
+    );
+
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto">
-            {/* ── Header Section ── */}
+            {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-4">
                     <Link href="/admin/teachers" className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
                         <ArrowLeft size={20} />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">เพิ่มคุณครูใหม่</h1>
-                        <p className="text-sm text-gray-500 mt-1">เพิ่มข้อมูลส่วนตัวและประวัติการสอนสำหรับคุณครูท่านใหม่</p>
+                        <h1 className="text-2xl font-bold text-gray-900">แก้ไขโปรไฟล์คุณครู</h1>
+                        <p className="text-sm text-gray-500 mt-1">อัปเดตข้อมูลส่วนตัวและประวัติการสอน</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -115,11 +139,10 @@ export default function CreateTeacherPage() {
                     </Link>
                     <button 
                         onClick={handleSubmit} 
-                        disabled={isSubmitting || uploadingImage}
+                        disabled={saving}
                         className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Save size={16} /> 
-                        {uploadingImage ? 'กำลังอัปโหลดรูป...' : isSubmitting ? 'กำลังบันทึก...' : 'บันทึกคุณครูใหม่'}
+                        <Save size={16} /> {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
                     </button>
                 </div>
             </div>
@@ -146,11 +169,9 @@ export default function CreateTeacherPage() {
                                     <Camera size={24} className="text-white" />
                                 </label>
                             </div>
-                            <input type="file" accept="image/*" id="pfp" onChange={handleImageChange} className="hidden" disabled={uploadingImage} />
+                            <input type="file" accept="image/*" id="pfp" onChange={handleImageChange} className="hidden" />
                             <div className="text-center">
-                                <label htmlFor="pfp" className={`text-sm font-medium cursor-pointer ${uploadingImage ? 'text-gray-400' : 'text-blue-600 hover:text-blue-700'}`}>
-                                    {uploadingImage ? 'กำลังอัปโหลด...' : 'อัปโหลดรูปภาพ'}
-                                </label>
+                                <label htmlFor="pfp" className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer">เปลี่ยนรูปภาพ</label>
                                 <p className="text-xs text-gray-500 mt-1">ไฟล์ JPG, PNG ขนาดไม่เกิน 2MB</p>
                             </div>
                         </div>
