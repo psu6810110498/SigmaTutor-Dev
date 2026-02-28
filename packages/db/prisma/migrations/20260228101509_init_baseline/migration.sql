@@ -1,32 +1,32 @@
 -- CreateEnum
-CREATE TYPE "BannerPosition" AS ENUM ('EXPLORE_TOP', 'EXPLORE_MIDDLE');
+CREATE TYPE IF NOT EXISTS "BannerPosition" AS ENUM ('EXPLORE_TOP', 'EXPLORE_MIDDLE');
 
 -- CreateEnum
-CREATE TYPE "LessonType" AS ENUM ('VIDEO', 'FILE', 'QUIZ');
+CREATE TYPE IF NOT EXISTS "LessonType" AS ENUM ('VIDEO', 'FILE', 'QUIZ');
 
 -- CreateEnum
-CREATE TYPE "CourseStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+CREATE TYPE IF NOT EXISTS "CourseStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
 
 -- CreateEnum
-CREATE TYPE "CourseType" AS ENUM ('ONLINE', 'ONLINE_LIVE', 'ONSITE');
+CREATE TYPE IF NOT EXISTS "CourseType" AS ENUM ('ONLINE', 'ONLINE_LIVE', 'ONSITE');
 
 -- CreateEnum
-CREATE TYPE "EnrollmentStatus" AS ENUM ('ACTIVE', 'COMPLETED', 'CANCELLED');
+CREATE TYPE IF NOT EXISTS "EnrollmentStatus" AS ENUM ('ACTIVE', 'COMPLETED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
+CREATE TYPE IF NOT EXISTS "PaymentStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
 
 -- CreateEnum
-CREATE TYPE "DiscountType" AS ENUM ('PERCENTAGE', 'FIXED_AMOUNT');
+CREATE TYPE IF NOT EXISTS "DiscountType" AS ENUM ('PERCENTAGE', 'FIXED_AMOUNT');
 
 -- CreateEnum
-CREATE TYPE "ScheduleStatus" AS ENUM ('ON_SCHEDULE', 'POSTPONED', 'CANCELLED');
+CREATE TYPE IF NOT EXISTS "ScheduleStatus" AS ENUM ('ON_SCHEDULE', 'POSTPONED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN', 'INSTRUCTOR');
+CREATE TYPE IF NOT EXISTS "Role" AS ENUM ('USER', 'ADMIN', 'INSTRUCTOR');
 
 -- CreateTable
-CREATE TABLE "banners" (
+CREATE TABLE IF NOT EXISTS "banners" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "subtitle" TEXT,
@@ -46,7 +46,7 @@ CREATE TABLE "banners" (
 );
 
 -- CreateTable
-CREATE TABLE "categories" (
+CREATE TABLE IF NOT EXISTS "categories" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE "categories" (
 );
 
 -- CreateTable
-CREATE TABLE "chapters" (
+CREATE TABLE IF NOT EXISTS "chapters" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
@@ -68,7 +68,7 @@ CREATE TABLE "chapters" (
 );
 
 -- CreateTable
-CREATE TABLE "lessons" (
+CREATE TABLE IF NOT EXISTS "lessons" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "type" "LessonType" NOT NULL DEFAULT 'VIDEO',
@@ -84,7 +84,7 @@ CREATE TABLE "lessons" (
 );
 
 -- CreateTable
-CREATE TABLE "courses" (
+CREATE TABLE IF NOT EXISTS "courses" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE "courses" (
 );
 
 -- CreateTable
-CREATE TABLE "Enrollment" (
+CREATE TABLE IF NOT EXISTS "Enrollment" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
@@ -132,7 +132,7 @@ CREATE TABLE "Enrollment" (
 );
 
 -- CreateTable
-CREATE TABLE "Payment" (
+CREATE TABLE IF NOT EXISTS "Payment" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE "Payment" (
 );
 
 -- CreateTable
-CREATE TABLE "levels" (
+CREATE TABLE IF NOT EXISTS "levels" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE "levels" (
 );
 
 -- CreateTable
-CREATE TABLE "promotions" (
+CREATE TABLE IF NOT EXISTS "promotions" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -171,7 +171,7 @@ CREATE TABLE "promotions" (
 );
 
 -- CreateTable
-CREATE TABLE "reviews" (
+CREATE TABLE IF NOT EXISTS "reviews" (
     "id" TEXT NOT NULL,
     "rating" INTEGER NOT NULL,
     "comment" TEXT,
@@ -185,7 +185,7 @@ CREATE TABLE "reviews" (
 );
 
 -- CreateTable
-CREATE TABLE "course_schedules" (
+CREATE TABLE IF NOT EXISTS "course_schedules" (
     "id" TEXT NOT NULL,
     "sessionNumber" INTEGER,
     "date" TIMESTAMP(3) NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE "course_schedules" (
 );
 
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT,
@@ -226,7 +226,7 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Session" (
+CREATE TABLE IF NOT EXISTS "Session" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "refreshToken" TEXT NOT NULL,
@@ -237,130 +237,162 @@ CREATE TABLE "Session" (
 );
 
 -- CreateTable
-CREATE TABLE "_CoursePromotions" (
+CREATE TABLE IF NOT EXISTS "_CoursePromotions" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "categories_slug_key" ON "categories"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "categories_slug_key" ON "categories"("slug");
 
 -- CreateIndex
-CREATE INDEX "chapters_courseId_idx" ON "chapters"("courseId");
+CREATE INDEX IF NOT EXISTS "chapters_courseId_idx" ON "chapters"("courseId");
 
 -- CreateIndex
-CREATE INDEX "lessons_chapterId_idx" ON "lessons"("chapterId");
+CREATE INDEX IF NOT EXISTS "lessons_chapterId_idx" ON "lessons"("chapterId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "courses_slug_key" ON "courses"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "courses_slug_key" ON "courses"("slug");
 
 -- CreateIndex
-CREATE INDEX "courses_instructorId_idx" ON "courses"("instructorId");
+CREATE INDEX IF NOT EXISTS "courses_instructorId_idx" ON "courses"("instructorId");
 
 -- CreateIndex
-CREATE INDEX "courses_status_idx" ON "courses"("status");
+CREATE INDEX IF NOT EXISTS "courses_status_idx" ON "courses"("status");
 
 -- CreateIndex
-CREATE INDEX "courses_status_categoryId_idx" ON "courses"("status", "categoryId");
+CREATE INDEX IF NOT EXISTS "courses_status_categoryId_idx" ON "courses"("status", "categoryId");
 
 -- CreateIndex
-CREATE INDEX "courses_status_levelId_idx" ON "courses"("status", "levelId");
+CREATE INDEX IF NOT EXISTS "courses_status_levelId_idx" ON "courses"("status", "levelId");
 
 -- CreateIndex
-CREATE INDEX "courses_status_courseType_idx" ON "courses"("status", "courseType");
+CREATE INDEX IF NOT EXISTS "courses_status_courseType_idx" ON "courses"("status", "courseType");
 
 -- CreateIndex
-CREATE INDEX "courses_status_price_idx" ON "courses"("status", "price");
+CREATE INDEX IF NOT EXISTS "courses_status_price_idx" ON "courses"("status", "price");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Enrollment_userId_courseId_key" ON "Enrollment"("userId", "courseId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Enrollment_userId_courseId_key" ON "Enrollment"("userId", "courseId");
 
 -- CreateIndex
-CREATE INDEX "Payment_userId_idx" ON "Payment"("userId");
+CREATE INDEX IF NOT EXISTS "Payment_userId_idx" ON "Payment"("userId");
 
 -- CreateIndex
-CREATE INDEX "Payment_courseId_idx" ON "Payment"("courseId");
+CREATE INDEX IF NOT EXISTS "Payment_courseId_idx" ON "Payment"("courseId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "levels_slug_key" ON "levels"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "levels_slug_key" ON "levels"("slug");
 
 -- CreateIndex
-CREATE INDEX "reviews_courseId_idx" ON "reviews"("courseId");
+CREATE INDEX IF NOT EXISTS "reviews_courseId_idx" ON "reviews"("courseId");
 
 -- CreateIndex
-CREATE INDEX "reviews_userId_idx" ON "reviews"("userId");
+CREATE INDEX IF NOT EXISTS "reviews_userId_idx" ON "reviews"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "reviews_userId_courseId_key" ON "reviews"("userId", "courseId");
+CREATE UNIQUE INDEX IF NOT EXISTS "reviews_userId_courseId_key" ON "reviews"("userId", "courseId");
 
 -- CreateIndex
-CREATE INDEX "course_schedules_courseId_idx" ON "course_schedules"("courseId");
+CREATE INDEX IF NOT EXISTS "course_schedules_courseId_idx" ON "course_schedules"("courseId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE INDEX "User_email_idx" ON "User"("email");
+CREATE INDEX IF NOT EXISTS "User_email_idx" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Session_refreshToken_key" ON "Session"("refreshToken");
+CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session"("refreshToken");
 
 -- CreateIndex
-CREATE INDEX "Session_userId_idx" ON "Session"("userId");
+CREATE INDEX IF NOT EXISTS "Session_userId_idx" ON "Session"("userId");
 
 -- CreateIndex
-CREATE INDEX "Session_refreshToken_idx" ON "Session"("refreshToken");
+CREATE INDEX IF NOT EXISTS "Session_refreshToken_idx" ON "Session"("refreshToken");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_CoursePromotions_AB_unique" ON "_CoursePromotions"("A", "B");
+CREATE UNIQUE INDEX IF NOT EXISTS "_CoursePromotions_AB_unique" ON "_CoursePromotions"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_CoursePromotions_B_index" ON "_CoursePromotions"("B");
+CREATE INDEX IF NOT EXISTS "_CoursePromotions_B_index" ON "_CoursePromotions"("B");
 
--- AddForeignKey
-ALTER TABLE "categories" ADD CONSTRAINT "categories_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "categories" ADD CONSTRAINT "categories_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "chapters" ADD CONSTRAINT "chapters_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "chapters" ADD CONSTRAINT "chapters_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "lessons" ADD CONSTRAINT "lessons_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "chapters"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "lessons" ADD CONSTRAINT "lessons_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "chapters"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "courses" ADD CONSTRAINT "courses_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "courses" ADD CONSTRAINT "courses_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "courses" ADD CONSTRAINT "courses_levelId_fkey" FOREIGN KEY ("levelId") REFERENCES "levels"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "courses" ADD CONSTRAINT "courses_levelId_fkey" FOREIGN KEY ("levelId") REFERENCES "levels"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "courses" ADD CONSTRAINT "courses_instructorId_fkey" FOREIGN KEY ("instructorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "courses" ADD CONSTRAINT "courses_instructorId_fkey" FOREIGN KEY ("instructorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "reviews" ADD CONSTRAINT "reviews_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "reviews" ADD CONSTRAINT "reviews_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "course_schedules" ADD CONSTRAINT "course_schedules_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "course_schedules" ADD CONSTRAINT "course_schedules_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "_CoursePromotions" ADD CONSTRAINT "_CoursePromotions_A_fkey" FOREIGN KEY ("A") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "_CoursePromotions" ADD CONSTRAINT "_CoursePromotions_A_fkey" FOREIGN KEY ("A") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "_CoursePromotions" ADD CONSTRAINT "_CoursePromotions_B_fkey" FOREIGN KEY ("B") REFERENCES "promotions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "_CoursePromotions" ADD CONSTRAINT "_CoursePromotions_B_fkey" FOREIGN KEY ("B") REFERENCES "promotions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

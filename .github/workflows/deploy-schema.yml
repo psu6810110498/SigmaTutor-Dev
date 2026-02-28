@@ -28,8 +28,9 @@ jobs:
       - name: Resolve failed migrations (if any)
         run: |
           cd packages/db
-          # Clear any failed state on this migration so Prisma can retry it.
-          # || true ensures this step never fails the workflow.
+          # Resolve both migrations as rolled-back so Prisma can run all SQL fresh.
+          # Safe to run even if migrations are already in a good state (|| true).
+          pnpm prisma migrate resolve --rolled-back 20260228101509_init_baseline || true
           pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
