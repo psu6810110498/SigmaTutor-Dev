@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Banner, Category, Level } from '@/app/lib/types';
-import { bannerApi, categoryApi, levelApi, courseApi } from '@/app/lib/api';
+import { bannerApi, categoryApi, levelApi } from '@/app/lib/api';
 import BannerStrip from '@/app/components/common/BannerStrip';
 import QuickFilters from '@/app/components/marketplace/QuickFilters';
 import AdvancedFilterBar from '@/app/components/marketplace/AdvancedFilterBar';
@@ -12,7 +12,6 @@ import { useMarketplaceFilters } from '@/app/hooks/useMarketplaceFilters';
 import { useQuickFilter } from '@/app/hooks/useQuickFilter';
 import { Filter, X } from 'lucide-react';
 
-// ✅ เปลี่ยนชื่อเป็น ExplorePage ให้ตรงกับกิ่ง main และตำแหน่งไฟล์
 export default function ExplorePage() {
     return (
         <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">กำลังโหลด...</div>}>
@@ -29,76 +28,40 @@ function MarketplaceContent() {
         setPriceRange, clearAll, setSearch, toggleTutor
     } = useMarketplaceFilters();
 
-    // Optimistic root category: อัปเดตทันทีเมื่อคลิก QuickFilter เพราะ useSearchParams อาจยังไม่ sync ทันที
-    const [optimisticRootId, setOptimisticRootId] = useState<string | null>(null);
-    const effectiveRootCategoryId = rootCategoryId ?? optimisticRootId;
+    // 🌟 ยึดค่าจาก URL ตรงๆ เพียงอย่างเดียว เพื่อหยุดลูป Re-render
+    const effectiveRootCategoryId = rootCategoryId;
 
-    // เมื่อ URL อัปเดตแล้ว ให้เลิกใช้ optimistic
-    useEffect(() => {
-        if (rootCategoryId != null) setOptimisticRootId(null);
-    }, [rootCategoryId]);
-
-    // State
     const [topBanners, setTopBanners] = useState<Banner[]>([]);
     const [middleBanners, setMiddleBanners] = useState<Banner[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [levels, setLevels] = useState<Level[]>([]);
-    const [tutors, setTutors] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch reference data once (memoized)
+    // ดึงข้อมูล Reference (ดึงครั้งเดียวตอนโหลดหน้า)
     useEffect(() => {
         let cancelled = false;
-        
-        const fetchData = async () => {
+        const fetchReferenceData = async () => {
             try {
-                const [topRes, middleRes, catRes, lvlRes, coursesRes] = await Promise.all([
+                const [topRes, middleRes, catRes, lvlRes] = await Promise.all([
                     bannerApi.getActive('EXPLORE_TOP'),
                     bannerApi.getActive('EXPLORE_MIDDLE'),
                     categoryApi.list(),
                     levelApi.list(),
-                    courseApi.getMarketplace({ limit: 100 }), // Fetch courses to extract tutors
                 ]);
-                
                 if (cancelled) return;
-                
                 if (topRes.success && topRes.data) setTopBanners(topRes.data);
                 if (middleRes.success && middleRes.data) setMiddleBanners(middleRes.data);
                 if (catRes.success && catRes.data) setCategories(catRes.data);
                 if (lvlRes.success && lvlRes.data) setLevels(lvlRes.data);
-                
-                // Extract unique tutors from courses
-                if (coursesRes.success && coursesRes.data) {
-                    const uniqueTutors = new Map<string, { id: string; name: string }>();
-                    coursesRes.data.courses.forEach((c: any) => {
-                        if (c.instructor && !uniqueTutors.has(c.instructor.id)) {
-                            uniqueTutors.set(c.instructor.id, {
-                                id: c.instructor.id,
-                                name: c.instructor.name
-                            });
-                        }
-                    });
-                    setTutors(Array.from(uniqueTutors.values()));
-                }
-            } catch (error) {
-                if (!cancelled) {
-                    console.error("Failed to fetch data", error);
-                }
+            } catch {
             } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
+                if (!cancelled) setLoading(false);
             }
         };
-        
-        fetchData();
-        
-        return () => {
-            cancelled = true;
-        };
+        fetchReferenceData();
+        return () => { cancelled = true; };
     }, []);
 
-    // ── QuickFilter Hook (ใช้ effectiveRootCategoryId เพื่อให้ UI อัปเดตทันที)
     const {
         rootCategories,
         childCategories,
@@ -108,44 +71,29 @@ function MarketplaceContent() {
     } = useQuickFilter({
         categories,
         rootCategoryId: effectiveRootCategoryId,
-        onRootCategoryChange: (id) => {
-            setOptimisticRootId(id);
-            setRootCategory(id);
-        },
+        onRootCategoryChange: setRootCategory,
         onCategoryChange: setCategory,
         onLevelChange: setLevel,
     });
 
-    const selectedRoot = useMemo(
-        () => rootCategories.find(c => c.id === effectiveRootCategoryId),
-        [rootCategories, effectiveRootCategoryId]
-    );
-
-    const selectedLevel = useMemo(
-        () => levels.find(l => l.id === levelId),
-        [levels, levelId]
-    );
-
-    const activeFilters: { key: string; label: string; onRemove: () => void }[] = [];
-    if (categoryId) {
-        const cat = categories.find(c => c.id === categoryId);
-        if (cat) activeFilters.push({ key: 'cat', label: cat.name, onRemove: () => setCategory(null) });
-    }
-    if (levelId) {
-        const lvl = levels.find(l => l.id === levelId);
-        if (lvl) activeFilters.push({ key: 'level', label: lvl.name, onRemove: () => setLevel(null) });
-    }
-    if (courseType) {
-        const labels: Record<string, string> = { ONLINE: 'Online', ONLINE_LIVE: 'Live สด', ONSITE: 'เรียนที่สถาบัน' };
-        activeFilters.push({ key: 'type', label: labels[courseType] || courseType, onRemove: () => setCourseType(null) });
-    }
-    if (tutorId) {
-        const tutor = tutors.find(t => t.id === tutorId);
-        if (tutor) {
-            activeFilters.push({ key: 'tutor', label: tutor.name, onRemove: () => toggleTutor(tutorId) });
+    const activeFilters = useMemo(() => {
+        const chips: { key: string; label: string; onRemove: () => void }[] = [];
+        if (categoryId) {
+            const cat = categories.find(c => c.id === categoryId);
+            if (cat) chips.push({ key: 'cat', label: cat.name, onRemove: () => setCategory(null) });
         }
-    }
+        if (levelId) {
+            const lvl = levels.find(l => l.id === levelId);
+            if (lvl) chips.push({ key: 'level', label: lvl.name, onRemove: () => setLevel(null) });
+        }
+        if (courseType) {
+            const labels: Record<string, string> = { ONLINE: 'Online', ONLINE_LIVE: 'Live สด', ONSITE: 'เรียนที่สถาบัน' };
+            chips.push({ key: 'type', label: labels[courseType] ?? courseType, onRemove: () => setCourseType(null) });
+        }
+        return chips;
+    }, [categoryId, levelId, courseType, categories, levels, setCategory, setLevel, setCourseType]);
 
+    // ตรรกะการหาหมวดหมู่ที่จะแสดง (คงเดิมเพื่อรักษาความถูกต้องของหมวดหมู่)
     const sectionsToShow = useMemo(() => {
         if (categoryId) {
             const cat = categories.find(c => c.id === categoryId);
@@ -170,9 +118,10 @@ function MarketplaceContent() {
         return middleBanners.filter(b => !topIds.has(b.id) && !topImages.has(b.imageUrl));
     }, [topBanners, middleBanners]);
 
+    const tutorCategoryId = categoryId ?? effectiveRootCategoryId;
+
     return (
         <div className="min-h-screen bg-white">
-            {/* 1. Banner Section */}
             <div className="relative z-0">
                 {topBanners.length > 0 ? (
                     <BannerStrip banners={topBanners} />
@@ -187,7 +136,6 @@ function MarketplaceContent() {
                 )}
             </div>
 
-            {/* 2. Quick Filters — separated from banner */}
             <div className="md:sticky md:top-20 z-40 mt-6 relative w-full flex justify-center">
                 <QuickFilters
                     activeFilter={activeFilterLabel}
@@ -196,9 +144,6 @@ function MarketplaceContent() {
                 />
             </div>
 
-
-
-            {/* 3. Advanced Filter Bar */}
             <div className="max-w-7xl mx-auto px-4 mt-6 md:mt-8">
                 <AdvancedFilterBar
                     subjectCategories={childCategories}
@@ -217,15 +162,19 @@ function MarketplaceContent() {
                 />
             </div>
 
-            {/* 4. Tutor Highlight */}
             <div className="mt-8">
                 <TutorHighlight
-                    activeTutorId={tutorId}
+                    activeTutorId={tutorId || undefined}
                     onTutorClick={toggleTutor}
+                    categoryId={tutorCategoryId || undefined}
+                    levelId={levelId || undefined}
+                    courseType={courseType || undefined}
+                    minPrice={minPrice ? Number(minPrice) : undefined}
+                    maxPrice={maxPrice ? Number(maxPrice) : undefined}
+                    search={search || undefined}
                 />
             </div>
 
-            {/* 5. Active Filter Chips */}
             {activeFilters.length > 0 && (
                 <div className="max-w-7xl mx-auto px-4 mt-6 flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-bold text-gray-500 flex items-center gap-1"><Filter size={14} /> กำลังกรอง:</span>
@@ -239,16 +188,13 @@ function MarketplaceContent() {
                 </div>
             )}
 
-            {/* 5. Course Sections */}
             <div className="pb-24">
                 {loading ? (
                     <div className="max-w-7xl mx-auto px-4 py-12 text-center text-gray-400">กำลังโหลดข้อมูล...</div>
                 ) : sectionsToShow.length > 0 ? (
                     sectionsToShow.map((cat, index) => {
-                        // Priority: selected category shows more courses and appears first
                         const isSelectedCategory = effectiveRootCategoryId === cat.id || categoryId === cat.id;
                         const isFirstSection = index === 0;
-                        
                         return (
                             <CourseGridSection
                                 key={cat.id}
@@ -257,8 +203,8 @@ function MarketplaceContent() {
                                 levelId={levelId}
                                 tutorId={tutorId}
                                 courseType={courseType}
-                                minPrice={minPrice ? Number(minPrice) : null}
-                                maxPrice={maxPrice ? Number(maxPrice) : null}
+                                minPrice={minPrice && !isNaN(Number(minPrice)) ? Number(minPrice) : undefined}
+                                maxPrice={maxPrice && !isNaN(Number(maxPrice)) ? Number(maxPrice) : undefined}
                                 search={search}
                                 initialLimit={isSelectedCategory ? 12 : (isFirstSection ? 8 : 4)}
                                 className="border-b border-gray-50 last:border-0"

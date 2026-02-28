@@ -211,6 +211,42 @@ export const courseApi = {
 };
 
 // ============================================================
+// Tutor API
+// ============================================================
+
+export type TutorFilterParams = {
+    categoryId?: string | null;
+    levelId?: string | null;
+    courseType?: string | null;
+    minPrice?: string | number | null;
+    maxPrice?: string | number | null;
+    search?: string;
+};
+
+export type TutorProfile = {
+    id: string;
+    name: string;
+    nickname?: string | null;
+    profileImage?: string | null;
+    title?: string | null;
+};
+
+export const tutorApi = {
+    /**
+     * GET /tutors — Returns instructors filtered by active course filters.
+     * All params are optional; omitting all returns every instructor with a published course.
+     */
+    getFiltered(params?: TutorFilterParams): Promise<ApiResponse<TutorProfile[]>> {
+        const entries = Object.entries(params ?? {})
+            .filter(([, v]) => v !== undefined && v !== null && v !== '');
+        const query = entries.length > 0
+            ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
+            : '';
+        return request<TutorProfile[]>(`/tutors${query}`);
+    },
+};
+
+// ============================================================
 // Banner API
 // ============================================================
 

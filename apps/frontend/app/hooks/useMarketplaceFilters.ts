@@ -1,26 +1,16 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useCallback, useRef, useEffect, useState, startTransition } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 
 export function useMarketplaceFilters() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
 
-    // Get current state from URL
-    const rootCategoryId = searchParams.get('root');      // Quick Filter (parent)
-    const categoryId = searchParams.get('categoryId');    // Subject (child)
-    
-    // Debug: Log URL changes (only when rootCategoryId actually changes)
-    useEffect(() => {
-        const currentCategoryId = searchParams.get('categoryId');
-        console.log('🌐 URL State Changed:', {
-            rootCategoryId,
-            categoryId: currentCategoryId,
-            fullUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
-        });
-    }, [rootCategoryId, categoryId]); // Only depend on actual values, not searchParams object
+    // Read filter state from URL params
+    const rootCategoryId = searchParams.get('root');
+    const categoryId = searchParams.get('categoryId');
     const levelId = searchParams.get('levelId');
     const tutorId = searchParams.get('tutorId');
     const courseType = searchParams.get('courseType');
@@ -29,40 +19,36 @@ export function useMarketplaceFilters() {
     const sort = searchParams.get('sort') || 'newest';
     const search = searchParams.get('search') || '';
 
-    // Debounced search
+    // Controlled input value for the search field (debounced)
     const [searchInput, setSearchInput] = useState(search);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Keep searchInput in sync with the URL state
     useEffect(() => {
         setSearchInput(search);
     }, [search]);
 
-    // Helper to update multiple params at once
+    /**
+     * Updates multiple URL search params at once while preserving existing params.
+     * Reads from window.location to avoid stale closure issues with router state.
+     */
     const updateParams = useCallback(
         (updates: Record<string, string | null>) => {
-            // Use current URL from window if available, otherwise use searchParams
-            const currentSearch = typeof window !== 'undefined' 
-                ? window.location.search 
+            const currentSearch = typeof window !== 'undefined'
+                ? window.location.search
                 : searchParams.toString();
             const params = new URLSearchParams(currentSearch);
-            
+
             for (const [key, value] of Object.entries(updates)) {
                 if (value === null) params.delete(key);
                 else params.set(key, value);
             }
-            const newUrl = pathname + '?' + params.toString();
-            console.log('🔧 updateParams:', { 
-                updates, 
-                newUrl, 
-                currentUrl: pathname + currentSearch,
-                paramsString: params.toString()
-            });
-            router.push(newUrl, { scroll: false });
+            router.push(pathname + '?' + params.toString(), { scroll: false });
         },
         [searchParams, router, pathname]
     );
 
-    // Helper to update single param
+    /** Returns a new query string with a single param updated */
     const createQueryString = useCallback(
         (name: string, value: string | null) => {
             const params = new URLSearchParams(searchParams.toString());
@@ -73,62 +59,66 @@ export function useMarketplaceFilters() {
         [searchParams]
     );
 
-    // Actions
-    const setRootCategory = useCallback((id: string | null) => {
-        console.log('🔧 setRootCategory called:', { id, currentRoot: rootCategoryId });
-        // When changing root, clear child category
-        updateParams({ root: id, categoryId: null });
-        console.log('🔧 setRootCategory: URL updated via updateParams');
-    }, [rootCategoryId, updateParams]);
+    // ── Filter Actions ─────────────────────────────────────
 
-    const setCategory = (id: string | null) => {
-        router.push(pathname + '?' + createQueryString('categoryId', id), { scroll: false });
-    };
+    /** Select a root (QuickFilter) category. Clears child category automatically. */
+    const setRootCategory = useCallback(
+        (id: string | null) => updateParams({ root: id, categoryId: null }),
+        [updateParams]
+    );
 
-    const setLevel = (id: string | null) => {
-        router.push(pathname + '?' + createQueryString('levelId', id), { scroll: false });
-    };
+    const setCategory = useCallback(
+        (id: string | null) => router.push(pathname + '?' + createQueryString('categoryId', id), { scroll: false }),
+        [router, pathname, createQueryString]
+    );
 
-    const setCourseType = (type: string | null) => {
-        router.push(pathname + '?' + createQueryString('courseType', type), { scroll: false });
-    };
+    const setLevel = useCallback(
+        (id: string | null) => router.push(pathname + '?' + createQueryString('levelId', id), { scroll: false }),
+        [router, pathname, createQueryString]
+    );
 
-    const setPriceRange = (min: number | null, max: number | null) => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (min !== null) params.set('minPrice', min.toString()); else params.delete('minPrice');
-        if (max !== null) params.set('maxPrice', max.toString()); else params.delete('maxPrice');
-        router.push(pathname + '?' + params.toString(), { scroll: false });
-    };
+    const setCourseType = useCallback(
+        (type: string | null) => router.push(pathname + '?' + createQueryString('courseType', type), { scroll: false }),
+        [router, pathname, createQueryString]
+    );
 
-    const toggleTutor = (id: string) => {
-        if (tutorId === id) {
-            router.push(pathname + '?' + createQueryString('tutorId', null), { scroll: false });
-        } else {
-            router.push(pathname + '?' + createQueryString('tutorId', id), { scroll: false });
-        }
-    };
-
-    const setSort = (value: string) => {
-        router.push(pathname + '?' + createQueryString('sort', value), { scroll: false });
-    };
-
-    // Debounced search (300ms)
-    const setSearch = (value: string | null) => {
-        setSearchInput(value || '');
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
+    const setPriceRange = useCallback(
+        (min: number | null, max: number | null) => {
             const params = new URLSearchParams(searchParams.toString());
-            if (value) params.set('search', value);
-            else params.delete('search');
-            params.delete('page');
+            if (min !== null) params.set('minPrice', min.toString()); else params.delete('minPrice');
+            if (max !== null) params.set('maxPrice', max.toString()); else params.delete('maxPrice');
             router.push(pathname + '?' + params.toString(), { scroll: false });
-        }, 300);
-    };
+        },
+        [router, pathname, searchParams]
+    );
 
-    const clearAll = () => {
+    const toggleTutor = useCallback(
+        (id: string) => {
+            const next = tutorId === id ? null : id;
+            router.push(pathname + '?' + createQueryString('tutorId', next), { scroll: false });
+        },
+        [router, pathname, createQueryString, tutorId]
+    );
+
+    /** Debounced search — updates input immediately, URL after 300ms */
+    const setSearch = useCallback(
+        (value: string | null) => {
+            setSearchInput(value ?? '');
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(() => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (value) params.set('search', value); else params.delete('search');
+                params.delete('page');
+                router.push(pathname + '?' + params.toString(), { scroll: false });
+            }, 300);
+        },
+        [router, pathname, searchParams]
+    );
+
+    const clearAll = useCallback(() => {
         setSearchInput('');
         router.push(pathname);
-    };
+    }, [router, pathname]);
 
     return {
         // State
@@ -142,7 +132,6 @@ export function useMarketplaceFilters() {
         sort,
         search,
         searchInput,
-
         // Actions
         setRootCategory,
         setCategory,
@@ -150,7 +139,6 @@ export function useMarketplaceFilters() {
         setCourseType,
         setPriceRange,
         toggleTutor,
-        setSort,
         setSearch,
         clearAll,
     };

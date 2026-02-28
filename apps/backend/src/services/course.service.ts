@@ -4,6 +4,7 @@ import type {
   UpdateCourseInput,
   UpdateCourseStatusInput,
   CourseQueryInput,
+  MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
 
 export class CourseService {
@@ -110,25 +111,16 @@ export class CourseService {
    * Get courses for Marketplace (Public View)
    * Optimized select & filtering
    */
-  async getMarketplaceCourses(
-    query: CourseQueryInput & {
-      categoryId?: string;
-      levelId?: string;
-      tutorId?: string;
-      minPrice?: number;
-      maxPrice?: number;
-      rating?: number;
-    }
-  ) {
-    const search = query.search as string | undefined;
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 12;
-    const sort = query.sort || 'newest';
-    const categoryId = query.categoryId as string | undefined;
-    const levelId = query.levelId as string | undefined;
-    const tutorId = query.tutorId as string | undefined;
-    const minPrice = query.minPrice ? Number(query.minPrice) : undefined;
-    const maxPrice = query.maxPrice ? Number(query.maxPrice) : undefined;
+  async getMarketplaceCourses(query: MarketplaceQueryInput) {
+    const search = query.search;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 12;
+    const sort = query.sort ?? 'newest';
+    const categoryId = query.categoryId;
+    const levelId = query.levelId;
+    const tutorId = query.tutorId;
+    const minPrice = query.minPrice;
+    const maxPrice = query.maxPrice;
 
     // Handle Category Hierarchy
     let categoryFilter: any = categoryId ? { categoryId } : {};
@@ -163,7 +155,7 @@ export class CourseService {
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
     };
 
-    // Build Order Clause
+    // 🌟 Resolve Conflict: Build Order Clause
     let orderBy: any = { createdAt: 'desc' };
     const sortParam = sort as string;
     if (sortParam === 'price-asc') orderBy = { price: 'asc' };
@@ -230,7 +222,7 @@ export class CourseService {
   }
 
   /**
-   * Get courses enrolled by a user (My Courses)
+   * Get courses enrolled by a user (My Courses — enrolled endpoint)
    */
   async getUserEnrolledCourses(userId: string) {
     return prisma.enrollment.findMany({
@@ -252,8 +244,38 @@ export class CourseService {
   }
 
   /**
+   * Get enrolled courses for the authenticated user (my-courses route).
+   * Returns a simplified course list with enrollment status and progress.
+   */
+  async getMyCourses(userId: string) {
+    const enrollments = await prisma.enrollment.findMany({
+      where: { userId },
+      include: {
+        course: {
+          include: {
+            instructor: { select: { name: true } },
+            category: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return enrollments.map((en) => ({
+      id: en.course.id,
+      title: en.course.title,
+      thumbnail: en.course.thumbnail,
+      categoryName: en.course.category?.name ?? 'ทั่วไป',
+      instructor: en.course.instructor?.name ?? 'ไม่ระบุผู้สอน',
+      courseType: en.course.courseType,
+      status: en.status,
+      progress: en.status === 'COMPLETED' ? 100 : 0,
+    }));
+  }
+
+  /**
    * Admin/Instructor Course List
-   * 🌟 แก้ไข: เพิ่มระบบนับยอดรวมทั้งหมด (Summary) เพื่อแก้ปัญหาเลข 10 คอร์ส
+   * 🌟 คงไว้: ระบบนับยอดรวมทั้งหมด (Summary)
    */
   async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
     const { search, status, instructorId } = query;
@@ -268,7 +290,6 @@ export class CourseService {
       }),
     };
 
-    // 🌟 ดึงยอดรวมจริงจาก Database โดยไม่สนการแบ่งหน้า (Pagination)
     const statsWhere = instructorId ? { instructorId } : {};
 
     const [courses, total, allCount, publishedCount, draftCount] = await Promise.all([
@@ -284,7 +305,6 @@ export class CourseService {
         take: limit,
       }),
       prisma.course.count({ where }),
-      // นับยอดสรุปเพื่อใช้ใน Stats Cards
       prisma.course.count({ where: statsWhere }),
       prisma.course.count({ where: { ...statsWhere, status: 'PUBLISHED' } }),
       prisma.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
@@ -294,7 +314,6 @@ export class CourseService {
       courses, 
       total, 
       totalPages: Math.ceil(total / limit),
-      // 🌟 ส่งค่าสรุปจริงกลับไปให้หน้าบ้าน
       summary: {
         all: allCount,
         published: publishedCount,

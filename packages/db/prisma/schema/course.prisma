@@ -58,6 +58,11 @@ model Course {
 
     @@index([instructorId])
     @@index([status])
+    // Composite indexes for marketplace filter combinations
+    @@index([status, categoryId])
+    @@index([status, levelId])
+    @@index([status, courseType])
+    @@index([status, price])
     @@map("courses")
 }
 
