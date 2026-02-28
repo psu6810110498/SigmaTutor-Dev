@@ -4,6 +4,7 @@ model Course {
     id               String       @id @default(cuid())
     title            String
     slug             String       @unique
+    shortDescription String?
     description      String?
     price            Float // From Main (Float is better for price)
     originalPrice    Float? // Aligning with price
@@ -28,6 +29,7 @@ model Course {
     instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
 
     // Head Fields
+    courseCode      String?   // เพิ่มช่องรหัสคอร์ส
     duration        String?
     videoCount      Int       @default(0)
     maxSeats        Int?
@@ -36,6 +38,8 @@ model Course {
     location        String?
     mapUrl          String?
     zoomLink        String?
+    meetingId       String?   // เพิ่มช่องรหัสห้องประชุม
+    priceRange      String?   // เพิ่มช่องช่วงราคา
     published       Boolean   @default(false)
     tags            String[]  @default([])
     isBestSeller    Boolean   @default(false)

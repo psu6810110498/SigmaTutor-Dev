@@ -5,9 +5,11 @@ import { authService } from '../services/auth.service.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware.js';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../schemas/auth.schema.js';
+import { prisma } from '@sigma/db'; // 🌟 เพิ่มการนำเข้า prisma สำหรับอัปเดตเวลา
 
 const router: express.Router = express.Router();
 
+// Google Authentication
 router.get('/google', passport.authenticate('google', { session: false, scope: ['profile', 'email'], prompt: 'select_account' }));
 
 const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
@@ -15,14 +17,14 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 15 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 };
 
@@ -32,6 +34,7 @@ router.get('/google/callback', passport.authenticate('google', { session: false,
     res.redirect('http://localhost:3000/login-success');
 });
 
+// Authentication Routes
 router.post('/register', validate(registerSchema), async (req: Request, res: Response): Promise<void> => {
     try {
       const result = await authService.register(req.body);
@@ -73,57 +76,48 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     } catch (error: any) { res.status(401).json({ success: false, error: error.message }); }
 });
 
-/**
- * POST /api/auth/logout
- * รวมร่าง: ลบ Token ใน DB และเคลียร์ Cookie ใน Browser ทันที
- */
 router.post('/logout', async (req: Request, res: Response): Promise<void> => {
   try {
-    // ดึง token ได้จากทั้ง body หรือ cookie เพื่อความยืดหยุ่น
     const refreshToken = req.body.refreshToken || req.cookies.refreshToken;
     if (refreshToken) {
       await authService.logout(refreshToken);
     }
-
-    // เคลียร์ cookies ทุกครั้งเพื่อความปลอดภัย
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
-
     res.json({ success: true, message: 'Logged out successfully' });
   } catch {
-    // หาก DB มีปัญหา ก็ยังสั่งเคลียร์ cookie ฝั่ง User ให้ครับ
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
     res.json({ success: true, message: 'Logged out successfully' });
   }
 });
 
-/**
- * GET /api/auth/me
- * ดึงข้อมูลผู้ใช้ปัจจุบันพร้อมสถานะ Payment
- */
 router.get('/me', authenticate as express.RequestHandler, async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-
     if (!authReq.user) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
 
+    // 🌟 แอบอัปเดตเวลา พร้อม "ตัวกันชน" ป้องกันระบบล่ม
+    try {
+      await prisma.user.update({
+        where: { id: authReq.user.userId },
+        data: { lastActive: new Date() }
+      });
+    } catch (updateError) {
+      console.error("⚠️ ไม่สามารถอัปเดต lastActive ได้:", updateError);
+    }
+
     const user = await authService.getUserById(authReq.user.userId);
-    
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
       return;
     }
-
-    res.json({
-      success: true,
-      payment: true, // ✅ คงส่วนนี้ไว้ตามที่คุณต้องการ
-      data: user,
-    });
+    res.json({ success: true, payment: true, data: user });
   } catch (error) {
+    console.error("🔥 Auth /me Error:", error); // 🌟 สั่งให้ฟ้อง Error ออกมาตรงๆ
     res.status(500).json({ success: false, error: 'Auth check failed' });
   }
 });

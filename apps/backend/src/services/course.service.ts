@@ -140,27 +140,27 @@ export class CourseService {
     // Build Where Clause
     const where: any = {
       status: 'PUBLISHED', // Always filter published for marketplace
+      published: true,     // ✅ บังคับให้ published เป็น true
       ...categoryFilter,
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },
-          // Search in tags if available in Schema
           { tags: { has: search } },
         ],
       }),
-      // ...(categoryId && { categoryId }), <-- Removed
       ...(levelId && { levelId }),
       ...(tutorId && { instructorId: tutorId }),
       ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
     };
 
-    // Build Order Clause
-    let orderBy: Record<string, unknown> = { createdAt: 'desc' };
-    if (sort === 'price-asc') orderBy = { price: 'asc' };
-    else if (sort === 'price-desc') orderBy = { price: 'desc' };
-    else if (sort === 'popular') orderBy = { enrollments: { _count: 'desc' } };
+    // 🌟 Resolve Conflict: Build Order Clause
+    let orderBy: any = { createdAt: 'desc' };
+    const sortParam = sort as string;
+    if (sortParam === 'price-asc') orderBy = { price: 'asc' };
+    else if (sortParam === 'price-desc') orderBy = { price: 'desc' };
+    else if (sortParam === 'popular') orderBy = { enrollments: { _count: 'desc' } };
 
     const [courses, total] = await Promise.all([
       prisma.course.findMany({
@@ -235,7 +235,7 @@ export class CourseService {
             slug: true,
             thumbnail: true,
             instructor: { select: { name: true } },
-            _count: { select: { chapters: true } },
+            _count: { select: { chapters: true } }, 
           },
         },
       },
@@ -275,6 +275,7 @@ export class CourseService {
 
   /**
    * Admin/Instructor Course List
+   * 🌟 คงไว้: ระบบนับยอดรวมทั้งหมด (Summary)
    */
   async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
     const { search, status, instructorId } = query;
@@ -282,18 +283,21 @@ export class CourseService {
     const limit = Number(query.limit) || 10;
 
     const where: any = {
-      ...(status && { status }),
+      ...(status && status !== 'all' && { status }),
       ...(instructorId && { instructorId }),
       ...(search && {
         title: { contains: search, mode: 'insensitive' },
       }),
     };
 
-    const [courses, total] = await Promise.all([
+    const statsWhere = instructorId ? { instructorId } : {};
+
+    const [courses, total, allCount, publishedCount, draftCount] = await Promise.all([
       prisma.course.findMany({
         where,
         include: {
           instructor: { select: { name: true, email: true } },
+          category: { select: { id: true, name: true, slug: true } },
           _count: { select: { enrollments: true } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -301,19 +305,29 @@ export class CourseService {
         take: limit,
       }),
       prisma.course.count({ where }),
+      prisma.course.count({ where: statsWhere }),
+      prisma.course.count({ where: { ...statsWhere, status: 'PUBLISHED' } }),
+      prisma.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
     ]);
 
-    return { courses, total, totalPages: Math.ceil(total / limit) };
+    return { 
+      courses, 
+      total, 
+      totalPages: Math.ceil(total / limit),
+      summary: {
+        all: allCount,
+        published: publishedCount,
+        draft: draftCount
+      }
+    };
   }
 
   /**
    * Update a course
    */
   async update(id: string, input: UpdateCourseInput) {
-    await this.findById(id); // throws if not found
+    await this.findById(id); 
 
-    // Prisma requires null relational IDs to be passed as-is;
-    // cast to any to allow null disconnection for optional relations.
     return prisma.course.update({
       where: { id },
       data: input as any,
@@ -327,9 +341,15 @@ export class CourseService {
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
     await this.findById(id);
 
+    // ✅ อัปเดต boolean 'published' ให้ตรงกับ 'status'
+    const isPublished = input.status === 'PUBLISHED';
+
     return prisma.course.update({
       where: { id },
-      data: { status: input.status },
+      data: { 
+        status: input.status,
+        published: isPublished 
+      },
     });
   }
 

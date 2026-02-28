@@ -2,18 +2,17 @@
 model User {
   id             String   @id @default(cuid())
   email          String   @unique
-  // ✅ แก้เป็น String? เพื่อรองรับ Google Login ที่ไม่มีรหัสผ่าน
   password       String?  
-  name           String?  // ปรับเป็น Optional เผื่อกรณีดึงชื่อจาก Social ไม่ได้
+  name           String?  
   role           Role     @default(USER)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  lastActive    DateTime  @default(now())
   profileImage   String?
   bio            String?
   title          String?
   nickname       String?
 
-  // ✅ ฟิลด์สำหรับหน้า Profile (ตรงกับที่เรียกใน AuthService.getUserById)
   address        String?
   phone          String?
   birthday       DateTime?
@@ -21,17 +20,23 @@ model User {
   school         String?
   province       String?
 
+  expertise      String?   
+  education      String?   
+  experience     String?   
+  socialLink     String?   
+
   // Relations
   sessions           Session[]
-  instructorCourses  Course[]     @relation("InstructorCourses")
+  // 🌟 เปลี่ยนจาก instructorCourses เป็น courses เพื่อให้แสดงผลสัมพันธ์กับ Backend 
+  courses            Course[]     @relation("InstructorCourses")
   enrollments        Enrollment[]
   payments           Payment[]
   reviews            Review[]
+  
 
   @@index([email])
 }
 
-// Session model for refresh tokens
 model Session {
   id           String   @id @default(cuid())
   userId       String
@@ -45,7 +50,6 @@ model Session {
   @@index([refreshToken])
 }
 
-// Role enum
 enum Role {
   USER
   ADMIN

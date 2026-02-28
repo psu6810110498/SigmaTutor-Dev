@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-    FileText, Video, Folder, DollarSign, Globe, MapPin, Users, Monitor,
+    FileText, Video, Folder, Globe, MapPin, Users, Monitor,
     Save, ChevronLeft, Tag, User, Award, Sparkles, BookOpen, CalendarDays, File
 } from "lucide-react";
 import { courseApi, categoryApi, levelApi, scheduleApi } from "@/app/lib/api";
@@ -95,10 +95,10 @@ export default function CreateCoursePage() {
     // ── Form State ────────────────────────────────────────────
     const [form, setForm] = useState<any>({
         title: "",
-        shortDescription: "", // คำอธิบายสั้นๆ แสดงหน้าคอร์ส
-        description: "", // คำอธิบายเต็มๆ
-        price: 0, // ราคาขาย
-        originalPrice: null, // ราคาตั้งต้น
+        shortDescription: "", 
+        description: "", 
+        price: 0, 
+        originalPrice: null, 
         promotionalPrice: null,
         courseType: "ONLINE",
         categoryId: null,
@@ -106,16 +106,15 @@ export default function CreateCoursePage() {
         instructorId: undefined,
         duration: null,
         videoCount: 0,
-        maxSeats: null, // จำนวนที่นั่งที่สุด
+        maxSeats: null, 
         enrollStartDate: null,
         enrollEndDate: null,
         location: null,
         mapUrl: null,
-        zoomLink: null, // Zoom/Google Meet Link
-        meetingId: null, // Meeting ID (ไม่บังคับ)
-        courseCode: "", // รหัสคอร์ส
-        priceRange: null, // ช่วงราคา
-        // ✅ เพิ่มฟิลด์ใหม่สำหรับลิงก์วิดีโอและไฟล์
+        zoomLink: null, 
+        meetingId: null, 
+        courseCode: "", 
+        priceRange: null, 
         demoVideoUrl: "",
         materialUrl: "",
         published: false,
@@ -127,6 +126,9 @@ export default function CreateCoursePage() {
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [sessions, setSessions] = useState<ScheduleSession[]>([]);
     const [saving, setSaving] = useState(false);
+    
+    // ✅ สถานะสำหรับการอัปโหลด PDF
+    const [uploadingPdf, setUploadingPdf] = useState(false);
 
     // ── Auto-Save Draft ──────────────────────────────────────
     useEffect(() => {
@@ -160,6 +162,48 @@ export default function CreateCoursePage() {
         setForm((prev: any) => ({ ...prev, [key]: value }));
     };
 
+    // ✅ ฟังก์ชันจัดการอัปโหลด PDF
+    const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== "application/pdf") {
+            toast.error("กรุณาอัปโหลดไฟล์ PDF เท่านั้น");
+            return;
+        }
+
+        setUploadingPdf(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file); 
+
+            const token = getToken();
+            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include',
+                body: formData
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok && data.url) {
+                updateForm("materialUrl", data.url);
+                toast.success("อัปโหลดเอกสาร PDF สำเร็จ");
+            } else {
+                toast.error(data.error || "อัปโหลดไฟล์ไม่สำเร็จ โปรดลองอีกครั้ง");
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่ออัปโหลดไฟล์ได้");
+        } finally {
+            setUploadingPdf(false);
+            e.target.value = '';
+        }
+    };
+
     // ── Submit ────────────────────────────────────────────────
     const handleSubmit = async () => {
         setSaving(true);
@@ -176,7 +220,6 @@ export default function CreateCoursePage() {
         }
 
         try {
-            // ✅ ใช้ fetch ยิงตรงไปที่ /api/courses เพื่อแก้ปัญหา Route Not Found 
             const token = getToken();
             const response = await fetch('http://localhost:4000/api/courses', {
                 method: 'POST',
@@ -300,12 +343,11 @@ export default function CreateCoursePage() {
                         </div>
                     </SectionCard>
 
-                    {/* ✅ ส่วนสื่อการสอนที่เพิ่มช่องใส่ไฟล์ MP4 / PDF */}
                     <SectionCard title="สื่อการสอน" icon={Video}>
                         <div className="space-y-4">
                             <ImageUpload label="ภาพปก (16:9)" value={thumbnailFile} onChange={setThumbnailFile} />
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                            <div className="grid grid-cols-1 gap-4 pt-4 border-t border-gray-100">
                                 <div>
                                     <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (MP4 / Youtube)</label>
                                     <div className="relative">
@@ -313,21 +355,60 @@ export default function CreateCoursePage() {
                                         <input type="url" value={form.demoVideoUrl} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={`${inputClass} pl-10`} placeholder="https://example.com/video.mp4" />
                                     </div>
                                 </div>
+                                
                                 <div>
-                                    <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF)</label>
-                                    <div className="relative">
-                                        <File className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                        <input type="url" value={form.materialUrl} onChange={(e) => updateForm("materialUrl", e.target.value)} className={`${inputClass} pl-10`} placeholder="https://example.com/handout.pdf" />
+                                    <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF หรืออัปโหลดใหม่)</label>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <div className="relative flex-1">
+                                            <File className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                            <input 
+                                                type="url" 
+                                                value={form.materialUrl} 
+                                                onChange={(e) => updateForm("materialUrl", e.target.value)} 
+                                                className={`${inputClass} pl-10`} 
+                                                placeholder="https://example.com/handout.pdf" 
+                                                disabled={uploadingPdf}
+                                            />
+                                        </div>
+                                        <div className="relative shrink-0 flex">
+                                            <input 
+                                                type="file" 
+                                                accept="application/pdf"
+                                                onChange={handlePdfUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                disabled={uploadingPdf}
+                                                title="คลิกเพื่ออัปโหลดไฟล์ PDF"
+                                            />
+                                            <button 
+                                                type="button" 
+                                                disabled={uploadingPdf}
+                                                className={`h-10 px-4 rounded-lg border text-sm font-medium transition-colors flex items-center justify-center w-full sm:w-auto
+                                                    ${uploadingPdf 
+                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
+                                                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                                            >
+                                                {uploadingPdf ? (
+                                                    <span className="flex items-center gap-2">
+                                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        กำลังอัปโหลด...
+                                                    </span>
+                                                ) : (
+                                                    "เลือกไฟล์ PDF"
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
+                                    <p className="text-xs text-gray-400 mt-1.5">รองรับไฟล์ .pdf ขนาดไม่เกิน 10MB</p>
                                 </div>
                             </div>
                         </div>
                     </SectionCard>
 
-                    {/* ── หมวดหมู่และวิชา ── */}
                     <SectionCard title="หมวดหมู่และวิชา" icon={Folder}>
                         <div className="space-y-4">
-                            {/* Quick Filters - 6 หมวดหมู่หลัก */}
                             <div>
                                 <label className={labelClass}>หมวดหมู่หลัก <span className="text-red-500">*</span></label>
                                 <div className="flex flex-wrap gap-2">
@@ -348,7 +429,6 @@ export default function CreateCoursePage() {
                                 </div>
                             </div>
                             
-                            {/* เลือกวิชา (Child Category) */}
                             {rootCategoryId && childCategories.length > 0 && (
                                 <div>
                                     <label className={labelClass}>เลือกวิชา <span className="text-red-500">*</span></label>
@@ -367,7 +447,6 @@ export default function CreateCoursePage() {
                                 </div>
                             )}
                             
-                            {/* เลือกระดับชั้น */}
                             <div>
                                 <label className={labelClass}>ระดับชั้น</label>
                                 <select 
@@ -400,7 +479,6 @@ export default function CreateCoursePage() {
                         </div>
                     </SectionCard>
 
-                    {/* Mobile: รูปแบบการสอน - แสดงก่อนตารางเรียน */}
                     <div className="lg:hidden">
                         <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
                             <div className="space-y-2">
@@ -433,7 +511,6 @@ export default function CreateCoursePage() {
                                 })}
                             </div>
                             
-                            {/* ตั้งค่าคอร์ส Online Live */}
                             {form.courseType === "ONLINE_LIVE" && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                     <div>
@@ -459,7 +536,6 @@ export default function CreateCoursePage() {
                                 </div>
                             )}
                             
-                            {/* ตั้งค่าคอร์ส Onsite - Google Map */}
                             {form.courseType === "ONSITE" && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                     <div>
@@ -503,7 +579,8 @@ export default function CreateCoursePage() {
                         </div>
                     </div>
 
-                    <SectionCard title="ราคา" icon={DollarSign}>
+                    {/* ✅ แก้ไข Section ราคาให้เป็นแบบที่คุณต้องการแล้วครับ */}
+                    <SectionCard title="ราคา">
                         <div className="space-y-4">
                             <div>
                                 <label className={labelClass}>ช่วงราคา</label>
@@ -526,7 +603,6 @@ export default function CreateCoursePage() {
                         </div>
                     </SectionCard>
 
-                    {/* Desktop: รูปแบบการสอน - แสดงใน sidebar */}
                     <div className="hidden lg:block">
                         <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
                             <div className="space-y-2">
@@ -559,7 +635,6 @@ export default function CreateCoursePage() {
                                 })}
                             </div>
                         
-                        {/* ตั้งค่าคอร์ส Online Live */}
                         {form.courseType === "ONLINE_LIVE" && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                 <div>
@@ -585,7 +660,6 @@ export default function CreateCoursePage() {
                             </div>
                         )}
                         
-                        {/* ตั้งค่าคอร์ส Onsite - Google Map */}
                         {form.courseType === "ONSITE" && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                 <div>
@@ -613,7 +687,6 @@ export default function CreateCoursePage() {
                         </SectionCard>
                     </div>
                     
-                    {/* จำนวนที่นั่งที่สุด - เฉพาะ ONLINE_LIVE และ ONSITE */}
                     {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
                         <SectionCard title="การตั้งค่า" icon={Users}>
                             <div className="space-y-4">

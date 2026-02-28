@@ -35,6 +35,36 @@ router.post(
   }
 );
 
+// ✅ เพิ่มเติม: API สำหรับอัปโหลดไฟล์ PDF (วางไว้ตรงนี้เพื่อไม่ให้ชนกับ /:id)
+/**
+ * POST /api/courses/upload/pdf
+ * General file upload for course materials (PDF)
+ */
+router.post(
+  '/upload/pdf',
+  authenticate,
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  upload.single('file'), // รับไฟล์ที่ชื่อ field ว่า 'file' จากหน้าบ้าน
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, error: 'No file uploaded' });
+        return;
+      }
+
+      // Use UploadService to upload to R2
+      const { url } = await import('../services/upload.service.js').then((m) =>
+        m.uploadService.uploadFile(req.file!, 'courses/materials')
+      );
+
+      res.json({ success: true, url });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
 /**
  * GET /api/courses/marketplace
  * Public marketplace listing with advanced filters

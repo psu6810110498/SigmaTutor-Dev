@@ -1,21 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { 
+    Users, BookOpen, Plus, Trash2, Search, Filter, 
+    UserCheck, BarChart3, TrendingUp,
+    Eye, Pencil, ChevronLeft, ChevronRight
+} from 'lucide-react';
+import { useToast } from "@/app/components/ui/Toast";
+import { ConfirmDialog } from "@/app/components/ui/ConfirmDialog";
 
 export default function AdminTeachersPage() {
+    const { toast } = useToast();
     const [teachers, setTeachers] = useState<any[]>([]);
+    const [totalUniqueStudents, setTotalUniqueStudents] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
     
-    // State สำหรับควบคุมหน้าต่าง Modal เพิ่มครู
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    const [formData, setFormData] = useState({ 
-        name: '', email: '', password: '', 
-        nickname: '', title: '', bio: '', profileImage: '' 
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    // State สำหรับเก็บ ID ของคุณครูที่กำลังจะลบ
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    // ฟังก์ชันดึง Token (เผื่อระบบต้องการผ่าน Header)
     const getToken = () => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
@@ -24,6 +28,7 @@ export default function AdminTeachersPage() {
     };
 
     const fetchTeachers = async () => {
+        setLoading(true);
         try {
             const token = getToken();
             const res = await fetch('http://localhost:4000/api/users/instructors', { 
@@ -31,16 +36,16 @@ export default function AdminTeachersPage() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include' // ✅ สำคัญมาก: บังคับเบราว์เซอร์ส่ง Cookie เสมอ
+                credentials: 'include'
             });
             const data = await res.json();
             if (data.success) {
                 setTeachers(data.data);
-            } else if (data.error === 'No token provided' || data.error === 'jwt expired') {
-                console.warn('Token หมดอายุ กรุณาล็อกอินใหม่');
+                setTotalUniqueStudents(data.totalUniqueStudents || 0);
             }
         } catch (error) {
             console.error("Fetch teachers error:", error);
+            toast.error("ไม่สามารถดึงข้อมูลคุณครูได้");
         } finally {
             setLoading(false);
         }
@@ -50,191 +55,214 @@ export default function AdminTeachersPage() {
         fetchTeachers();
     }, []);
 
-    const handleCreateTeacher = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
+    // ฟังก์ชันสำหรับลบคุณครูออกจากระบบ
+    const handleDelete = async () => {
+        if (!deletingId) return;
         try {
             const token = getToken();
-            const res = await fetch('http://localhost:4000/api/users/instructors', {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`, 
-                    'Content-Type': 'application/json'
+            const response = await fetch(`http://localhost:4000/api/users/${deletingId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 },
-                credentials: 'include', // ✅ สำคัญมาก: ส่ง Cookie ไปยืนยันตัวตนตอนสร้างข้อมูล
-                body: JSON.stringify(formData)
+                credentials: 'include',
             });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert('เพิ่มข้อมูลคุณครูสำเร็จแล้ว!');
-                setIsModalOpen(false);
-                setFormData({ name: '', email: '', password: '', nickname: '', title: '', bio: '', profileImage: '' });
-                fetchTeachers(); 
+            const res = await response.json();
+
+            if (res.success) {
+                toast.success('ลบข้อมูลคุณครูเรียบร้อยแล้ว');
+                setDeletingId(null);
+                fetchTeachers(); // ดึงข้อมูลใหม่หลังจากลบสำเร็จ
             } else {
-                alert(data.error || 'เกิดข้อผิดพลาดในการสร้างคุณครู');
+                toast.error(res.error || 'เกิดข้อผิดพลาดในการลบ');
             }
         } catch (error) {
-            console.error("Create teacher error:", error);
-            alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-        } finally {
-            setIsSubmitting(false);
+            console.error('Delete Error:', error);
+            toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
         }
     };
 
+    // ── การคำนวณสถิติจริงจากข้อมูลที่ดึงมา ──────────────────────
+    const statsData = useMemo(() => {
+        const total = teachers.length;
+        const courses = teachers.reduce((sum, t) => sum + (t._count?.courses || 0), 0);
+        const totalSystemEarnings = teachers.reduce((sum, t) => sum + Number(t.totalEarnings || 0), 0);
+        
+        return [
+          { label: 'คุณครูทั้งหมด', value: `${total} ท่าน`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'คอร์สที่เปิดสอน', value: `${courses} คอร์ส`, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'นักเรียนรวม', value: `${totalUniqueStudents} คน`, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'รายได้รวมระบบ', value: `฿${totalSystemEarnings.toLocaleString()}`, icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-50' },
+        ];
+    }, [teachers, totalUniqueStudents]);
+
+    const filteredTeachers = useMemo(() => {
+        return teachers.filter(t => 
+            t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (t.nickname && t.nickname.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+    }, [teachers, searchTerm]);
+
     return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">จัดการคุณครู</h1>
-                <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
-                >
-                    + เพิ่มคุณครู
-                </button>
+        <div className="p-6 space-y-6 animate-in fade-in duration-500 min-h-screen bg-slate-50/30">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">จัดการคุณครู</h1>
+                    <p className="text-sm text-slate-500 mt-1">ติดตามรายได้และประสิทธิภาพการสอนจากฐานข้อมูลจริง</p>
+                </div>
+                <Link href="/admin/teachers/create">
+                    <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                        <Plus size={18} /> เพิ่มคุณครูใหม่
+                    </button>
+                </Link>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                {loading ? (
-                    <p className="text-gray-400 text-sm text-center py-12">กำลังโหลดข้อมูล...</p>
-                ) : teachers.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-12">
-                        รายชื่อคุณครูและสถานะการอนุมัติจะแสดงที่นี่
-                    </p>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50 border-b border-gray-200">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statsData.map((stat, i) => (
+                    <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow cursor-default group">
+                        <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
+                            <stat.icon size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{stat.label}</p>
+                            <p className="text-xl font-black text-slate-900 mt-1">{stat.value}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Dropdown Bar Section (สไตล์หน้านักเรียน) */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="ค้นหาชื่อคุณครู หรือชื่อเล่น..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 text-sm outline-none"
+                    />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><Filter size={18} /></button>
+                    <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><BarChart3 size={18} /></button>
+                </div>
+            </div>
+
+            {/* Table Section (สไตล์หน้านักเรียน) */}
+            <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-xl shadow-slate-200/40">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50/50 border-b border-slate-100">
                             <tr>
-                                <th className="px-6 py-4 text-sm font-semibold text-gray-600">โปรไฟล์</th>
-                                <th className="px-6 py-4 text-sm font-semibold text-gray-600">ชื่อ-นามสกุล / ตำแหน่ง</th>
-                                <th className="px-6 py-4 text-sm font-semibold text-gray-600">อีเมล</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">คุณครู / โปรไฟล์</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">รายได้สะสม (จริง)</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">คอร์สที่สอน</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">นักเรียนจริง</th>
+                                <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">จัดการ</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {teachers.map((teacher) => (
-                                <tr key={teacher.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4">
-                                        <img 
-                                            src={teacher.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.name)}&background=random`} 
-                                            alt={teacher.name} 
-                                            className="w-12 h-12 rounded-full object-cover border border-gray-200" 
-                                        />
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <p className="text-sm text-gray-900 font-bold">{teacher.name} {teacher.nickname && `(${teacher.nickname})`}</p>
-                                        <p className="text-xs text-gray-500 mt-1">{teacher.title || 'ไม่มีตำแหน่งระบุ'}</p>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{teacher.email}</td>
-                                </tr>
-                            ))}
+                        <tbody className="divide-y divide-slate-50">
+                            {loading ? (
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 animate-pulse font-bold">กำลังซิงค์ข้อมูลสถิติจริง...</td></tr>
+                            ) : filteredTeachers.length > 0 ? (
+                                filteredTeachers.map((teacher) => {
+                                    const courseCount = teacher._count?.courses || 0;
+                                    const studentCount = teacher._count?.enrollments || 0;
+                                    const earnings = Number(teacher.totalEarnings || 0); 
+                                    
+                                    return (
+                                        <tr key={teacher.id} className="hover:bg-slate-50/30 transition-colors group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <img 
+                                                            src={teacher.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${teacher.id}`} 
+                                                            className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white" 
+                                                            alt=""
+                                                        />
+                                                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm bg-green-500"></div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-bold text-slate-900 text-sm">{teacher.name}</p>
+                                                            {teacher.nickname && (
+                                                                <span className="text-[10px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter border border-indigo-100">
+                                                                    {teacher.nickname}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
+                                                            {teacher.title || 'Sigma Instructor'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <p className="text-sm font-black text-slate-900">฿{earnings.toLocaleString()}</p>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="text-sm font-black text-slate-900">{courseCount}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 ml-1">คอร์ส</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="text-sm font-black text-indigo-600">{studentCount}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 ml-1">คน</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Link href={`/admin/teachers/${teacher.id}`}>
+                                                        <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="ดูรายละเอียด">
+                                                            <Eye size={16}/>
+                                                        </button>
+                                                    </Link>
+                                                    <Link href={`/admin/teachers/${teacher.id}/edit`}>
+                                                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="แก้ไข">
+                                                            <Pencil size={16}/>
+                                                        </button>
+                                                    </Link>
+                                                    <button 
+                                                        onClick={() => setDeletingId(teacher.id)}
+                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                                                        title="ลบ"
+                                                    >
+                                                        <Trash2 size={16}/>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 italic font-bold">ไม่พบข้อมูลที่คุณค้นหาในฐานข้อมูลขณะนี้</td></tr>
+                            )}
                         </tbody>
                     </table>
-                )}
-            </div>
+                </div>
 
-            {/* --- Modal สร้างครูใหม่ --- */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden my-8 relative">
-                        
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                            <h2 className="text-xl font-bold text-gray-900">เพิ่มคุณครูใหม่</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500 text-xl leading-none">
-                                ✕
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleCreateTeacher} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">รูปภาพโปรไฟล์ (URL)</label>
-                                <input 
-                                    type="text" 
-                                    value={formData.profileImage} onChange={e => setFormData({...formData, profileImage: e.target.value})}
-                                    placeholder="วางลิงก์รูปถ่ายใบหน้าชัดเจน (ถ้ามี)"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                />
-                                {formData.profileImage && (
-                                    <div className="mt-3 flex justify-center">
-                                        <img src={formData.profileImage} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
-                                    <input 
-                                        type="text" required 
-                                        value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                                        placeholder="เช่น สมชาย ใจดี"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อเล่น</label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.nickname} onChange={e => setFormData({...formData, nickname: e.target.value})}
-                                        placeholder="เช่น พี่บอส"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ตำแหน่ง / คำนำหน้า</label>
-                                <input 
-                                    type="text" 
-                                    value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
-                                    placeholder="เช่น ติวเตอร์คณิตศาสตร์อันดับ 1"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ประวัติย่อ (Bio)</label>
-                                <textarea 
-                                    rows={3}
-                                    value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})}
-                                    placeholder="แนะนำตัวสั้นๆ ประสบการณ์ หรือสไตล์การสอน"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm resize-none" 
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">อีเมลสำหรับล็อกอิน <span className="text-red-500">*</span></label>
-                                <input 
-                                    type="email" required 
-                                    value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-                                    placeholder="teacher@sigma.com"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ตั้งรหัสผ่าน <span className="text-red-500">*</span></label>
-                                <input 
-                                    type="password" required minLength={8}
-                                    value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})}
-                                    placeholder="กำหนดรหัสผ่านอย่างน้อย 8 ตัวอักษร"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" 
-                                />
-                            </div>
-
-                            <div className="pt-4 flex gap-3 border-t border-gray-100">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold transition-colors text-sm">
-                                    ยกเลิก
-                                </button>
-                                <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2.5 text-white bg-primary hover:bg-primary-dark rounded-lg font-bold transition-colors disabled:opacity-50 text-sm">
-                                    {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกคุณครูใหม่'}
-                                </button>
-                            </div>
-                        </form>
-
+                {/* Pagination (สไตล์หน้านักเรียน) */}
+                <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredTeachers.length} รายการ</p>
+                    <div className="flex gap-2">
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16}/></button>
+                        <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-100">1</button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16}/></button>
                     </div>
                 </div>
-            )}
+            </div>
+
+            <ConfirmDialog
+                open={!!deletingId}
+                onCancel={() => setDeletingId(null)}
+                onConfirm={handleDelete}
+                title="ลบข้อมูลคุณครู"
+                message="คุณแน่ใจหรือไม่ที่จะลบข้อมูลคุณครูท่านนี้? คอร์สเรียนที่เชื่อมโยงกับคุณครูท่านนี้อาจได้รับผลกระทบ การกระทำนี้ไม่สามารถย้อนกลับได้"
+                variant="danger"
+            />
         </div>
     );
 }
