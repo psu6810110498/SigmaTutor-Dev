@@ -25,6 +25,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve failed migrations (if any)
+        run: |
+          cd packages/db
+          # Mark previously failed migration as rolled-back so Prisma can retry it cleanly.
+          # Uses || true so this step won't fail if no migration is in failed state.
+          pnpm prisma migrate resolve --rolled-back 20260228112746_check_lost_field_in_user_and_course || true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
       - name: Run Prisma Migrations
         run: pnpm --filter @sigma/db db:migrate:deploy
         env:
