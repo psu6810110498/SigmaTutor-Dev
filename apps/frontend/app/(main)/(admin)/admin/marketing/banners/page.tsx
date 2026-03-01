@@ -344,8 +344,11 @@ export default function BannerManagementPage() {
                                     <Input
                                         label="ลำดับการแสดงผล"
                                         type="number"
-                                        value={formData.priority}
-                                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                                        value={Number.isNaN(formData.priority) ? '' : formData.priority}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setFormData({ ...formData, priority: isNaN(val) ? 0 : val });
+                                        }}
                                         min={1}
                                     />
                                     <p className="text-xs text-gray-400 mt-1">ใส่เลข 1 เพื่อแสดงเป็นอันดับแรก</p>
