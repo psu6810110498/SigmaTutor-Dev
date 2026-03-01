@@ -33,8 +33,9 @@ describe('useMarketplaceFilters', () => {
         const calledUrl: string = mockRouterPush.mock.calls[0][0];
 
         expect(calledUrl).toContain('root=ROOT_123');
-        // categoryId should be removed, not set
+        // Both categoryId and tutorId should be cleared when switching root category
         expect(calledUrl).not.toContain('categoryId');
+        expect(calledUrl).not.toContain('tutorId');
     });
 
     it('setRootCategory with null clears the root param', () => {
