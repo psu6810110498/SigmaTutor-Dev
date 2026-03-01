@@ -310,14 +310,16 @@ export default function BannerManagementPage() {
                                 {/* Mobile Image */}
                                 <div>
                                     <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-between">
-                                        รูปภาพ Mobile (แนวตั้ง)
-                                        <span className="text-xs text-gray-400 font-normal">แนะนำ 800x1000 px</span>
+                                        รูปภาพ Mobile (แนวตั้ง/จตุรัส)
+                                        <span className="text-xs text-gray-400 font-normal">
+                                            {formData.position === 'EXPLORE_TOP' ? 'แนะนำ 800x450 px' : 'ไม่แสดงนมือถือ'}
+                                        </span>
                                     </h4>
                                     <ImageUpload
                                         value={formData.imageUrlMobile}
                                         onChange={(url) => setFormData({ ...formData, imageUrlMobile: url })}
-                                        maxWidth={1000}
-                                        aspectRatio="aspect-[4/5]"
+                                        maxWidth={800}
+                                        aspectRatio="aspect-[16/9]"
                                         label=""
                                     />
                                     <input

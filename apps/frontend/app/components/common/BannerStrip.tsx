@@ -25,8 +25,8 @@ interface BannerStripProps {
 // ─── Aspect Ratio per Variant ─────────────────────────────────────────────────
 
 const CONTAINER_CLASSES: Record<BannerVariant, string> = {
-    top: 'w-full aspect-[4/5] md:aspect-[16/5]', // 1920x600 = 16:5, Mobile 800x1000 = 4:5
-    middle: 'w-full aspect-[4/5] md:aspect-[6/1] rounded-2xl overflow-hidden', // Rounded and slimmer
+    top: 'w-full aspect-[16/9] md:aspect-[16/5]', // Mobile 800x450 (16:9), Desktop 1920x600 (16:5)
+    middle: 'hidden md:flex w-full aspect-[6/1] rounded-2xl overflow-hidden', // Hide on mobile, show on tablet+
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
