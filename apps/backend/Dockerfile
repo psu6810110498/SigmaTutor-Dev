@@ -8,9 +8,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy entire repository so workspace packages are available
 COPY . .
 
-# Change to backend app and install dependencies
-WORKDIR /app/apps/backend
+# Install dependencies at the workspace root
 RUN pnpm install
+
+# Change to backend app
+WORKDIR /app/apps/backend
 
 # Expose port
 EXPOSE 4000
