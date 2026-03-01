@@ -24,9 +24,9 @@ interface BannerStripProps {
 
 // ─── Aspect Ratio per Variant ─────────────────────────────────────────────────
 
-const ASPECT_RATIO: Record<BannerVariant, string> = {
-    top: 'aspect-[5/1]',
-    middle: 'aspect-[6/1]',
+const CONTAINER_CLASSES: Record<BannerVariant, string> = {
+    top: 'w-full aspect-[4/5] md:aspect-[16/5]', // 1920x600 = 16:5, Mobile 800x1000 = 4:5
+    middle: 'w-full aspect-[4/5] md:aspect-[6/1] rounded-2xl overflow-hidden', // Rounded and slimmer
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -50,10 +50,10 @@ export default function BannerStrip({
     // Don't render anything if there are no banners
     if (!banners || banners.length === 0) return null;
 
-    const aspectRatio = ASPECT_RATIO[variant];
+    const containerClass = CONTAINER_CLASSES[variant];
 
     return (
-        <div className={`w-full overflow-hidden ${className}`}>
+        <div className={`${containerClass} ${className} bg-gray-50 flex items-center justify-center`}>
             <Swiper
                 modules={[Autoplay, Pagination, Navigation]}
                 spaceBetween={0}
@@ -62,7 +62,7 @@ export default function BannerStrip({
                 pagination={{ clickable: true }}
                 autoplay={{ delay: 5000, disableOnInteraction: false }}
                 loop={banners.length > 1}
-                className={`w-full ${aspectRatio}`}
+                className="w-full h-full"
             >
                 {banners.map((banner) => (
                     <SwiperSlide key={banner.id}>
@@ -70,20 +70,20 @@ export default function BannerStrip({
                             href={banner.ctaLink || '#'}
                             className="block w-full h-full relative group"
                         >
-                            <picture className="w-full h-full block">
-                                {/* Mobile image — optional, falls back to desktop */}
-                                {banner.imageUrlMobile && (
-                                    <source
-                                        media="(max-width: 768px)"
-                                        srcSet={banner.imageUrlMobile}
-                                    />
-                                )}
+                            {/* Mobile Image */}
+                            {banner.imageUrlMobile && (
                                 <img
-                                    src={banner.imageUrl}
+                                    src={banner.imageUrlMobile}
                                     alt={banner.title}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+                                    className="w-full h-full object-cover md:hidden transition-transform duration-500 group-hover:scale-[1.01]"
                                 />
-                            </picture>
+                            )}
+                            {/* Desktop Image */}
+                            <img
+                                src={banner.imageUrl}
+                                alt={banner.title}
+                                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01] ${banner.imageUrlMobile ? 'hidden md:block' : 'block'}`}
+                            />
                         </Link>
                     </SwiperSlide>
                 ))}
