@@ -122,6 +122,7 @@ export class PaymentService {
 
   /**
    * Handle successful checkout — mark payments as completed + create enrollments
+   * ใช้ $transaction เพื่อให้ payment update และ enrollment เป็น atomic
    */
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     // 🌟 ยืนยันว่าตัดเงินสำเร็จจริงๆ ป้องกันกรณี PromptPay แค่สแกนแต่เงินยังไม่หัก
@@ -138,34 +139,37 @@ export class PaymentService {
       return;
     }
 
-    // Update ALL payment records with this session ID
-    await prisma.payment.updateMany({
-      where: { stripeId: session.id },
-      data: { status: 'COMPLETED' },
-    });
-
-    // Create enrollments for each course
-    for (const courseId of courseIds) {
-      const existing = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId, courseId } },
+    // ✅ ใช้ transaction เพื่อให้ payment + enrollment เป็น atomic
+    await prisma.$transaction(async (tx) => {
+      // Update ALL payment records with this session ID
+      await tx.payment.updateMany({
+        where: { stripeId: session.id },
+        data: { status: 'COMPLETED' },
       });
 
-      if (!existing) {
-        await prisma.enrollment.create({
-          data: { 
-            userId, 
-            courseId,
-            status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
-          },
-        });
-      } else {
-        // 🌟 อัปเดตสถานะให้เป็น ACTIVE เผื่อกรณีลูกค้าเคยกดค้างไว้เป็น PENDING
-        await prisma.enrollment.update({
+      // Create enrollments for each course
+      for (const courseId of courseIds) {
+        const existing = await tx.enrollment.findUnique({
           where: { userId_courseId: { userId, courseId } },
-          data: { status: 'ACTIVE' }
         });
+
+        if (!existing) {
+          await tx.enrollment.create({
+            data: { 
+              userId, 
+              courseId,
+              status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
+            },
+          });
+        } else {
+          // 🌟 อัปเดตสถานะให้เป็น ACTIVE เผื่อกรณีลูกค้าเคยกดค้างไว้เป็น PENDING
+          await tx.enrollment.update({
+            where: { userId_courseId: { userId, courseId } },
+            data: { status: 'ACTIVE' }
+          });
+        }
       }
-    }
+    });
 
     console.log(`✅ Checkout completed for user ${userId}, courses: ${courseIds.join(', ')}`);
   }
