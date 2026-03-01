@@ -192,8 +192,8 @@ export default function BannerManagementPage() {
                                     {/* Position Badge */}
                                     <td className="p-4">
                                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${banner.position === 'EXPLORE_TOP'
-                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                : 'bg-orange-50 text-orange-700 border-orange-200'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                            : 'bg-orange-50 text-orange-700 border-orange-200'
                                             }`}>
                                             {banner.position === 'EXPLORE_TOP' ? '⬆ Top Bar' : '↔ Middle'}
                                         </span>
@@ -287,13 +287,15 @@ export default function BannerManagementPage() {
                                 <div>
                                     <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-between">
                                         รูปภาพ Desktop (แนวนอน)
-                                        <span className="text-xs text-gray-400 font-normal">แนะนำ 1920x600 px</span>
+                                        <span className="text-xs text-gray-400 font-normal">
+                                            {formData.position === 'EXPLORE_TOP' ? 'แนะนำ 1920x600 px' : 'แนะนำ 1200x200 px'}
+                                        </span>
                                     </h4>
                                     <ImageUpload
                                         value={formData.imageUrl}
                                         onChange={(url) => setFormData({ ...formData, imageUrl: url })}
                                         maxWidth={1920}
-                                        aspectRatio="aspect-[3/1]"
+                                        aspectRatio={formData.position === 'EXPLORE_TOP' ? 'aspect-[16/5]' : 'aspect-[6/1]'}
                                         label=""
                                     />
                                     <input
