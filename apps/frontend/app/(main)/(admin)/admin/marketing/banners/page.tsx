@@ -160,8 +160,8 @@ export default function BannerManagementPage() {
                         <tr className="bg-gray-50 border-b border-gray-100 text-sm font-semibold text-gray-600">
                             <th className="p-4">ลำดับ</th>
                             <th className="p-4">รูปภาพ</th>
-                            <th className="p-4">ตำแหน่ง</th>
                             <th className="p-4">หัวข้อ</th>
+                            <th className="p-4">ตำแหน่ง</th>
                             <th className="p-4">สถานะ</th>
                             <th className="p-4 text-right">จัดการ</th>
                         </tr>
@@ -188,6 +188,17 @@ export default function BannerManagementPage() {
                                         <div className="font-medium text-gray-900">{banner.title}</div>
                                         <div className="text-xs text-gray-500 truncate max-w-xs">{banner.subtitle || '-'}</div>
                                     </td>
+
+                                    {/* Position Badge */}
+                                    <td className="p-4">
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${banner.position === 'EXPLORE_TOP'
+                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                : 'bg-orange-50 text-orange-700 border-orange-200'
+                                            }`}>
+                                            {banner.position === 'EXPLORE_TOP' ? '⬆ Top Bar' : '↔ Middle'}
+                                        </span>
+                                    </td>
+
                                     <td className="p-4">
                                         {(() => {
                                             const status = getBannerStatus(banner);

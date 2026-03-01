@@ -147,6 +147,13 @@ function MarketplaceContent() {
                 />
             </div>
 
+            {/* ── Middle Promo Banner (วางระหว่าง QuickFilter และ Advanced Filter) ── */}
+            {middleBanners.length > 0 && (
+                <div className="max-w-5xl mx-auto px-4 mt-4">
+                    <BannerStrip banners={middleBanners} variant="middle" />
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto px-4 mt-6 md:mt-8">
                 <AdvancedFilterBar
                     subjectCategories={childCategories}
