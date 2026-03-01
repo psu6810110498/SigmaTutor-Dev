@@ -141,5 +141,6 @@ export function useMarketplaceFilters() {
         toggleTutor,
         setSearch,
         clearAll,
+        updateParams,
     };
 }

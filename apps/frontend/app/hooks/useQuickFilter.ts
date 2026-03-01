@@ -16,9 +16,7 @@ const QUICK_FILTER_SLUG_MAP: Record<string, string> = {
 interface UseQuickFilterProps {
     categories: Category[];
     rootCategoryId: string | null;
-    onRootCategoryChange: (id: string | null) => void;
-    onCategoryChange: (id: string | null) => void;
-    onLevelChange: (id: string | null) => void;
+    onQuickFilterChange: (id: string | null) => void;
 }
 
 /**
@@ -29,9 +27,7 @@ interface UseQuickFilterProps {
 export function useQuickFilter({
     categories,
     rootCategoryId,
-    onRootCategoryChange,
-    onCategoryChange,
-    onLevelChange,
+    onQuickFilterChange,
 }: UseQuickFilterProps) {
     /** All top-level categories (no parent) */
     const rootCategories = useMemo(
@@ -64,18 +60,14 @@ export function useQuickFilter({
 
         // "ทั้งหมด" resets all filters
         if (normalizedLabel === "ทั้งหมด") {
-            onRootCategoryChange(null);
-            onCategoryChange(null);
-            onLevelChange(null);
+            onQuickFilterChange(null);
             return;
         }
 
         // Primary match: by display name
         const foundByName = rootCategories.find(c => c.name === normalizedLabel);
         if (foundByName) {
-            onRootCategoryChange(foundByName.id);
-            onCategoryChange(null);
-            onLevelChange(null);
+            onQuickFilterChange(foundByName.id);
             return;
         }
 
@@ -84,12 +76,10 @@ export function useQuickFilter({
         if (slugTarget) {
             const foundBySlug = rootCategories.find(c => c.slug === slugTarget);
             if (foundBySlug) {
-                onRootCategoryChange(foundBySlug.id);
-                onCategoryChange(null);
-                onLevelChange(null);
+                onQuickFilterChange(foundBySlug.id);
             }
         }
-    }, [rootCategories, onRootCategoryChange, onCategoryChange, onLevelChange]);
+    }, [rootCategories, onQuickFilterChange]);
 
     return {
         rootCategories,
