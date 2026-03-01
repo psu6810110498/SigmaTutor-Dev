@@ -72,7 +72,10 @@ function MarketplaceContent() {
         categories,
         rootCategoryId: effectiveRootCategoryId,
         onQuickFilterChange: useCallback((id: string | null) => {
-            updateParams({ root: id, categoryId: null, levelId: null });
+            // Clear categoryId, levelId, AND tutorId when switching root category.
+            // Tutors are scoped to categories — a stale tutorId causes empty results
+            // when the selected tutor has no courses in the new category.
+            updateParams({ root: id, categoryId: null, levelId: null, tutorId: null });
         }, [updateParams])
     });
 
