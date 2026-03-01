@@ -11,6 +11,12 @@ COPY . .
 # Install dependencies at the workspace root
 RUN pnpm install
 
+# Install OpenSSL which is required by Prisma on Alpine
+RUN apk add --no-cache openssl
+
+# Generate Prisma Client
+RUN pnpm --filter @sigma/db db:generate
+
 # Change to backend app
 WORKDIR /app/apps/backend
 
