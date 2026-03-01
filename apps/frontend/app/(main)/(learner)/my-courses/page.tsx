@@ -10,7 +10,7 @@ interface Course {
   id: string;
   title: string;
   thumbnail: string | null;
-  category: string;
+  categoryName: string;
   instructor: string;
   courseType: 'ONLINE' | 'ONLINE_LIVE' | 'ONSITE';
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -27,7 +27,8 @@ export default function MyCoursesPage() {
   useEffect(() => {
     const fetchMyCourses = async () => {
       try {
-        const res = await fetch('http://localhost:4000/api/courses/my-courses', {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const res = await fetch(`${apiUrl}/courses/my-courses`, {
           credentials: 'include', // ✅ ต้องส่งคุกกี้ไปเพื่อยืนยันตัวตน
         });
         const data = await res.json();
@@ -120,14 +121,14 @@ export default function MyCoursesPage() {
               {/* ภาพหน้าปกคอร์ส */}
               <div className="relative h-44 rounded-[1rem] overflow-hidden bg-slate-800 mb-5 group">
                 <img 
-                  src={course.thumbnail || `https://placehold.co/600x400/2a303c/ffffff?text=${course.category}`} 
+                  src={course.thumbnail || `https://placehold.co/600x400/2a303c/ffffff?text=${course.categoryName}`} 
                   alt={course.title} 
                   className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
                 />
                 
                 {/* Badge Category */}
                 <div className="absolute top-3 left-3 bg-white/95 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest text-slate-700 uppercase shadow-sm">
-                  {course.category}
+                  {course.categoryName}
                 </div>
 
                 {/* Badge Live Now (ถ้าเป็น ONLINE_LIVE) */}
