@@ -35,7 +35,7 @@ export const authLimiter = rateLimit({
  */
 export const publicApiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 100,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
     message: {

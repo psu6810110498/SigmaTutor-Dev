@@ -25,7 +25,7 @@ function MarketplaceContent() {
         rootCategoryId, categoryId, levelId, courseType, tutorId,
         minPrice, maxPrice, search, searchInput,
         setRootCategory, setCategory, setLevel, setCourseType,
-        setPriceRange, clearAll, setSearch, toggleTutor
+        setPriceRange, clearAll, setSearch, toggleTutor, updateParams
     } = useMarketplaceFilters();
 
     // 🌟 ยึดค่าจาก URL ตรงๆ เพียงอย่างเดียว เพื่อหยุดลูป Re-render
@@ -71,9 +71,12 @@ function MarketplaceContent() {
     } = useQuickFilter({
         categories,
         rootCategoryId: effectiveRootCategoryId,
-        onRootCategoryChange: setRootCategory,
-        onCategoryChange: setCategory,
-        onLevelChange: setLevel,
+        onQuickFilterChange: useCallback((id: string | null) => {
+            // Clear categoryId, levelId, AND tutorId when switching root category.
+            // Tutors are scoped to categories — a stale tutorId causes empty results
+            // when the selected tutor has no courses in the new category.
+            updateParams({ root: id, categoryId: null, levelId: null, tutorId: null });
+        }, [updateParams])
     });
 
     const activeFilters = useMemo(() => {
@@ -169,8 +172,8 @@ function MarketplaceContent() {
                     categoryId={tutorCategoryId || undefined}
                     levelId={levelId || undefined}
                     courseType={courseType || undefined}
-                    minPrice={minPrice ? Number(minPrice) : undefined}
-                    maxPrice={maxPrice ? Number(maxPrice) : undefined}
+                    minPrice={minPrice || undefined}
+                    maxPrice={maxPrice || undefined}
                     search={search || undefined}
                 />
             </div>

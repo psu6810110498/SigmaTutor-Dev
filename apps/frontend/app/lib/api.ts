@@ -92,15 +92,14 @@ export const courseApi = {
      * GET /courses/marketplace — Public listing for Explore page
      * Supports: search, category, level, price, rating, sort 
      */
-    getMarketplace(params?: CourseQueryParams) {
+    getMarketplace(params?: CourseQueryParams, options?: RequestInit) {
         const query = params ? '?' + new URLSearchParams(
             Object.entries(params)
                 .filter(([, v]) => v !== undefined && v !== null && v !== '')
                 .map(([k, v]) => [k, String(v)])
         ).toString() : '';
 
-        // Cache for 2 minutes (courses may change frequently)
-        return request<CourseListResponse>(`/courses/marketplace${query}`, {}, true, 2 * 60 * 1000);
+        return request<CourseListResponse>(`/courses/marketplace${query}`, options);
     },
 
     /** GET /courses/enrolled — User's enrolled courses */

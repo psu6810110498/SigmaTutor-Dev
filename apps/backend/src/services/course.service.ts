@@ -7,12 +7,23 @@ import type {
   MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
 
+// Use Prisma's own type from our DB package (avoids @prisma/client direct import)
+type DbClient = typeof prisma;
+
 export class CourseService {
+  /**
+   * Dependency Injection: Accept database via constructor.
+   * Enables clean Unit/Integration testing by injecting a mock DB.
+   *
+   * Production:  `new CourseService()`       → uses real prisma client
+   * In Tests:    `new CourseService(mockDb)` → uses a test double
+   */
+  constructor(private db: DbClient = prisma) { }
+
   /**
    * Create a new course
    */
   async create(instructorId: string, input: CreateCourseInput) {
-    // Generate slug from title if not present (simple version)
     const slug =
       input.title
         .toLowerCase()
@@ -21,18 +32,13 @@ export class CourseService {
       '-' +
       Date.now().toString().slice(-4);
 
-    // Sanitize dates if they are strings
     const data = { ...input } as any;
     if (typeof data.enrollStartDate === 'string')
       data.enrollStartDate = new Date(data.enrollStartDate);
     if (typeof data.enrollEndDate === 'string') data.enrollEndDate = new Date(data.enrollEndDate);
 
-    return prisma.course.create({
-      data: {
-        ...data,
-        slug,
-        instructorId,
-      },
+    return this.db.course.create({
+      data: { ...data, slug, instructorId },
       include: { instructor: { select: { id: true, name: true, email: true } } },
     });
   }
@@ -41,21 +47,17 @@ export class CourseService {
    * Get a single course by ID
    */
   async findById(id: string) {
-    const course = await prisma.course.findUnique({
+    const course = await this.db.course.findUnique({
       where: { id },
       include: {
         instructor: { select: { id: true, name: true, email: true, profileImage: true } },
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
-          include: {
-            lessons: { orderBy: { order: 'asc' } },
-          },
+          include: { lessons: { orderBy: { order: 'asc' } } },
           orderBy: { order: 'asc' },
         },
-        schedules: {
-          orderBy: { date: 'asc' },
-        },
+        schedules: { orderBy: { date: 'asc' } },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           take: 5,
@@ -65,10 +67,7 @@ export class CourseService {
       },
     });
 
-    if (!course) {
-      throw new Error('Course not found');
-    }
-
+    if (!course) throw new Error('Course not found');
     return course;
   }
 
@@ -76,21 +75,17 @@ export class CourseService {
    * Get a single course by slug
    */
   async findBySlug(slug: string) {
-    const course = await prisma.course.findFirst({
+    const course = await this.db.course.findFirst({
       where: { slug },
       include: {
         instructor: { select: { id: true, name: true, email: true, profileImage: true } },
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
-          include: {
-            lessons: { orderBy: { order: 'asc' } },
-          },
+          include: { lessons: { orderBy: { order: 'asc' } } },
           orderBy: { order: 'asc' },
         },
-        schedules: {
-          orderBy: { date: 'asc' },
-        },
+        schedules: { orderBy: { date: 'asc' } },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           take: 5,
@@ -100,16 +95,12 @@ export class CourseService {
       },
     });
 
-    if (!course) {
-      throw new Error('Course not found');
-    }
-
+    if (!course) throw new Error('Course not found');
     return course;
   }
 
   /**
    * Get courses for Marketplace (Public View)
-   * Optimized select & filtering
    */
   async getMarketplaceCourses(query: MarketplaceQueryInput) {
     const search = query.search;
@@ -126,7 +117,7 @@ export class CourseService {
     let categoryFilter: any = categoryId ? { categoryId } : {};
 
     if (categoryId) {
-      const category = await prisma.category.findUnique({
+      const category = await this.db.category.findUnique({
         where: { id: categoryId },
         include: { children: { select: { id: true } } },
       });
@@ -137,10 +128,9 @@ export class CourseService {
       }
     }
 
-    // Build Where Clause
     const where: any = {
-      status: 'PUBLISHED', // Always filter published for marketplace
-      published: true,     // ✅ บังคับให้ published เป็น true
+      status: 'PUBLISHED',
+      published: true,
       ...categoryFilter,
       ...(search && {
         OR: [
@@ -155,7 +145,6 @@ export class CourseService {
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
     };
 
-    // 🌟 Resolve Conflict: Build Order Clause
     let orderBy: any = { createdAt: 'desc' };
     const sortParam = sort as string;
     if (sortParam === 'price-asc') orderBy = { price: 'asc' };
@@ -163,7 +152,7 @@ export class CourseService {
     else if (sortParam === 'popular') orderBy = { enrollments: { _count: 'desc' } };
 
     const [courses, total] = await Promise.all([
-      prisma.course.findMany({
+      this.db.course.findMany({
         where,
         select: {
           id: true,
@@ -175,9 +164,7 @@ export class CourseService {
           originalPrice: true,
           promotionalPrice: true,
           courseType: true,
-          reviews: {
-            select: { rating: true },
-          },
+          reviews: { select: { rating: true } },
           level: { select: { name: true } },
           category: { select: { name: true } },
           instructor: { select: { id: true, name: true, profileImage: true } },
@@ -191,41 +178,30 @@ export class CourseService {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.course.count({ where }),
+      this.db.course.count({ where }),
     ]);
 
-    // Transform and Calculate Rating
     const mappedCourses = courses.map((course) => {
       const reviewCount = course.reviews.length;
       const rating =
         reviewCount > 0
           ? course.reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount
           : 0;
-
       const { reviews, ...rest } = course;
-      return {
-        ...rest,
-        rating,
-        reviewCount,
-      };
+      return { ...rest, rating, reviewCount };
     });
 
     return {
       courses: mappedCourses,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
   /**
-   * Get courses enrolled by a user (My Courses — enrolled endpoint)
+   * Get courses enrolled by a user
    */
   async getUserEnrolledCourses(userId: string) {
-    return prisma.enrollment.findMany({
+    return this.db.enrollment.findMany({
       where: { userId, status: 'ACTIVE' },
       include: {
         course: {
@@ -235,7 +211,7 @@ export class CourseService {
             slug: true,
             thumbnail: true,
             instructor: { select: { name: true } },
-            _count: { select: { chapters: true } }, 
+            _count: { select: { chapters: true } },
           },
         },
       },
@@ -244,11 +220,10 @@ export class CourseService {
   }
 
   /**
-   * Get enrolled courses for the authenticated user (my-courses route).
-   * Returns a simplified course list with enrollment status and progress.
+   * Get enrolled courses for the authenticated user
    */
   async getMyCourses(userId: string) {
-    const enrollments = await prisma.enrollment.findMany({
+    const enrollments = await this.db.enrollment.findMany({
       where: { userId },
       include: {
         course: {
@@ -275,7 +250,6 @@ export class CourseService {
 
   /**
    * Admin/Instructor Course List
-   * 🌟 คงไว้: ระบบนับยอดรวมทั้งหมด (Summary)
    */
   async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
     const { search, status, instructorId } = query;
@@ -283,17 +257,15 @@ export class CourseService {
     const limit = Number(query.limit) || 10;
 
     const where: any = {
-      ...(status && status !== 'all' && { status }),
+      ...(status && status !== ('all' as any) && { status }),
       ...(instructorId && { instructorId }),
-      ...(search && {
-        title: { contains: search, mode: 'insensitive' },
-      }),
+      ...(search && { title: { contains: search, mode: 'insensitive' } }),
     };
 
     const statsWhere = instructorId ? { instructorId } : {};
 
     const [courses, total, allCount, publishedCount, draftCount] = await Promise.all([
-      prisma.course.findMany({
+      this.db.course.findMany({
         where,
         include: {
           instructor: { select: { name: true, email: true } },
@@ -304,21 +276,17 @@ export class CourseService {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      prisma.course.count({ where }),
-      prisma.course.count({ where: statsWhere }),
-      prisma.course.count({ where: { ...statsWhere, status: 'PUBLISHED' } }),
-      prisma.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
+      this.db.course.count({ where }),
+      this.db.course.count({ where: statsWhere }),
+      this.db.course.count({ where: { ...statsWhere, status: 'PUBLISHED' } }),
+      this.db.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
     ]);
 
-    return { 
-      courses, 
-      total, 
+    return {
+      courses,
+      total,
       totalPages: Math.ceil(total / limit),
-      summary: {
-        all: allCount,
-        published: publishedCount,
-        draft: draftCount
-      }
+      summary: { all: allCount, published: publishedCount, draft: draftCount },
     };
   }
 
@@ -326,9 +294,8 @@ export class CourseService {
    * Update a course
    */
   async update(id: string, input: UpdateCourseInput) {
-    await this.findById(id); 
-
-    return prisma.course.update({
+    await this.findById(id);
+    return this.db.course.update({
       where: { id },
       data: input as any,
       include: { instructor: { select: { id: true, name: true, email: true } } },
@@ -340,16 +307,10 @@ export class CourseService {
    */
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
     await this.findById(id);
-
-    // ✅ อัปเดต boolean 'published' ให้ตรงกับ 'status'
     const isPublished = input.status === 'PUBLISHED';
-
-    return prisma.course.update({
+    return this.db.course.update({
       where: { id },
-      data: { 
-        status: input.status,
-        published: isPublished 
-      },
+      data: { status: input.status, published: isPublished },
     });
   }
 
@@ -358,15 +319,14 @@ export class CourseService {
    */
   async delete(id: string) {
     await this.findById(id);
-
-    return prisma.course.delete({ where: { id } });
+    return this.db.course.delete({ where: { id } });
   }
 
   /**
    * Update thumbnail URL after upload
    */
   async updateThumbnail(id: string, thumbnailUrl: string) {
-    return prisma.course.update({
+    return this.db.course.update({
       where: { id },
       data: { thumbnail: thumbnailUrl },
     });
