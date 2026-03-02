@@ -23,6 +23,14 @@ const DRAFT_KEY = "draft_course_create";
 // 7 Quick Filter labels — same as explore page
 const QUICK_FILTERS = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"];
 
+// Static mapping used for cascading level dropdown. We don't touch the DB – just filter
+// the full list of levels returned by the API based on the selected main category.
+const LEVEL_MAPPING: Record<string, string[]> = {
+    'ประถม': ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'],
+    'ม.ต้น': ['ม.1', 'ม.2', 'ม.3'],
+    'ม.ปลาย': ['ม.4', 'ม.5', 'ม.6'],
+};
+
 export default function CreateCoursePage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -68,8 +76,37 @@ export default function CreateCoursePage() {
         return categories.filter(c => c.parentId === rootCategoryId);
     }, [categories, rootCategoryId]);
 
+    // levels to show in the dropdown after applying our static cascade rules
+    const filteredLevels = useMemo(() => {
+        const allowedNames = LEVEL_MAPPING[activeQuickFilter];
+        if (allowedNames) {
+            // keep any real levels from the API and also create placeholder
+            // entries for names that might not exist yet
+            const matched = levels.filter(l => allowedNames.includes(l.name));
+            const missing = allowedNames.filter(n => !matched.some(m => m.name === n));
+            const synthetic = missing.map((name) => ({ id: name, name } as Level));
+            return [...matched, ...synthetic];
+        }
+        return levels;
+    }, [levels, activeQuickFilter]);
+
+    // decide whether the level dropdown should be shown/enabled
+    const showLevelDropdown = useMemo(() => {
+        return !!LEVEL_MAPPING[activeQuickFilter];
+    }, [activeQuickFilter]);
+
+    // clear level selection whenever dropdown becomes inactive
+    useEffect(() => {
+        if (!showLevelDropdown) {
+            updateForm("levelId", null);
+        }
+    }, [showLevelDropdown]);
+
     const handleQuickFilter = (label: string) => {
         setActiveQuickFilter(label);
+        // whenever the user picks a different main category we also wipe the level
+        updateForm("levelId", null);
+
         if (label === "ทั้งหมด") {
             setRootCategoryId("");
             setForm(prev => ({ ...prev, categoryId: null }));
@@ -430,21 +467,24 @@ export default function CreateCoursePage() {
                                 </div>
                             )}
 
-                            <div>
-                                <label className={labelClass}>ระดับชั้น</label>
-                                <select
-                                    value={form.levelId || ""}
-                                    onChange={(e) => updateForm("levelId", e.target.value || null)}
-                                    className={inputClass}
-                                >
-                                    <option value="">-- เลือกระดับชั้น --</option>
-                                    {levels.map((lvl) => (
-                                        <option key={lvl.id} value={lvl.id}>
-                                            {lvl.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            {showLevelDropdown && (
+                                <div>
+                                    <label className={labelClass}>ระดับชั้น</label>
+                                    <select
+                                        value={form.levelId || ""}
+                                        onChange={(e) => updateForm("levelId", e.target.value || null)}
+                                        className={inputClass}
+                                    >
+                                        <option value="">-- เลือกระดับชั้น --</option>
+                                        {/** filter the API levels through our static mapping **/}
+                                        {filteredLevels.map((lvl) => (
+                                            <option key={lvl.id} value={lvl.id}>
+                                                {lvl.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </SectionCard>
 
