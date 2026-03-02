@@ -29,7 +29,7 @@ model Course {
     instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
 
     // Head Fields
-    courseCode      String?   // เพิ่มช่องรหัสคอร์ส
+    courseCode      String? // เพิ่มช่องรหัสคอร์ส
     duration        String?
     videoCount      Int       @default(0)
     maxSeats        Int?
@@ -38,8 +38,8 @@ model Course {
     location        String?
     mapUrl          String?
     zoomLink        String?
-    meetingId       String?   // เพิ่มช่องรหัสห้องประชุม
-    priceRange      String?   // เพิ่มช่องช่วงราคา
+    meetingId       String? // เพิ่มช่องรหัสห้องประชุม
+    priceRange      String? // เพิ่มช่องช่วงราคา
     published       Boolean   @default(false)
     tags            String[]  @default([])
     isBestSeller    Boolean   @default(false)
@@ -52,6 +52,7 @@ model Course {
     payments    Payment[] // From Main
     reviews     Review[]
     promotions  Promotion[]      @relation("CoursePromotions")
+    coupons     Coupon[]         @relation("CourseCoupons")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -90,6 +91,9 @@ model Payment {
 
     user   User   @relation(fields: [userId], references: [id])
     course Course @relation(fields: [courseId], references: [id])
+
+    couponId String?
+    coupon   Coupon? @relation("PaymentCoupon", fields: [couponId], references: [id])
 
     @@index([userId])
     @@index([courseId])
