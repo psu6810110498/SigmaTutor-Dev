@@ -57,4 +57,31 @@ router.post(
   }
 );
 
+/**
+ * POST /api/payments/verify-session
+ * Verify a Stripe checkout session and complete enrollment.
+ * Called by the frontend after redirect from Stripe.
+ * Idempotent — safe to call multiple times.
+ */
+router.post(
+  '/verify-session',
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { sessionId } = req.body;
+
+      if (!sessionId) {
+        res.status(400).json({ success: false, error: 'Missing sessionId' });
+        return;
+      }
+
+      const result = await paymentService.verifySession(sessionId, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to verify session';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
 export default router;

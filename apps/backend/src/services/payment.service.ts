@@ -102,14 +102,16 @@ export class PaymentService {
   async handleWebhook(event: Stripe.Event) {
     switch (event.type) {
       case 'checkout.session.completed':
-      case 'checkout.session.async_payment_succeeded': { // 🌟 เพิ่ม Event ดักจับเงินเข้าจาก PromptPay
+      case 'checkout.session.async_payment_succeeded': {
+        // 🌟 เพิ่ม Event ดักจับเงินเข้าจาก PromptPay
         const session = event.data.object as Stripe.Checkout.Session;
         await this.handleCheckoutCompleted(session);
         break;
       }
 
       case 'checkout.session.expired':
-      case 'checkout.session.async_payment_failed': { // 🌟 เพิ่ม Event ดักจับจ่ายเงินล้มเหลว
+      case 'checkout.session.async_payment_failed': {
+        // 🌟 เพิ่ม Event ดักจับจ่ายเงินล้มเหลว
         const session = event.data.object as Stripe.Checkout.Session;
         await this.handleCheckoutExpired(session);
         break;
@@ -155,17 +157,17 @@ export class PaymentService {
 
         if (!existing) {
           await tx.enrollment.create({
-            data: { 
-              userId, 
+            data: {
+              userId,
               courseId,
-              status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
+              status: 'ACTIVE', // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
             },
           });
         } else {
           // 🌟 อัปเดตสถานะให้เป็น ACTIVE เผื่อกรณีลูกค้าเคยกดค้างไว้เป็น PENDING
           await tx.enrollment.update({
             where: { userId_courseId: { userId, courseId } },
-            data: { status: 'ACTIVE' }
+            data: { status: 'ACTIVE' },
           });
         }
       }
@@ -184,6 +186,44 @@ export class PaymentService {
     });
 
     console.log(`❌ Checkout expired or failed for session ${session.id}`);
+  }
+
+  /**
+   * Verify a checkout session by session ID (called from frontend after redirect).
+   * This acts as a fallback for webhook — retrieves session from Stripe API,
+   * and if paid, completes the payment + enrollment atomically.
+   * Idempotent: safe to call multiple times.
+   */
+  async verifySession(sessionId: string, userId: string) {
+    // 1. Retrieve session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    // 2. Verify that this session belongs to the requesting user
+    if (session.metadata?.userId !== userId) {
+      throw new Error('Session does not belong to this user');
+    }
+
+    // 3. Check payment status
+    if (session.payment_status !== 'paid') {
+      return {
+        status: session.payment_status,
+        message: 'Payment has not been completed yet',
+        enrolled: false,
+      };
+    }
+
+    // 4. Complete payment + enrollment (same logic as webhook handler)
+    await this.handleCheckoutCompleted(session);
+
+    return {
+      status: 'paid',
+      message: 'Payment verified and enrollment completed',
+      enrolled: true,
+    };
   }
 }
 
