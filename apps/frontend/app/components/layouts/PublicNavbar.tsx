@@ -140,7 +140,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                         {user ? (
                             // Show Profile if Logged In
                             <div className="hidden md:flex items-center gap-3 pl-2">
-                                <Link href="/dashboard" className="flex items-center gap-2 group">
+                                <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className="flex items-center gap-2 group">
                                     <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 group-hover:border-primary transition-colors">
                                         <img
                                             src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
@@ -208,7 +208,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                         <div className="border-t border-gray-100 pt-3 mt-3">
                             {user ? (
                                 <div className="space-y-2">
-                                    <Link href="/dashboard" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded-lg">
+                                    <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded-lg">
                                         <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
                                             <img
                                                 src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
