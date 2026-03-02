@@ -4,6 +4,8 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import { Banner } from '@/app/lib/types';
 import Link from 'next/link';
+import { OptimizedImage } from '@/app/components/ui/OptimizedImage';
+
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
@@ -64,7 +66,7 @@ export default function BannerStrip({
                 loop={banners.length > 1}
                 className="w-full h-full"
             >
-                {banners.map((banner) => (
+                {banners.map((banner, index) => (
                     <SwiperSlide key={banner.id}>
                         <Link
                             href={banner.ctaLink || '#'}
@@ -72,17 +74,21 @@ export default function BannerStrip({
                         >
                             {/* Mobile Image */}
                             {banner.imageUrlMobile && (
-                                <img
+                                <OptimizedImage
                                     src={banner.imageUrlMobile}
                                     alt={banner.title}
-                                    className="w-full h-full object-cover md:hidden transition-transform duration-500 group-hover:scale-[1.01]"
+                                    imageClass="A"
+                                    priority={index === 0}
+                                    className="md:hidden transition-transform duration-500 group-hover:scale-[1.01]"
                                 />
                             )}
                             {/* Desktop Image */}
-                            <img
+                            <OptimizedImage
                                 src={banner.imageUrl}
                                 alt={banner.title}
-                                className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01] ${banner.imageUrlMobile ? 'hidden md:block' : 'block'}`}
+                                imageClass="A"
+                                priority={index === 0}
+                                className={`transition-transform duration-500 group-hover:scale-[1.01] ${banner.imageUrlMobile ? 'hidden md:block' : 'block'}`}
                             />
                         </Link>
                     </SwiperSlide>
