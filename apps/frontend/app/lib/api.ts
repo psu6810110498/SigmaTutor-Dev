@@ -250,10 +250,9 @@ export const tutorApi = {
 // ============================================================
 
 export const bannerApi = {
-    /** GET /banners/active — For Homepage Slider */
-    getActive(position: BannerPosition = 'EXPLORE_TOP') {
-        // Cache banners for 5 minutes
-        return request<Banner[]>(`/banners/active?position=${position}`, {}, true, 5 * 60 * 1000);
+    getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' = 'EXPLORE_TOP') {
+        // Cache banners via Next.js fetch options (Revalidate every 5 minutes if fetched on server)
+        return request<Banner[]>(`/banners/active?position=${position}`, { next: { revalidate: 300 } } as RequestInit);
     },
 
     /** GET /banners — Admin List */

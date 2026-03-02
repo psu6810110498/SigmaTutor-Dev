@@ -160,8 +160,8 @@ export default function BannerManagementPage() {
                         <tr className="bg-gray-50 border-b border-gray-100 text-sm font-semibold text-gray-600">
                             <th className="p-4">ลำดับ</th>
                             <th className="p-4">รูปภาพ</th>
-                            <th className="p-4">ตำแหน่ง</th>
                             <th className="p-4">หัวข้อ</th>
+                            <th className="p-4">ตำแหน่ง</th>
                             <th className="p-4">สถานะ</th>
                             <th className="p-4 text-right">จัดการ</th>
                         </tr>
@@ -188,6 +188,17 @@ export default function BannerManagementPage() {
                                         <div className="font-medium text-gray-900">{banner.title}</div>
                                         <div className="text-xs text-gray-500 truncate max-w-xs">{banner.subtitle || '-'}</div>
                                     </td>
+
+                                    {/* Position Badge */}
+                                    <td className="p-4">
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${banner.position === 'EXPLORE_TOP'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                            : 'bg-orange-50 text-orange-700 border-orange-200'
+                                            }`}>
+                                            {banner.position === 'EXPLORE_TOP' ? '⬆ Top Bar' : '↔ Middle'}
+                                        </span>
+                                    </td>
+
                                     <td className="p-4">
                                         {(() => {
                                             const status = getBannerStatus(banner);
@@ -276,13 +287,15 @@ export default function BannerManagementPage() {
                                 <div>
                                     <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-between">
                                         รูปภาพ Desktop (แนวนอน)
-                                        <span className="text-xs text-gray-400 font-normal">แนะนำ 1920x600 px</span>
+                                        <span className="text-xs text-gray-400 font-normal">
+                                            {formData.position === 'EXPLORE_TOP' ? 'แนะนำ 1920x600 px' : 'แนะนำ 1200x200 px'}
+                                        </span>
                                     </h4>
                                     <ImageUpload
                                         value={formData.imageUrl}
                                         onChange={(url) => setFormData({ ...formData, imageUrl: url })}
                                         maxWidth={1920}
-                                        aspectRatio="aspect-[3/1]"
+                                        aspectRatio={formData.position === 'EXPLORE_TOP' ? 'aspect-[16/5]' : 'aspect-[6/1]'}
                                         label=""
                                     />
                                     <input
@@ -297,14 +310,16 @@ export default function BannerManagementPage() {
                                 {/* Mobile Image */}
                                 <div>
                                     <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center justify-between">
-                                        รูปภาพ Mobile (แนวตั้ง)
-                                        <span className="text-xs text-gray-400 font-normal">แนะนำ 800x1000 px</span>
+                                        รูปภาพ Mobile (แนวตั้ง/จตุรัส)
+                                        <span className="text-xs text-gray-400 font-normal">
+                                            {formData.position === 'EXPLORE_TOP' ? 'แนะนำ 800x450 px' : 'ไม่แสดงนมือถือ'}
+                                        </span>
                                     </h4>
                                     <ImageUpload
                                         value={formData.imageUrlMobile}
                                         onChange={(url) => setFormData({ ...formData, imageUrlMobile: url })}
-                                        maxWidth={1000}
-                                        aspectRatio="aspect-[4/5]"
+                                        maxWidth={800}
+                                        aspectRatio="aspect-[16/9]"
                                         label=""
                                     />
                                     <input
@@ -331,8 +346,11 @@ export default function BannerManagementPage() {
                                     <Input
                                         label="ลำดับการแสดงผล"
                                         type="number"
-                                        value={formData.priority}
-                                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                                        value={Number.isNaN(formData.priority) ? '' : formData.priority}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setFormData({ ...formData, priority: isNaN(val) ? 0 : val });
+                                        }}
                                         min={1}
                                     />
                                     <p className="text-xs text-gray-400 mt-1">ใส่เลข 1 เพื่อแสดงเป็นอันดับแรก</p>

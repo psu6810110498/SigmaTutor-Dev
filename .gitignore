@@ -24,6 +24,10 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Stripe CLI
+stripe
+stripe.exe
+*.exe
 # Playwright
 /test-results/
 /playwright-report/

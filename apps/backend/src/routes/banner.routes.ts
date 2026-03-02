@@ -7,7 +7,8 @@ const router: Router = Router();
 // Public: Get Active Banners
 router.get('/active', async (req, res, next) => {
     try {
-        const banners = await bannerService.getActiveBanners();
+        const position = req.query.position as 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' | undefined;
+        const banners = await bannerService.getActiveBanners(position);
         res.json({ success: true, data: banners });
     } catch (error) {
         next(error);
