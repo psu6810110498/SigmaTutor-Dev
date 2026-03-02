@@ -123,6 +123,26 @@ function MarketplaceContent() {
 
     const tutorCategoryId = categoryId ?? effectiveRootCategoryId;
 
+    const filteredLevels = useMemo(() => {
+        if (!activeFilterLabel || activeFilterLabel === "ทั้งหมด") return levels;
+
+        switch (activeFilterLabel) {
+            case "ประถม":
+                return levels.filter(l => l.name.startsWith("ป."));
+            case "ม.ต้น":
+                return levels.filter(l => ["ม.1", "ม.2", "ม.3"].includes(l.name));
+            case "ม.ปลาย":
+                return levels.filter(l => ["ม.4", "ม.5", "ม.6"].includes(l.name));
+            case "TCAS":
+                return levels.filter(l => l.name === "สอบเข้ามหาลัย");
+            case "SAT":
+            case "IELTS":
+                return levels.filter(l => l.name === "ทั่วไป");
+            default:
+                return levels;
+        }
+    }, [levels, activeFilterLabel]);
+
     return (
         <div className="min-h-screen bg-white">
             <div className="relative z-0">
@@ -157,7 +177,7 @@ function MarketplaceContent() {
             <div className="max-w-7xl mx-auto px-4 mt-6 md:mt-8">
                 <AdvancedFilterBar
                     subjectCategories={childCategories}
-                    levels={levels}
+                    levels={filteredLevels}
                     categoryId={categoryId}
                     levelId={levelId}
                     courseType={courseType}
