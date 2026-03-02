@@ -1,121 +1,122 @@
 // Course models
 
 model Course {
-    id               String       @id @default(cuid())
-    title            String
-    slug             String       @unique
-    shortDescription String?
-    description      String?
-    price            Float // From Main (Float is better for price)
-    originalPrice    Float? // Aligning with price
-    promotionalPrice Float? // Discounted Price
-    status           CourseStatus @default(DRAFT)
-    courseType       CourseType   @default(ONLINE)
-    demoVideoUrl     String? // สำหรับใส่ลิงก์ MP4 หรือ Youtube
-    materialUrl      String? // สำหรับใส่ลิงก์ไฟล์ PDF
+  id               String       @id @default(cuid())
+  title            String
+  slug             String       @unique
+  shortDescription String?
+  description      String?
+  price            Float // From Main (Float is better for price)
+  originalPrice    Float? // Aligning with price
+  promotionalPrice Float? // Discounted Price
+  status           CourseStatus @default(DRAFT)
+  courseType       CourseType   @default(ONLINE)
+  demoVideoUrl     String? // สำหรับใส่ลิงก์ MP4 หรือ Youtube
+  materialUrl      String? // สำหรับใส่ลิงก์ไฟล์ PDF
 
-    thumbnail   String?
-    thumbnailSm String?
-    thumbnailLg String?
+  thumbnail   String?
+  thumbnailSm String?
+  thumbnailLg String?
 
-    // Relations (Head)
-    categoryId String?
-    category   Category? @relation(fields: [categoryId], references: [id])
-    levelId    String?
-    level      Level?    @relation(fields: [levelId], references: [id])
+  // Relations (Head)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  levelId    String?
+  level      Level?    @relation(fields: [levelId], references: [id])
 
-    // Relations (Main)
-    instructorId String
-    instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+  // Relations (Main)
+  // ใน Model Course
+  instructorId String
+  instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "InstructorCourses" และ onDelete
 
-    // Head Fields
-    courseCode      String?   // เพิ่มช่องรหัสคอร์ส
-    duration        String?
-    videoCount      Int       @default(0)
-    maxSeats        Int?
-    enrollStartDate DateTime?
-    enrollEndDate   DateTime?
-    location        String?
-    mapUrl          String?
-    zoomLink        String?
-    meetingId       String?   // เพิ่มช่องรหัสห้องประชุม
-    priceRange      String?   // เพิ่มช่องช่วงราคา
-    published       Boolean   @default(false)
-    tags            String[]  @default([])
-    isBestSeller    Boolean   @default(false)
-    isRecommended   Boolean   @default(false)
+  // Head Fields
+  courseCode      String? // เพิ่มช่องรหัสคอร์ส
+  duration        String?
+  videoCount      Int       @default(0)
+  maxSeats        Int?
+  enrollStartDate DateTime?
+  enrollEndDate   DateTime?
+  location        String?
+  mapUrl          String?
+  zoomLink        String?
+  meetingId       String? // เพิ่มช่องรหัสห้องประชุม
+  priceRange      String? // เพิ่มช่องช่วงราคา
+  published       Boolean   @default(false)
+  tags            String[]  @default([])
+  isBestSeller    Boolean   @default(false)
+  isRecommended   Boolean   @default(false)
 
-    // Child Relations
-    chapters    Chapter[] // From HEAD
-    schedules   CourseSchedule[] // From HEAD
-    enrollments Enrollment[] // From Main
-    payments    Payment[] // From Main
-    reviews     Review[]
-    promotions  Promotion[]      @relation("CoursePromotions")
+  // Child Relations
+  chapters    Chapter[] // From HEAD
+  schedules   CourseSchedule[] // From HEAD
+  enrollments Enrollment[] // From Main
+  payments    Payment[] // From Main
+  reviews     Review[]
+  promotions  Promotion[]      @relation("CoursePromotions")
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@index([instructorId])
-    @@index([status])
-    // Composite indexes for marketplace filter combinations
-    @@index([status, categoryId])
-    @@index([status, levelId])
-    @@index([status, courseType])
-    @@index([status, price])
-    @@map("courses")
+  @@index([instructorId])
+  @@index([status])
+  // Composite indexes for marketplace filter combinations
+  @@index([status, categoryId])
+  @@index([status, levelId])
+  @@index([status, courseType])
+  @@index([status, price])
+  @@map("courses")
 }
 
 model Enrollment {
-    id        String           @id @default(cuid())
-    userId    String
-    courseId  String
-    status    EnrollmentStatus @default(ACTIVE)
-    createdAt DateTime         @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  courseId  String
+  status    EnrollmentStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
 
-    user   User   @relation(fields: [userId], references: [id])
-    course Course @relation(fields: [courseId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade) // ✅ เติมจุดนี้
 
-    @@unique([userId, courseId])
+  @@unique([userId, courseId])
 }
 
 model Payment {
-    id        String        @id @default(cuid())
-    userId    String
-    courseId  String
-    amount    Float
-    status    PaymentStatus @default(PENDING)
-    stripeId  String?
-    createdAt DateTime      @default(now())
+  id        String        @id @default(cuid())
+  userId    String
+  courseId  String
+  amount    Float
+  status    PaymentStatus @default(PENDING)
+  stripeId  String?
+  createdAt DateTime      @default(now())
 
-    user   User   @relation(fields: [userId], references: [id])
-    course Course @relation(fields: [courseId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade) // ✅ เติมจุดนี้
 
-    @@index([userId])
-    @@index([courseId])
+  @@index([userId])
+  @@index([courseId])
 }
 
 enum CourseStatus {
-    DRAFT
-    PUBLISHED
-    ARCHIVED
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum CourseType {
-    ONLINE
-    ONLINE_LIVE
-    ONSITE
+  ONLINE
+  ONLINE_LIVE
+  ONSITE
 }
 
 enum EnrollmentStatus {
-    ACTIVE
-    COMPLETED
-    CANCELLED
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }
 
 enum PaymentStatus {
-    PENDING
-    COMPLETED
-    FAILED
-    REFUNDED
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }

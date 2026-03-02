@@ -1,9 +1,9 @@
 model Level {
-    id      String   @id @default(cuid())
-    name    String
-    slug    String   @unique
-    order   Int      @default(0)
-    courses Course[]
+  id      String   @id @default(cuid())
+  name    String
+  slug    String   @unique
+  order   Int      @default(0)
+  courses Course[]
 
-    @@map("levels")
+  @@map("levels")
 }

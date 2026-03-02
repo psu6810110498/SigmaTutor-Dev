@@ -9,8 +9,8 @@ export const createCourseSchema = z.object({
     originalPrice: z.number().min(0).optional().nullable(),
     promotionalPrice: z.number().min(0).optional().nullable(),
     courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).default('ONLINE'),
-    categoryId: z.string().optional().nullable(),
-    levelId: z.string().optional().nullable(),
+    categoryId: z.any().optional().nullable(),
+    levelId: z.any().optional().nullable(),
     instructorId: z.string().optional().nullable(),
     maxSeats: z.number().int().min(0).optional().nullable(),
     enrollStartDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
@@ -18,6 +18,9 @@ export const createCourseSchema = z.object({
     location: z.string().trim().optional().nullable(),
     mapUrl: z.string().url().optional().nullable(),
     zoomLink: z.string().url().optional().nullable(),
+    // ✅ เพิ่มฟิลด์วิดีโอแนะนำและ PDF ให้สมบูรณ์
+    demoVideoUrl: z.string().optional().nullable(),
+    materialUrl: z.string().optional().nullable(), 
     published: z.boolean().default(false),
     videoCount: z.number().int().min(0).default(0),
     duration: z.string().trim().optional().nullable(),
@@ -26,6 +29,7 @@ export const createCourseSchema = z.object({
     isRecommended: z.boolean().optional().default(false),
 });
 
+// updateCourseSchema จะใช้ค่าจากด้านบนโดยอัตโนมัติ
 export const updateCourseSchema = createCourseSchema.partial().extend({
     thumbnail: z.string().url().optional().nullable(),
     thumbnailSm: z.string().url().optional().nullable(),
@@ -46,7 +50,6 @@ export const courseQuerySchema = z.object({
 
 /**
  * Schema for GET /api/courses/marketplace
- * Supports all public filter options with proper types
  */
 export const marketplaceQuerySchema = z.object({
     search: z.string().trim().max(100).optional(),
@@ -63,7 +66,6 @@ export const marketplaceQuerySchema = z.object({
 
 /**
  * Schema for GET /api/tutors
- * Returns instructors who have at least one published course matching the filters
  */
 export const tutorQuerySchema = z.object({
     categoryId: z.string().optional(),

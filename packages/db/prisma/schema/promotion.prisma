@@ -1,22 +1,22 @@
 model Promotion {
-    id            String       @id @default(cuid())
-    name          String
-    description   String?
-    discountType  DiscountType @default(PERCENTAGE)
-    discountValue Float
-    startDate     DateTime
-    endDate       DateTime
-    isActive      Boolean      @default(true)
-    createdAt     DateTime     @default(now())
-    updatedAt     DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Float
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-    // Relations
-    courses Course[] @relation("CoursePromotions")
+  // Relations
+  courses Course[] @relation("CoursePromotions")
 
-    @@map("promotions")
+  @@map("promotions")
 }
 
 enum DiscountType {
-    PERCENTAGE
-    FIXED_AMOUNT
+  PERCENTAGE
+  FIXED_AMOUNT
 }

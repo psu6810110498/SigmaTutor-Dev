@@ -9,11 +9,12 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { apiLimiter } from './middleware/rate-limit.middleware.js';
 import cookieParser from 'cookie-parser';
+import scheduleRoutes from './routes/schedule.routes.js';
 
 console.log('🔑 ตรวจสอบ DATABASE_URL:', process.env.DATABASE_URL ? 'เจอแล้ว!' : 'ยังว่างเปล่า...');
 const app = express();
 const PORT = process.env.PORT || 4000;
-
+app.use('/api/schedules', scheduleRoutes);
 // 1. CORS Middleware
 app.use(
   cors({
