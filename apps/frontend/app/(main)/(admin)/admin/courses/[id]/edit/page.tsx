@@ -22,19 +22,10 @@ export default function EditCoursePage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "schedule">("overview");
 
-    const getToken = () => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-        }
-        return '';
-    };
-
     const fetchData = async () => {
         setLoading(true);
         try {
-            const token = getToken();
             const headers = {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
 
@@ -90,10 +81,10 @@ export default function EditCoursePage() {
 
             <div className="animate-fade-in-up">
                 {activeTab === "overview" && (
-                    <CourseOverviewTab 
-                        course={course} 
+                    <CourseOverviewTab
+                        course={course}
                         instructors={instructors} // ✅ ส่งรายชื่อครูไปที่ Tab
-                        onUpdate={fetchData} 
+                        onUpdate={fetchData}
                     />
                 )}
                 {activeTab === "curriculum" && <CurriculumTab course={course} onUpdate={fetchData} />}

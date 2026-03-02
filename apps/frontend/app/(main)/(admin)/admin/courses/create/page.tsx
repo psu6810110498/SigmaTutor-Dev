@@ -32,26 +32,16 @@ export default function CreateCoursePage() {
     const [levels, setLevels] = useState<Level[]>([]);
     const [instructors, setInstructors] = useState<any[]>([]);
 
-    // ✅ ฟังก์ชันดึง Token ป้องกัน Error 
-    const getToken = () => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-        }
-        return '';
-    };
 
     useEffect(() => {
         // ดึงหมวดหมู่ และ ระดับชั้น (จาก API เดิม)
         categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
         levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
-        
-        // ✅ ดึงรายชื่อคุณครูจาก API ใหม่ที่เราเพิ่งสร้าง
+
         const fetchInstructors = async () => {
             try {
-                const token = getToken();
                 const res = await fetch('http://localhost:4000/api/users/instructors', {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     credentials: 'include'
@@ -95,10 +85,10 @@ export default function CreateCoursePage() {
     // ── Form State ────────────────────────────────────────────
     const [form, setForm] = useState<any>({
         title: "",
-        shortDescription: "", 
-        description: "", 
-        price: 0, 
-        originalPrice: null, 
+        shortDescription: "",
+        description: "",
+        price: 0,
+        originalPrice: null,
         promotionalPrice: null,
         courseType: "ONLINE",
         categoryId: null,
@@ -106,15 +96,15 @@ export default function CreateCoursePage() {
         instructorId: undefined,
         duration: null,
         videoCount: 0,
-        maxSeats: null, 
+        maxSeats: null,
         enrollStartDate: null,
         enrollEndDate: null,
         location: null,
         mapUrl: null,
-        zoomLink: null, 
-        meetingId: null, 
-        courseCode: "", 
-        priceRange: null, 
+        zoomLink: null,
+        meetingId: null,
+        courseCode: "",
+        priceRange: null,
         demoVideoUrl: "",
         materialUrl: "",
         published: false,
@@ -126,7 +116,7 @@ export default function CreateCoursePage() {
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [sessions, setSessions] = useState<ScheduleSession[]>([]);
     const [saving, setSaving] = useState(false);
-    
+
     // ✅ สถานะสำหรับการอัปโหลด PDF
     const [uploadingPdf, setUploadingPdf] = useState(false);
 
@@ -175,20 +165,16 @@ export default function CreateCoursePage() {
         setUploadingPdf(true);
         try {
             const formData = new FormData();
-            formData.append("file", file); 
+            formData.append("file", file);
 
-            const token = getToken();
             const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
                 credentials: 'include',
                 body: formData
             });
-            
+
             const data = await res.json();
-            
+
             if (res.ok && data.url) {
                 updateForm("materialUrl", data.url);
                 toast.success("อัปโหลดเอกสาร PDF สำเร็จ");
@@ -220,17 +206,15 @@ export default function CreateCoursePage() {
         }
 
         try {
-            const token = getToken();
             const response = await fetch('http://localhost:4000/api/courses', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify(form)
             });
-            
+
             const res = await response.json();
 
             if (!res.success) {
@@ -266,7 +250,7 @@ export default function CreateCoursePage() {
             localStorage.removeItem(DRAFT_KEY);
             toast.success("สร้างคอร์สสำเร็จแล้ว 🎉");
             router.push("/admin/courses");
-            
+
         } catch (error) {
             console.error("Submit Error:", error);
             toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
@@ -331,10 +315,10 @@ export default function CreateCoursePage() {
                             </div>
                             <div>
                                 <label className={labelClass}>คำอธิบายสั้นๆ (แสดงหน้าคอร์ส) <span className="text-red-500">*</span></label>
-                                <textarea 
-                                    value={form.shortDescription || ""} 
-                                    onChange={(e) => updateForm("shortDescription", e.target.value)} 
-                                    placeholder="คำอธิบายสั้นๆ ที่จะแสดงในหน้าคอร์ส (ประมาณ 1-2 บรรทัด)…" 
+                                <textarea
+                                    value={form.shortDescription || ""}
+                                    onChange={(e) => updateForm("shortDescription", e.target.value)}
+                                    placeholder="คำอธิบายสั้นๆ ที่จะแสดงในหน้าคอร์ส (ประมาณ 1-2 บรรทัด)…"
                                     rows={3}
                                     className={inputClass}
                                 />
@@ -346,7 +330,7 @@ export default function CreateCoursePage() {
                     <SectionCard title="สื่อการสอน" icon={Video}>
                         <div className="space-y-4">
                             <ImageUpload label="ภาพปก (16:9)" value={thumbnailFile} onChange={setThumbnailFile} />
-                            
+
                             <div className="grid grid-cols-1 gap-4 pt-4 border-t border-gray-100">
                                 <div>
                                     <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (MP4 / Youtube)</label>
@@ -355,36 +339,36 @@ export default function CreateCoursePage() {
                                         <input type="url" value={form.demoVideoUrl} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={`${inputClass} pl-10`} placeholder="https://example.com/video.mp4" />
                                     </div>
                                 </div>
-                                
+
                                 <div>
                                     <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF หรืออัปโหลดใหม่)</label>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
                                             <File className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                            <input 
-                                                type="url" 
-                                                value={form.materialUrl} 
-                                                onChange={(e) => updateForm("materialUrl", e.target.value)} 
-                                                className={`${inputClass} pl-10`} 
-                                                placeholder="https://example.com/handout.pdf" 
+                                            <input
+                                                type="url"
+                                                value={form.materialUrl}
+                                                onChange={(e) => updateForm("materialUrl", e.target.value)}
+                                                className={`${inputClass} pl-10`}
+                                                placeholder="https://example.com/handout.pdf"
                                                 disabled={uploadingPdf}
                                             />
                                         </div>
                                         <div className="relative shrink-0 flex">
-                                            <input 
-                                                type="file" 
+                                            <input
+                                                type="file"
                                                 accept="application/pdf"
                                                 onChange={handlePdfUpload}
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                                 disabled={uploadingPdf}
                                                 title="คลิกเพื่ออัปโหลดไฟล์ PDF"
                                             />
-                                            <button 
-                                                type="button" 
+                                            <button
+                                                type="button"
                                                 disabled={uploadingPdf}
                                                 className={`h-10 px-4 rounded-lg border text-sm font-medium transition-colors flex items-center justify-center w-full sm:w-auto
-                                                    ${uploadingPdf 
-                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
+                                                    ${uploadingPdf
+                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                                                         : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                                             >
                                                 {uploadingPdf ? (
@@ -417,24 +401,23 @@ export default function CreateCoursePage() {
                                             key={filter}
                                             type="button"
                                             onClick={() => handleQuickFilter(filter)}
-                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                                activeQuickFilter === filter
-                                                    ? 'bg-secondary text-white shadow-md'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeQuickFilter === filter
+                                                ? 'bg-secondary text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
                                         >
                                             {filter}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            
+
                             {rootCategoryId && childCategories.length > 0 && (
                                 <div>
                                     <label className={labelClass}>เลือกวิชา <span className="text-red-500">*</span></label>
-                                    <select 
-                                        value={form.categoryId || ""} 
-                                        onChange={(e) => updateForm("categoryId", e.target.value || null)} 
+                                    <select
+                                        value={form.categoryId || ""}
+                                        onChange={(e) => updateForm("categoryId", e.target.value || null)}
                                         className={inputClass}
                                     >
                                         <option value="" disabled>-- เลือกวิชา --</option>
@@ -446,12 +429,12 @@ export default function CreateCoursePage() {
                                     </select>
                                 </div>
                             )}
-                            
+
                             <div>
                                 <label className={labelClass}>ระดับชั้น</label>
-                                <select 
-                                    value={form.levelId || ""} 
-                                    onChange={(e) => updateForm("levelId", e.target.value || null)} 
+                                <select
+                                    value={form.levelId || ""}
+                                    onChange={(e) => updateForm("levelId", e.target.value || null)}
                                     className={inputClass}
                                 >
                                     <option value="">-- เลือกระดับชั้น --</option>
@@ -472,7 +455,7 @@ export default function CreateCoursePage() {
                                 <option value="" disabled>-- เลือกผู้สอน --</option>
                                 {instructors.map((inst) => (
                                     <option key={inst.id} value={inst.id}>
-                                        {inst.name} {inst.nickname ? `(${inst.nickname})` : ''} 
+                                        {inst.name} {inst.nickname ? `(${inst.nickname})` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -489,19 +472,18 @@ export default function CreateCoursePage() {
                                 ] as const).map((type) => {
                                     const IconComponent = type.icon;
                                     return (
-                                        <button 
-                                            key={type.value} 
-                                            type="button" 
-                                            onClick={() => updateForm("courseType", type.value)} 
-                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${
-                                                form.courseType === type.value 
-                                                    ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" 
-                                                    : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                            }`}
+                                        <button
+                                            key={type.value}
+                                            type="button"
+                                            onClick={() => updateForm("courseType", type.value)}
+                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${form.courseType === type.value
+                                                ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20"
+                                                : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                                }`}
                                         >
-                                            <IconComponent 
-                                                size={18} 
-                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"} 
+                                            <IconComponent
+                                                size={18}
+                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"}
                                             />
                                             <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>
                                                 {type.label}
@@ -510,52 +492,52 @@ export default function CreateCoursePage() {
                                     );
                                 })}
                             </div>
-                            
+
                             {form.courseType === "ONLINE_LIVE" && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                     <div>
                                         <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
-                                        <input 
-                                            type="url" 
-                                            value={form.zoomLink || ""} 
-                                            onChange={(e) => updateForm("zoomLink", e.target.value)} 
-                                            placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz" 
-                                            className={inputClass} 
+                                        <input
+                                            type="url"
+                                            value={form.zoomLink || ""}
+                                            onChange={(e) => updateForm("zoomLink", e.target.value)}
+                                            placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz"
+                                            className={inputClass}
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
-                                        <input 
-                                            type="text" 
-                                            value={form.meetingId || ""} 
-                                            onChange={(e) => updateForm("meetingId", e.target.value)} 
-                                            placeholder="123 456 7890" 
-                                            className={inputClass} 
+                                        <input
+                                            type="text"
+                                            value={form.meetingId || ""}
+                                            onChange={(e) => updateForm("meetingId", e.target.value)}
+                                            placeholder="123 456 7890"
+                                            className={inputClass}
                                         />
                                     </div>
                                 </div>
                             )}
-                            
+
                             {form.courseType === "ONSITE" && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
                                     <div>
                                         <label className={labelClass}>สถานที่</label>
-                                        <input 
-                                            type="text" 
-                                            value={form.location || ""} 
-                                            onChange={(e) => updateForm("location", e.target.value)} 
-                                            placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม" 
-                                            className={inputClass} 
+                                        <input
+                                            type="text"
+                                            value={form.location || ""}
+                                            onChange={(e) => updateForm("location", e.target.value)}
+                                            placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม"
+                                            className={inputClass}
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass}>ลิงก์ Google Map</label>
-                                        <input 
-                                            type="url" 
-                                            value={form.mapUrl || ""} 
-                                            onChange={(e) => updateForm("mapUrl", e.target.value)} 
-                                            placeholder="https://maps.google.com/?q=..." 
-                                            className={inputClass} 
+                                        <input
+                                            type="url"
+                                            value={form.mapUrl || ""}
+                                            onChange={(e) => updateForm("mapUrl", e.target.value)}
+                                            placeholder="https://maps.google.com/?q=..."
+                                            className={inputClass}
                                         />
                                     </div>
                                 </div>
@@ -584,9 +566,9 @@ export default function CreateCoursePage() {
                         <div className="space-y-4">
                             <div>
                                 <label className={labelClass}>ช่วงราคา</label>
-                                <select 
-                                    value={form.priceRange || ""} 
-                                    onChange={(e) => updateForm("priceRange", e.target.value || null)} 
+                                <select
+                                    value={form.priceRange || ""}
+                                    onChange={(e) => updateForm("priceRange", e.target.value || null)}
                                     className={inputClass}
                                 >
                                     <option value="">-- เลือกช่วงราคา --</option>
@@ -613,19 +595,18 @@ export default function CreateCoursePage() {
                                 ] as const).map((type) => {
                                     const IconComponent = type.icon;
                                     return (
-                                        <button 
-                                            key={type.value} 
-                                            type="button" 
-                                            onClick={() => updateForm("courseType", type.value)} 
-                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${
-                                                form.courseType === type.value 
-                                                    ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" 
-                                                    : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                            }`}
+                                        <button
+                                            key={type.value}
+                                            type="button"
+                                            onClick={() => updateForm("courseType", type.value)}
+                                            className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${form.courseType === type.value
+                                                ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20"
+                                                : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                                }`}
                                         >
-                                            <IconComponent 
-                                                size={18} 
-                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"} 
+                                            <IconComponent
+                                                size={18}
+                                                className={form.courseType === type.value ? "text-primary" : "text-gray-400"}
                                             />
                                             <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>
                                                 {type.label}
@@ -634,67 +615,67 @@ export default function CreateCoursePage() {
                                     );
                                 })}
                             </div>
-                        
-                        {form.courseType === "ONLINE_LIVE" && (
-                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-                                <div>
-                                    <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
-                                    <input 
-                                        type="url" 
-                                        value={form.zoomLink || ""} 
-                                        onChange={(e) => updateForm("zoomLink", e.target.value)} 
-                                        placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz" 
-                                        className={inputClass} 
-                                    />
+
+                            {form.courseType === "ONLINE_LIVE" && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                    <div>
+                                        <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
+                                        <input
+                                            type="url"
+                                            value={form.zoomLink || ""}
+                                            onChange={(e) => updateForm("zoomLink", e.target.value)}
+                                            placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
+                                        <input
+                                            type="text"
+                                            value={form.meetingId || ""}
+                                            onChange={(e) => updateForm("meetingId", e.target.value)}
+                                            placeholder="123 456 7890"
+                                            className={inputClass}
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
-                                    <input 
-                                        type="text" 
-                                        value={form.meetingId || ""} 
-                                        onChange={(e) => updateForm("meetingId", e.target.value)} 
-                                        placeholder="123 456 7890" 
-                                        className={inputClass} 
-                                    />
+                            )}
+
+                            {form.courseType === "ONSITE" && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                    <div>
+                                        <label className={labelClass}>สถานที่</label>
+                                        <input
+                                            type="text"
+                                            value={form.location || ""}
+                                            onChange={(e) => updateForm("location", e.target.value)}
+                                            placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>ลิงก์ Google Map</label>
+                                        <input
+                                            type="url"
+                                            value={form.mapUrl || ""}
+                                            onChange={(e) => updateForm("mapUrl", e.target.value)}
+                                            placeholder="https://maps.google.com/?q=..."
+                                            className={inputClass}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        
-                        {form.courseType === "ONSITE" && (
-                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-                                <div>
-                                    <label className={labelClass}>สถานที่</label>
-                                    <input 
-                                        type="text" 
-                                        value={form.location || ""} 
-                                        onChange={(e) => updateForm("location", e.target.value)} 
-                                        placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม" 
-                                        className={inputClass} 
-                                    />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>ลิงก์ Google Map</label>
-                                    <input 
-                                        type="url" 
-                                        value={form.mapUrl || ""} 
-                                        onChange={(e) => updateForm("mapUrl", e.target.value)} 
-                                        placeholder="https://maps.google.com/?q=..." 
-                                        className={inputClass} 
-                                    />
-                                </div>
-                            </div>
-                        )}
+                            )}
                         </SectionCard>
                     </div>
-                    
+
                     {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
                         <SectionCard title="การตั้งค่า" icon={Users}>
                             <div className="space-y-4">
-                                <NumberInput 
-                                    label="จำนวนที่นั่งที่สุด" 
-                                    value={form.maxSeats || undefined} 
-                                    onChange={(val) => updateForm("maxSeats", val || null)} 
-                                    placeholder="เช่น 30" 
+                                <NumberInput
+                                    label="จำนวนที่นั่งที่สุด"
+                                    value={form.maxSeats || undefined}
+                                    onChange={(val) => updateForm("maxSeats", val || null)}
+                                    placeholder="เช่น 30"
                                 />
                             </div>
                         </SectionCard>

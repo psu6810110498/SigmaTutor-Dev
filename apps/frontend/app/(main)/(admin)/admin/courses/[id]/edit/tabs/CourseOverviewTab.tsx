@@ -30,20 +30,13 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         promotionalPrice: course.promotionalPrice || null,
         instructorId: course.instructorId || "",
         courseType: course.courseType || "ONLINE",
-        demoVideoUrl: course.demoVideoUrl || "", 
+        demoVideoUrl: course.demoVideoUrl || "",
         materialUrl: course.materialUrl || "",
         published: course.published ?? false,
         isBestSeller: course.isBestSeller ?? false,
         isRecommended: course.isRecommended ?? false,
     });
 
-    // ✅ ฟังก์ชันดึง Token จาก LocalStorage
-    const getToken = () => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-        }
-        return '';
-    };
 
     const updateForm = (key: string, value: any) => {
         setForm((prev: any) => ({ ...prev, [key]: value }));
@@ -57,15 +50,13 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
 
         setSaving(true);
         try {
-            const token = getToken();
-            
+
             // ✅ ใช้ fetch ยิงตรงไปที่ /api/courses/:id (ตามที่ระบุใน course.routes.ts)
             // บังคับใช้ Method PUT ตามหลังบ้าน
             const response = await fetch(`http://localhost:4000/api/courses/${course.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include',
                 body: JSON.stringify(form)
@@ -94,7 +85,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-                
+
                 {/* 1. ข้อมูลทั่วไป */}
                 <SectionCard title="ข้อมูลทั่วไป" icon={FileText}>
                     <div className="space-y-4">

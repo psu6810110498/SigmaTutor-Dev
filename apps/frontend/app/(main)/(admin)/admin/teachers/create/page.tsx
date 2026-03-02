@@ -10,18 +10,18 @@ import { useAuth } from "@/app/context/AuthContext";
 export default function CreateTeacherPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { token, user } = useAuth(); // 🌟 ใช้ระบบ Token จาก AuthContext
+    const { user } = useAuth();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
-    
+
     // ไว้โชว์รูปที่เลือกทันที
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-    const [formData, setFormData] = useState({ 
-        name: '', nickname: '', title: '', bio: '', 
-        profileImage: '', expertise: '', education: '', 
-        experience: '', socialLink: ''    
+    const [formData, setFormData] = useState({
+        name: '', nickname: '', title: '', bio: '',
+        profileImage: '', expertise: '', education: '',
+        experience: '', socialLink: ''
     });
 
     // 🌟 ฟังก์ชันจัดการรูปภาพ (ใช้โค้ดอัปโหลดเดิมของคุณ ผสมกับ UI ใหม่)
@@ -38,18 +38,14 @@ export default function CreateTeacherPage() {
         try {
             const uploadData = new FormData();
             uploadData.append("file", file);
-            
-            const currentToken = token || (user as any)?.token || localStorage.getItem('token');
-            
-            // ยิงไปที่ API อัปโหลดไฟล์เดิมของคุณ
+
             const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${currentToken}` },
                 credentials: 'include',
                 body: uploadData
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 // เก็บ URL ที่ได้จากการอัปโหลดลงใน formData
                 setFormData(prev => ({ ...prev, profileImage: data.url }));
@@ -71,21 +67,19 @@ export default function CreateTeacherPage() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const currentToken = token || (user as any)?.token || localStorage.getItem('token');
             const res = await fetch('http://localhost:4000/api/users/instructors', {
                 method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${currentToken}`, 
+                headers: {
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify(formData)
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 toast.success('เพิ่มคุณครูใหม่เรียบร้อยแล้ว');
-                router.push('/admin/teachers'); 
+                router.push('/admin/teachers');
             } else {
                 toast.error(data.error || 'เกิดข้อผิดพลาด');
             }
@@ -113,26 +107,26 @@ export default function CreateTeacherPage() {
                     <Link href="/admin/teachers" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm">
                         ยกเลิก
                     </Link>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button
+                        onClick={handleSubmit}
                         disabled={isSubmitting || uploadingImage}
                         className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Save size={16} /> 
+                        <Save size={16} />
                         {uploadingImage ? 'กำลังอัปโหลดรูป...' : isSubmitting ? 'กำลังบันทึก...' : 'บันทึกคุณครูใหม่'}
                     </button>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                
+
                 {/* 🌟 Section 1: Basic Info & Profile Image */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
                         <User size={18} className="text-gray-500" />
                         <h2 className="text-base font-semibold text-gray-800">ข้อมูลพื้นฐาน (Basic Information)</h2>
                     </div>
-                    
+
                     <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
                         {/* Profile Image Column */}
                         <div className="flex flex-col items-center space-y-4">
@@ -185,7 +179,7 @@ export default function CreateTeacherPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">ประวัติการทำงาน / Bio</label>
                             <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-gray-900 sm:text-sm transition-all shadow-sm resize-y" placeholder="เขียนประวัติย่อหรือคำแนะนำตัวที่น่าสนใจ..." />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">ความเชี่ยวชาญ (Expertise)</label>
@@ -215,5 +209,5 @@ export default function CreateTeacherPage() {
                 </div>
             </form>
         </div>
-    ); 
+    );
 }
