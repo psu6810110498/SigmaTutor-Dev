@@ -80,6 +80,7 @@ export default function CreateCoursePage() {
     const [sessions, setSessions] = useState<ScheduleSession[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
 
     // ── จัดการข้อมูลแบบร่าง (Draft) ──
     useEffect(() => {
@@ -149,9 +150,23 @@ export default function CreateCoursePage() {
             } else { payload[key] = null; }
         });
 
-        ['demoVideoUrl', 'location', 'description', 'materialUrl'].forEach(key => {
+        // Normalize optional URL/string fields. Keep descriptions as strings (empty string when missing)
+        ['demoVideoUrl', 'location', 'materialUrl'].forEach((key) => {
             if (payload[key] === "") payload[key] = null;
         });
+
+        // Ensure description and shortDescription are sent as empty strings (not null)
+        payload.description = payload.description || "";
+        payload.shortDescription = payload.shortDescription || "";
+
+        // Include sessions from ScheduleInput in the request payload
+        payload.schedules = sessions.map((s: any) => ({
+            title: s.title || "",
+            chapterTitle: s.chapterTitle || null,
+            videoUrl: s.videoUrl || null,
+            materialUrl: s.materialUrl || null,
+            sessionNumber: s.sessionNumber || undefined,
+        }));
 
         // ✅ จัดการเรื่อง ID ระดับชั้น (ป้องกัน Error 400)
         if (showLevelDropdown) {
@@ -169,17 +184,19 @@ export default function CreateCoursePage() {
             const res = await response.json();
 
             if (res.success) {
-                if (thumbnailFile) await courseApi.uploadThumbnail(res.data.id, thumbnailFile);
-                
-                // แจ้งเตือนเรื่องตารางเรียนถ้าไม่มี API รองรับ
+                const newId = res.data.id;
+                setCreatedCourseId(newId);
+                if (thumbnailFile) await courseApi.uploadThumbnail(newId, thumbnailFile);
+
+                // sync schedules explicitly after creation to avoid cases where
+                // nested create might be ignored or user adds more entries before
+                // redirect. this also ensures edit page sees content immediately.
                 if (sessions.length > 0) {
-                    toast.info("กำลังพยายามบันทึกตารางเรียน...");
                     try {
-                        await Promise.all(sessions.map(s => scheduleApi.create({
-                            courseId: res.data.id, topic: s.title || 'ไม่ระบุ', date: s.date || new Date().toISOString().split('T')[0],
-                            startTime: s.startTime || '09:00', endTime: s.endTime || '10:00'
-                        })));
-                    } catch (err) { console.warn("Schedules could not be saved, API missing."); }
+                        await scheduleApi.sync(newId, sessions);
+                    } catch (err) {
+                        console.warn("schedule sync failed", err);
+                    }
                 }
 
                 localStorage.removeItem(DRAFT_KEY);

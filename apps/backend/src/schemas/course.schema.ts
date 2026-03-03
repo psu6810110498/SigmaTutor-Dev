@@ -9,8 +9,9 @@ export const createCourseSchema = z.object({
     originalPrice: z.number().min(0).optional().nullable(),
     promotionalPrice: z.number().min(0).optional().nullable(),
     courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).default('ONLINE'),
-    categoryId: z.any().optional().nullable(),
-    levelId: z.any().optional().nullable(),
+    // Accept empty string as null to avoid validation errors from form submissions
+    categoryId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
+    levelId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
     instructorId: z.string().optional().nullable(),
     maxSeats: z.number().int().min(0).optional().nullable(),
     enrollStartDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
@@ -25,6 +26,14 @@ export const createCourseSchema = z.object({
     videoCount: z.number().int().min(0).default(0),
     duration: z.string().trim().optional().nullable(),
     tags: z.array(z.string().trim()).optional().default([]),
+    // Course schedules: each entry may include optional video and material URLs
+    schedules: z.array(z.object({
+        title: z.string().optional().nullable(),
+        chapterTitle: z.string().optional().nullable(),
+        sessionNumber: z.coerce.number().int().optional().nullable(),
+        videoUrl: z.string().optional().nullable(),
+        materialUrl: z.string().optional().nullable(),
+    }).passthrough()).optional().default([]),
     isBestSeller: z.boolean().optional().default(false),
     isRecommended: z.boolean().optional().default(false),
 });

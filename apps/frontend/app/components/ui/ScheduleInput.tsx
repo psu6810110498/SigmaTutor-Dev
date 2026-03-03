@@ -10,9 +10,9 @@ export type CourseType = 'ONLINE' | 'ONLINE_LIVE' | 'ONSITE';
 export interface ScheduleSession {
     id: string;          // local uuid for key
     title: string;       // หัวข้อเนื้อหาย่อย
-    chapterTitle?: string; // ✅ เพิ่มใหม่: ชื่อบทเรียน (เช่น บทที่ 1)
-    videoUrl?: string;     // ✅ เพิ่มใหม่: ลิงก์วิดีโอเนื้อหา
-    materialUrl?: string;  // ✅ เพิ่มใหม่: ลิงก์ไฟล์ประกอบ
+    chapterTitle?: string; // ชื่อบทเรียน (เช่น บทที่ 1)
+    videoUrl?: string;     // ลิงก์วิดีโอเนื้อหา
+    materialUrl?: string;  // ลิงก์ไฟล์ประกอบ
     sessionNumber?: number; // ลำดับครั้งที่
 }
 
@@ -42,6 +42,9 @@ const inputBase =
 
 export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
     const sessions = value;
+    
+    // ✅ เพิ่ม State สำหรับเช็กว่าบทเรียนไหนกำลังอัปโหลด PDF อยู่
+    const [uploadingId, setUploadingId] = useState<string | null>(null);
 
     const addSession = () => onChange([...sessions, emptySession(sessions.length + 1)]);
 
@@ -50,6 +53,42 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
 
     const updateSession = (id: string, field: keyof ScheduleSession, val: any) =>
         onChange(sessions.map((s) => (s.id === id ? { ...s, [field]: val } : s)));
+
+    // ✅ ฟังก์ชันจัดการอัปโหลด PDF
+    const handlePdfUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.type !== "application/pdf") {
+            alert("กรุณาเลือกไฟล์ PDF เท่านั้น");
+            return;
+        }
+
+        setUploadingId(id);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (data.url) {
+                // อัปเดตลิงก์ PDF เข้าไปในบทเรียนนั้นๆ อัตโนมัติ
+                updateSession(id, 'materialUrl', data.url);
+            } else {
+                alert("อัปโหลดไม่สำเร็จ: " + (data.error || "Unknown error"));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ตอนอัปโหลดไฟล์");
+        } finally {
+            setUploadingId(null);
+            e.target.value = ''; // รีเซ็ตค่า input เผื่อผู้ใช้เลือกไฟล์เดิมซ้ำ
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -68,7 +107,7 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                 <tr className="bg-gray-50/80 border-b border-gray-100 text-gray-600">
                                     <th className="px-4 py-3 text-left font-bold w-16">#</th>
                                     <th className="px-4 py-3 text-left font-bold">บทเรียนและหัวข้อ</th>
-                                    <th className="px-4 py-3 text-left font-bold w-80">วิดีโอและไฟล์ประกอบ</th>
+                                    <th className="px-4 py-3 text-left font-bold w-96">วิดีโอและไฟล์ประกอบ</th>
                                     <th className="px-4 py-3 w-12" />
                                 </tr>
                             </thead>
@@ -113,15 +152,34 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                                     className={`${inputBase} pl-9`}
                                                 />
                                             </div>
-                                            <div className="relative">
-                                                <FileText size={14} className="absolute left-3 top-3 text-blue-500/60" />
-                                                <input
-                                                    type="url"
-                                                    value={s.materialUrl || ''}
-                                                    onChange={(e) => updateSession(s.id, 'materialUrl', e.target.value)}
-                                                    placeholder="ลิงก์ไฟล์ประกอบ (PDF/Drive)"
-                                                    className={`${inputBase} pl-9`}
-                                                />
+                                            {/* ✅ เพิ่มปุ่มอัปโหลด PDF สำหรับหน้าจอ Desktop */}
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <FileText size={14} className="absolute left-3 top-3 text-blue-500/60" />
+                                                    <input
+                                                        type="url"
+                                                        value={s.materialUrl || ''}
+                                                        onChange={(e) => updateSession(s.id, 'materialUrl', e.target.value)}
+                                                        placeholder="ลิงก์ไฟล์ประกอบ (PDF/Drive)"
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id={`desktop-pdf-${s.id}`}
+                                                        className="hidden"
+                                                        onChange={(e) => handlePdfUpload(s.id, e)}
+                                                        disabled={uploadingId === s.id}
+                                                    />
+                                                    <label
+                                                        htmlFor={`desktop-pdf-${s.id}`}
+                                                        className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {uploadingId === s.id ? "กำลังอัปโหลด..." : "เลือกไฟล์ PDF"}
+                                                    </label>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-4 py-5 align-top">
@@ -200,17 +258,37 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                                 />
                                             </div>
                                         </div>
+                                        
+                                        {/* ✅ เพิ่มปุ่มอัปโหลด PDF สำหรับหน้าจอมือถือ */}
                                         <div>
                                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 text-blue-500/70">เอกสาร (Material URL)</label>
-                                            <div className="relative">
-                                                <FileText size={14} className="absolute left-3 top-3 text-blue-400" />
-                                                <input
-                                                    type="url"
-                                                    value={s.materialUrl || ''}
-                                                    onChange={(e) => updateSession(s.id, 'materialUrl', e.target.value)}
-                                                    placeholder="PDF / Drive Link..."
-                                                    className={`${inputBase} pl-9`}
-                                                />
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <FileText size={14} className="absolute left-3 top-3 text-blue-400" />
+                                                    <input
+                                                        type="url"
+                                                        value={s.materialUrl || ''}
+                                                        onChange={(e) => updateSession(s.id, 'materialUrl', e.target.value)}
+                                                        placeholder="PDF / Drive Link..."
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id={`mobile-pdf-${s.id}`}
+                                                        className="hidden"
+                                                        onChange={(e) => handlePdfUpload(s.id, e)}
+                                                        disabled={uploadingId === s.id}
+                                                    />
+                                                    <label
+                                                        htmlFor={`mobile-pdf-${s.id}`}
+                                                        className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {uploadingId === s.id ? "อัปโหลด..." : "เลือก PDF"}
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

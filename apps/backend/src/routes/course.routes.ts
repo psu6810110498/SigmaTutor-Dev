@@ -26,6 +26,8 @@ router.post(
   validate(createCourseSchema),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // Debugging: log incoming payload (trimmed) to help trace missing schedules
+      try { console.log('Create course payload:', JSON.stringify(req.body).slice(0, 1000)); } catch {};
       const course = await courseService.create(req.user!.userId, req.body);
       res.status(201).json({ success: true, data: course });
     } catch (error) {

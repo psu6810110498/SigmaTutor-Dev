@@ -509,6 +509,15 @@ export const scheduleApi = {
         });
     },
 
+    // Sync multiple sessions for a course in one request
+    sync: async (courseId: string, sessions: Partial<CourseSchedule>[]) => {
+        return request<ApiResponse<CourseSchedule[]>>(`/schedules/sync/${courseId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ sessions }),
+            headers: headers(true),
+        });
+    },
+
     update: async (id: string, data: Partial<CourseSchedule>) => {
         return request<ApiResponse<CourseSchedule>>(`/schedules/${id}`, {
             method: 'PUT',

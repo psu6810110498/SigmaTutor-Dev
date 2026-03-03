@@ -25,31 +25,41 @@ export class ScheduleService {
      * ✅ ระบบ Transaction Sync: ล้างและบันทึกใหม่เพื่อให้ข้อมูลตรงกับหน้าจอ 100%
      */
     async sync(courseId: string, sessions: any[]) {
-        return await prisma.$transaction(async (tx) => {
-            // 1. ลบข้อมูลเดิมของคอร์สนี้นออกทั้งหมด
-            await tx.courseSchedule.deleteMany({ where: { courseId } });
+        try {
+            return await prisma.$transaction(async (tx) => {
+                // 1. ลบข้อมูลเดิมของคอร์สนี้นออกทั้งหมด
+                await tx.courseSchedule.deleteMany({ where: { courseId } });
 
-            // 2. บันทึกข้อมูลชุดใหม่เข้าไปตามลำดับ
-            const results = [];
-            for (const [index, s] of sessions.entries()) {
-                results.push(await tx.courseSchedule.create({
-                    data: {
-                        courseId,
-                        sessionNumber: s.sessionNumber || (index + 1),
-                        topic: s.title || 'ไม่มีหัวข้อ',
-                        chapterTitle: s.chapterTitle || null,
-                        videoUrl: s.videoUrl || null,
-                        materialUrl: s.materialUrl || null,
-                        // ใส่ค่า Default เพื่อไม่ให้ชน Constraint ของ DB
-                        date: new Date(),
-                        startTime: new Date(),
-                        endTime: new Date(),
-                        status: 'ON_SCHEDULE'
-                    }
-                }));
-            }
-            return results;
-        });
+                // ถ้าไม่มีข้อมูลส่งมาเลย (เช่น ลบเนื้อหาออกหมด) ให้หยุดการทำงานแค่นี้
+                if (!sessions || sessions.length === 0) return [];
+
+                // 2. บันทึกข้อมูลชุดใหม่เข้าไปตามลำดับ
+                const results = [];
+                for (const [index, s] of sessions.entries()) {
+                    results.push(await tx.courseSchedule.create({
+                        data: {
+                            courseId,
+                            // ✅ บังคับแปลงเป็นตัวเลข (Number) เสมอ ป้องกัน Error Type Mismatch
+                            sessionNumber: Number(s.sessionNumber) || (index + 1),
+                            topic: s.title || 'ไม่มีหัวข้อ',
+                            chapterTitle: s.chapterTitle || null,
+                            videoUrl: s.videoUrl || null,
+                            materialUrl: s.materialUrl || null,
+                            // ✅ ใส่ค่า Date พื้นฐาน (ลบ Status ออก เผื่อ Database ไม่มีฟิลด์นี้)
+                            date: new Date(),
+                            startTime: new Date(),
+                            endTime: new Date()
+                        }
+                    }));
+                }
+                return results;
+            });
+        } catch (error) {
+            // ✅ ดักจับ Error ตรงนี้ จะได้รู้ว่าฐานข้อมูลด่าว่าอะไร
+            console.error("🔥 Prisma Sync Error:", error);
+            throw error; 
+        }
     }
 }
+
 export const scheduleService = new ScheduleService();

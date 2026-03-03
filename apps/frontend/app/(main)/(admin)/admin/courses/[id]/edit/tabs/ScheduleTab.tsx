@@ -7,9 +7,9 @@ import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
-interface ScheduleTabProps {
-    course: Course;
-    onUpdate: () => void;
+interface ScheduleTabProps { 
+    course: Course; 
+    onUpdate: () => void; 
 }
 
 export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
@@ -17,37 +17,71 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
     const [loading, setLoading] = useState(false);
     const [sessions, setSessions] = useState<ScheduleSession[]>([]);
 
+    // ดึงข้อมูลเดิมมาแสดง
     useEffect(() => {
-        if (course.schedules) {
+        if (course.schedules && course.schedules.length > 0) {
             const mapped = course.schedules.map(s => ({
-                id: s.id,
-                title: s.topic,
+                id: s.id, 
+                title: s.topic || "", 
                 chapterTitle: (s as any).chapterTitle || "",
-                videoUrl: (s as any).videoUrl || "",
-                materialUrl: (s as any).materialUrl || "",
+                videoUrl: (s as any).videoUrl || "", 
+                materialUrl: (s as any).materialUrl || "", 
                 sessionNumber: (s as any).sessionNumber,
             }));
             setSessions(mapped);
         }
     }, [course]);
 
+    // ฟังก์ชันบันทึก
     const handleSyncSave = async () => {
         setLoading(true);
         try {
+            // ✅ 1. ดึง Token แบบครอบจักรวาล (หาทั้งจาก LocalStorage และ Cookies ทุกชื่อที่เป็นไปได้)
+            const getUniversalToken = () => {
+                let t = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+                if (!t) {
+                    const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
+                    if (match) t = match[2];
+                }
+                return t;
+            };
+
+            const token = getUniversalToken();
+
+            // ✅ 2. เตรียม Headers ให้ครบถ้วน
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`; // แทรก Token ตรงนี้ถ้าหาเจอ
+            }
+
+            // ✅ 3. ส่งข้อมูลไปพร้อมกับ Token และ Credentials
             const res = await fetch(`http://localhost:4000/api/schedules/sync/${course.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'PUT', 
+                headers: headers,
+                credentials: 'include', 
                 body: JSON.stringify({ sessions }),
             });
-            const data = await res.json();
-            if (data.success) {
+            
+            // บางครั้ง Backend อาจส่ง Error กลับมาเป็น Text ไม่ใช่ JSON
+            let data;
+            try {
+                data = await res.json();
+            } catch (e) {
+                throw new Error("Invalid response from server");
+            }
+
+            if (res.ok && data.success) {
                 toast.success("บันทึกเนื้อหาบทเรียนสำเร็จ ✨");
                 onUpdate();
             } else {
-                toast.error(data.error || "บันทึกไม่สำเร็จ");
+                toast.error(data.error || data.message || "บันทึกไม่สำเร็จ (Unauthorized / No Token)");
             }
         } catch (error) {
-            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+            console.error(error);
+            toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
         } finally {
             setLoading(false);
         }
@@ -55,18 +89,18 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
 
     return (
         <div className="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-5 border-b border-gray-50">
+            <div className="flex justify-between items-center gap-4 pb-5 border-b">
                 <div>
                     <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
                         <Layers className="text-primary" size={28} /> จัดการเนื้อหาบทเรียน
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1 italic">วิชา: {course.title}</p>
                 </div>
-                <Button onClick={handleSyncSave} disabled={loading} className="w-full md:w-auto h-12 px-8 shadow-lg shadow-primary/20">
-                    {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />}
+                <Button onClick={handleSyncSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
+                    {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />} 
                     บันทึกเนื้อหาทั้งหมด
                 </Button>
             </div>
+            
             <ScheduleInput value={sessions} onChange={setSessions} />
         </div>
     );

@@ -44,6 +44,25 @@ export class CourseService {
     const instructorId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
     delete data.instructorId; 
 
+    // If frontend sent a flat schedules array, convert it to Prisma nested create format
+    if (Array.isArray(data.schedules)) {
+      const sessions = data.schedules as any[];
+      data.schedules = {
+        create: sessions.map((s, idx) => ({
+          sessionNumber: s.sessionNumber ?? (idx + 1),
+          topic: s.title ?? s.topic ?? 'ไม่มีหัวข้อ',
+          chapterTitle: s.chapterTitle ?? null,
+          videoUrl: s.videoUrl ?? null,
+          materialUrl: s.materialUrl ?? null,
+          // provide minimal required defaults for schedule model
+          date: new Date(),
+          startTime: new Date(),
+          endTime: new Date(),
+          status: 'ON_SCHEDULE',
+        })),
+      };
+    }
+
     return this.db.course.create({
       data: { ...data, slug, instructorId },
       include: { instructor: { select: { id: true, name: true, email: true } } },
@@ -54,7 +73,7 @@ export class CourseService {
    * Get a single course by ID
    */
   async findById(id: string) {
-    const course = await this.db.course.findUnique({
+        const course = await this.db.course.findUnique({
       where: { id },
       include: {
         instructor: { select: { id: true, name: true, email: true, profileImage: true } },
@@ -64,7 +83,7 @@ export class CourseService {
           include: { lessons: { orderBy: { order: 'asc' } } },
           orderBy: { order: 'asc' },
         },
-        schedules: { orderBy: { date: 'asc' } },
+        		 schedules: { orderBy: { sessionNumber: 'asc' } },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           take: 5,
