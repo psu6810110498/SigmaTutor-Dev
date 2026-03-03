@@ -10,6 +10,7 @@ interface CartItem {
 
 interface CreateCheckoutInput {
   items: CartItem[];
+  couponCode?: string;
 }
 
 export class PaymentService {
@@ -50,17 +51,80 @@ export class PaymentService {
       }
     }
 
-    // Build Stripe line items (price in satang = THB * 100)
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => ({
-      price_data: {
-        currency: 'thb',
-        product_data: {
-          name: item.title,
+    // 🌟 1. Calculate base total
+    let totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+    let discountAmount = 0;
+    let couponId: string | null = null;
+    let eligibleTotalAmount = totalAmount;
+    let eligibleCourseIds = new Set(items.map(i => i.courseId));
+
+    // 🌟 2. Handle Coupon Validation
+    if (input.couponCode) {
+      const coupon = await prisma.coupon.findFirst({
+        where: {
+          code: input.couponCode,
+          isActive: true,
+          deletedAt: null,
+          startDate: { lte: new Date() },
         },
-        unit_amount: Math.round(item.price * 100), // Convert THB to satang
-      },
-      quantity: 1,
-    }));
+        include: {
+          applicableCourses: { select: { id: true } }
+        }
+      });
+
+      if (coupon) {
+        let isValid = true;
+        if (coupon.endDate && new Date() > coupon.endDate) isValid = false;
+        if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) isValid = false;
+        if (coupon.minPurchase && totalAmount < coupon.minPurchase) isValid = false;
+
+        if (coupon.applicableCourses && coupon.applicableCourses.length > 0) {
+          const applicableIds = coupon.applicableCourses.map(c => c.id);
+          const eligible = items.filter(i => applicableIds.includes(i.courseId));
+          if (eligible.length === 0) isValid = false;
+          else {
+            eligibleCourseIds = new Set(eligible.map(i => i.courseId));
+            eligibleTotalAmount = eligible.reduce((sum, item) => sum + item.price, 0);
+          }
+        }
+
+        if (isValid) {
+          couponId = coupon.id;
+          if (coupon.discountType === 'PERCENTAGE') {
+            discountAmount = (eligibleTotalAmount * coupon.discountValue) / 100;
+            if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+              discountAmount = coupon.maxDiscount;
+            }
+          } else {
+            discountAmount = coupon.discountValue;
+          }
+          if (discountAmount > eligibleTotalAmount) discountAmount = eligibleTotalAmount;
+        }
+      }
+    }
+
+    // Build Stripe line items (price in satang = THB * 100)
+    // Proportionally distribute the discount across eligible items only
+    const discountRatio = eligibleTotalAmount > 0 ? (discountAmount / eligibleTotalAmount) : 0;
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item) => {
+      let finalPrice = item.price;
+      if (couponId && eligibleCourseIds.has(item.courseId)) {
+        const itemDiscount = item.price * discountRatio;
+        finalPrice = Math.max(0, item.price - itemDiscount);
+      }
+
+      return {
+        price_data: {
+          currency: 'thb',
+          product_data: {
+            name: item.title,
+          },
+          unit_amount: Math.round(finalPrice * 100), // Convert THB to satang
+        },
+        quantity: 1,
+      };
+    });
 
     const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
@@ -74,18 +138,26 @@ export class PaymentService {
       metadata: {
         userId,
         courseIds: items.map((i) => i.courseId).join(','),
+        couponId: couponId || '', // Pass coupon ID for webhook processing if needed
       },
     });
 
     // Create payment records for each course
     for (const item of items) {
+      let finalPrice = item.price;
+      if (couponId && eligibleCourseIds.has(item.courseId)) {
+        const itemDiscount = item.price * discountRatio;
+        finalPrice = Math.max(0, item.price - itemDiscount);
+      }
+
       await prisma.payment.create({
         data: {
           userId,
           courseId: item.courseId,
-          amount: item.price,
+          amount: finalPrice, // Record exact discounted price
           status: 'PENDING',
           stripeId: session.id,
+          couponId: couponId,
         },
       });
     }
@@ -152,8 +224,8 @@ export class PaymentService {
 
       if (!existing) {
         await prisma.enrollment.create({
-          data: { 
-            userId, 
+          data: {
+            userId,
             courseId,
             status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
           },

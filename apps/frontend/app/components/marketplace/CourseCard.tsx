@@ -44,7 +44,7 @@ export default function CourseCard({ course }: CourseCardProps) {
       <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
         {course.thumbnail ? (
           <Image
-            src={course.thumbnail}
+            src={encodeURI(course.thumbnail)}
             alt={course.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -73,11 +73,10 @@ export default function CourseCard({ course }: CourseCardProps) {
         {course.instructor && (
           <button
             onClick={handleTutorClick}
-            className={`absolute bottom-3 left-3 w-10 h-10 rounded-full border-2 overflow-hidden shadow-md z-20 transition-all hover:scale-110 ${
-              isTutorActive
+            className={`absolute bottom-3 left-3 w-10 h-10 rounded-full border-2 overflow-hidden shadow-md z-20 transition-all hover:scale-110 ${isTutorActive
                 ? 'border-green-500 ring-2 ring-green-500 ring-offset-1'
                 : 'border-white'
-            }`}
+              }`}
             title={`กรองตาม ${course.instructor.name}`}
           >
             {course.instructor.profileImage ? (

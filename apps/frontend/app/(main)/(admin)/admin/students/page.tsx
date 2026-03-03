@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link'; // 🌟 1. เพิ่มการ Import Link
-import { 
-    Users, Mail, Calendar, Search, Download, 
+import {
+    Users, Mail, Calendar, Search, Download,
     Eye, Pencil, ChevronLeft, ChevronRight,
     BookOpen, X, BookText
 } from 'lucide-react';
@@ -25,7 +25,7 @@ export default function AdminStudentsPage() {
     const getToken = () => localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
 
     const fetchData = async (isSilent = false) => {
-        if (!isSilent) setLoading(true); 
+        if (!isSilent) setLoading(true);
         try {
             const token = getToken();
             const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -54,10 +54,10 @@ export default function AdminStudentsPage() {
     };
 
     useEffect(() => {
-        fetchData(); 
-        
+        fetchData();
+
         const interval = setInterval(() => {
-            fetchData(true); 
+            fetchData(true);
         }, 60000);
 
         return () => clearInterval(interval);
@@ -65,20 +65,20 @@ export default function AdminStudentsPage() {
 
     const filteredStudents = useMemo(() => {
         const filtered = students.filter(s => {
-            const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                 s.email.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.email.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-            const matchesCourse = courseFilter === 'all' || 
-                                 s.enrolledCourses?.some((c: any) => c.title === courseFilter);
-            const matchesInstructor = instructorFilter === 'all' || 
-                                     s.enrolledCourses?.some((c: any) => c.instructorName === instructorFilter);
+            const matchesCourse = courseFilter === 'all' ||
+                s.enrolledCourses?.some((c: any) => c.title === courseFilter);
+            const matchesInstructor = instructorFilter === 'all' ||
+                s.enrolledCourses?.some((c: any) => c.instructorName === instructorFilter);
 
             return matchesSearch && matchesStatus && matchesCourse && matchesInstructor;
         });
 
         return filtered.sort((a, b) => {
-            if (a.status === 'Online' && b.status !== 'Online') return -1; 
-            if (a.status !== 'Online' && b.status === 'Online') return 1;  
+            if (a.status === 'Online' && b.status !== 'Online') return -1;
+            if (a.status !== 'Online' && b.status === 'Online') return 1;
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
     }, [students, searchTerm, statusFilter, courseFilter, instructorFilter]);
@@ -110,16 +110,16 @@ export default function AdminStudentsPage() {
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:gap-3">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="ค้นหาชื่อ, อีเมล..." 
+                    <input
+                        type="text"
+                        placeholder="ค้นหาชื่อ, อีเมล..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 text-sm outline-none"
                     />
                 </div>
-                
-                <select 
+
+                <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm outline-none cursor-pointer font-bold text-slate-600"
@@ -129,7 +129,7 @@ export default function AdminStudentsPage() {
                     <option value="Offline">Offline</option>
                 </select>
 
-                <select 
+                <select
                     value={courseFilter}
                     onChange={(e) => setCourseFilter(e.target.value)}
                     className="px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm outline-none cursor-pointer font-bold text-slate-600 max-w-[200px]"
@@ -140,7 +140,7 @@ export default function AdminStudentsPage() {
                     ))}
                 </select>
 
-                <select 
+                <select
                     value={instructorFilter}
                     onChange={(e) => setInstructorFilter(e.target.value)}
                     className="px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm outline-none cursor-pointer font-bold text-slate-600"
@@ -174,13 +174,13 @@ export default function AdminStudentsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
-                                                    <img 
-                                                        src={student.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.id}`} 
-                                                        className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white" 
+                                                    <img
+                                                        src={student.profileImage || `https://api.dicebear.com/9.x/avataaars/svg?seed=${student.id}`}
+                                                        className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white"
                                                         alt="Student Profile"
                                                     />
                                                     <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm
-                                                        ${student.status === 'Online' ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} 
+                                                        ${student.status === 'Online' ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}
                                                     />
                                                 </div>
                                                 <div>
@@ -193,15 +193,15 @@ export default function AdminStudentsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <p className="text-slate-600 text-xs flex items-center gap-1.5"><Mail size={12}/> {student.email}</p>
+                                            <p className="text-slate-600 text-xs flex items-center gap-1.5"><Mail size={12} /> {student.email}</p>
                                         </td>
                                         <td className="px-6 py-4 text-slate-900 text-xs font-bold text-center whitespace-nowrap">
                                             {new Date(student.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </td>
-                                        
+
                                         <td className="px-6 py-4 text-center">
                                             {student.enrolledCourses && student.enrolledCourses.length > 0 ? (
-                                                <button 
+                                                <button
                                                     onClick={() => openDrawer(student)}
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors border border-blue-100/50"
                                                 >
@@ -220,12 +220,12 @@ export default function AdminStudentsPage() {
                                                 {/* 🌟 2. เชื่อม Link เข้ากับปุ่มดูและแก้ไข เพื่อให้กดใช้งานได้ */}
                                                 <Link href={`/admin/students/${student.id}`}>
                                                     <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="ดูข้อมูล">
-                                                        <Eye size={16}/>
+                                                        <Eye size={16} />
                                                     </button>
                                                 </Link>
                                                 <Link href={`/admin/students/${student.id}/edit`}>
                                                     <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="แก้ไข">
-                                                        <Pencil size={16}/>
+                                                        <Pencil size={16} />
                                                     </button>
                                                 </Link>
                                             </div>
@@ -242,27 +242,27 @@ export default function AdminStudentsPage() {
                 <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
                     <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredStudents.length} รายการ</p>
                     <div className="flex gap-2">
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16} /></button>
                         <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-100">1</button>
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16} /></button>
                     </div>
                 </div>
             </div>
 
             {isDrawerOpen && (
                 <div className="fixed inset-0 z-50 flex justify-end">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity"
                         onClick={closeDrawer}
                     ></div>
-                    
+
                     <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                             <div>
                                 <h2 className="text-lg font-black text-slate-900">คอร์สเรียนที่ลงทะเบียน</h2>
                                 <p className="text-sm text-slate-500 font-medium">ของ {selectedStudent?.name}</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={closeDrawer}
                                 className="p-2 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
                             >
@@ -283,7 +283,7 @@ export default function AdminStudentsPage() {
                                 </div>
                             ))}
                         </div>
-                        
+
                         <div className="p-6 border-t border-slate-100 bg-slate-50">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-slate-500 font-medium">รวมทั้งหมด</span>

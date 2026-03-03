@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-    Users, BookOpen, Plus, Trash2, Search, Filter, 
+import {
+    Users, BookOpen, Plus, Trash2, Search, Filter,
     UserCheck, BarChart3, TrendingUp,
     Eye, Pencil, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -16,7 +16,7 @@ export default function AdminTeachersPage() {
     const [totalUniqueStudents, setTotalUniqueStudents] = useState(0);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     // State สำหรับเก็บ ID ของคุณครูที่กำลังจะลบ
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -31,7 +31,7 @@ export default function AdminTeachersPage() {
         setLoading(true);
         try {
             const token = getToken();
-            const res = await fetch('http://localhost:4000/api/users/instructors', { 
+            const res = await fetch('http://localhost:4000/api/users/instructors', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -88,17 +88,17 @@ export default function AdminTeachersPage() {
         const total = teachers.length;
         const courses = teachers.reduce((sum, t) => sum + (t._count?.courses || 0), 0);
         const totalSystemEarnings = teachers.reduce((sum, t) => sum + Number(t.totalEarnings || 0), 0);
-        
+
         return [
-          { label: 'คุณครูทั้งหมด', value: `${total} ท่าน`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'คอร์สที่เปิดสอน', value: `${courses} คอร์ส`, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'นักเรียนรวม', value: `${totalUniqueStudents} คน`, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'รายได้รวมระบบ', value: `฿${totalSystemEarnings.toLocaleString()}`, icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-50' },
+            { label: 'คุณครูทั้งหมด', value: `${total} ท่าน`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'คอร์สที่เปิดสอน', value: `${courses} คอร์ส`, icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-50' },
+            { label: 'นักเรียนรวม', value: `${totalUniqueStudents} คน`, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'รายได้รวมระบบ', value: `฿${totalSystemEarnings.toLocaleString()}`, icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-50' },
         ];
     }, [teachers, totalUniqueStudents]);
 
     const filteredTeachers = useMemo(() => {
-        return teachers.filter(t => 
+        return teachers.filter(t =>
             t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (t.nickname && t.nickname.toLowerCase().includes(searchTerm.toLowerCase()))
         );
@@ -138,15 +138,15 @@ export default function AdminTeachersPage() {
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:gap-3">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="ค้นหาชื่อคุณครู หรือชื่อเล่น..." 
+                    <input
+                        type="text"
+                        placeholder="ค้นหาชื่อคุณครู หรือชื่อเล่น..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 text-sm outline-none"
                     />
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                     <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><Filter size={18} /></button>
                     <button className="p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all border border-slate-100"><BarChart3 size={18} /></button>
@@ -173,16 +173,16 @@ export default function AdminTeachersPage() {
                                 filteredTeachers.map((teacher) => {
                                     const courseCount = teacher._count?.courses || 0;
                                     const studentCount = teacher._count?.enrollments || 0;
-                                    const earnings = Number(teacher.totalEarnings || 0); 
-                                    
+                                    const earnings = Number(teacher.totalEarnings || 0);
+
                                     return (
                                         <tr key={teacher.id} className="hover:bg-slate-50/30 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="relative">
-                                                        <img 
-                                                            src={teacher.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${teacher.id}`} 
-                                                            className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white" 
+                                                        <img
+                                                            src={teacher.profileImage || `https://api.dicebear.com/9.x/avataaars/svg?seed=${teacher.id}`}
+                                                            className="w-10 h-10 rounded-full object-cover bg-slate-800 text-white flex items-center justify-center font-bold text-sm shadow-inner ring-2 ring-white"
                                                             alt=""
                                                         />
                                                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm bg-green-500"></div>
@@ -217,20 +217,20 @@ export default function AdminTeachersPage() {
                                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <Link href={`/admin/teachers/${teacher.id}`}>
                                                         <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="ดูรายละเอียด">
-                                                            <Eye size={16}/>
+                                                            <Eye size={16} />
                                                         </button>
                                                     </Link>
                                                     <Link href={`/admin/teachers/${teacher.id}/edit`}>
                                                         <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="แก้ไข">
-                                                            <Pencil size={16}/>
+                                                            <Pencil size={16} />
                                                         </button>
                                                     </Link>
-                                                    <button 
+                                                    <button
                                                         onClick={() => setDeletingId(teacher.id)}
-                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                                         title="ลบ"
                                                     >
-                                                        <Trash2 size={16}/>
+                                                        <Trash2 size={16} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -248,9 +248,9 @@ export default function AdminTeachersPage() {
                 <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
                     <p className="text-xs text-slate-500 font-bold">แสดงทั้งหมด {filteredTeachers.length} รายการ</p>
                     <div className="flex gap-2">
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronLeft size={16} /></button>
                         <button className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-md shadow-blue-100">1</button>
-                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16}/></button>
+                        <button className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:bg-white transition-all disabled:opacity-30"><ChevronRight size={16} /></button>
                     </div>
                 </div>
             </div>
