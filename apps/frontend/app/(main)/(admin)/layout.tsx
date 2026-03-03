@@ -14,7 +14,7 @@ const sidebarLinks = [
     { href: "/admin/teachers", label: "คุณครู", icon: GraduationCap },
     { href: "/admin/students", label: "นักเรียน", icon: Users },
     { href: "/admin/orders", label: "คำสั่งซื้อ", icon: ShoppingCart },
-    { href: "/admin/marketing/banners", label: "จัดการแบนเนอร์", icon: Megaphone },
+    { href: "/admin/marketing", label: "การตลาด", icon: Megaphone },
     { href: "/admin/settings", label: "ตั้งค่า", icon: Settings },
 ];
 
@@ -49,7 +49,12 @@ export default function AdminLayout({
                     {/* Nav Links */}
                     <nav className="flex-1 px-4 space-y-2">
                         {sidebarLinks.map((link) => {
-                            const isActive = pathname === link.href;
+                            // Check if the current pathname matches or starts with the link href
+                            // Special case for exact match on /admin
+                            const isActive = link.href === "/admin"
+                                ? pathname === "/admin"
+                                : pathname.startsWith(link.href);
+
                             return (
                                 <Link
                                     key={link.href}

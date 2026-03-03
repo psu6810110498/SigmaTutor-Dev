@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Course } from '@/app/lib/types';
 import { courseApi } from '@/app/lib/api';
 import CourseCard from '@/app/components/marketplace/CourseCard';
@@ -40,47 +40,77 @@ export default function CourseGridSection({
     const [loading, setLoading] = useState(true);
     const [isExpanded, setIsExpanded] = useState(false);
     const [totalCourses, setTotalCourses] = useState(0);
+    const [hasIntersected, setHasIntersected] = useState(false);
+    const sectionRef = useRef<HTMLElement>(null);
 
+    // 1. Intersection Observer for Lazy Loading
     useEffect(() => {
+        if (!sectionRef.current) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                setHasIntersected(true);
+                observer.disconnect(); // Unobserve once it becomes visible
+            }
+        }, { rootMargin: '300px' }); // Pre-load when 300px away
+
+        observer.observe(sectionRef.current);
+        return () => observer.disconnect();
+    }, []);
+
+    // 2. Fetch Data with Debounce and AbortController
+    useEffect(() => {
+        if (!hasIntersected) return; // Skip fetching if not visible yet
+
         setLoading(true);
+        const abortController = new AbortController();
+
         const fetchCourses = async () => {
             try {
-                // Fetch all courses when expanded, or just initial limit
-                // Mobile and Desktop: Show all courses when expanded (no pagination, stay on same page)
                 const limit = isExpanded ? 1000 : initialLimit;
 
                 const res = await courseApi.getMarketplace({
                     categoryId,
                     levelId: levelId || undefined,
                     tutorId: tutorId || undefined,
-                    // @ts-ignore - API supports these but types might be lagging in this file context, safe to ignore for now
+                    // @ts-ignore
                     courseType,
                     minPrice,
                     maxPrice,
                     search,
                     limit,
-                    sort: 'popular' // Or any default sort
-                });
+                    sort: 'popular'
+                }, { signal: abortController.signal });
 
-                if (res.success && res.data) {
+                if (!abortController.signal.aborted && res.success && res.data) {
                     setCourses(res.data.courses);
                     setTotalCourses(res.data.pagination.total);
                 }
-            } catch (error) {
-                console.error(`Failed to fetch courses for ${title}`, error);
+            } catch (error: any) {
+                if (error.name !== 'AbortError') {
+                    console.error(`Failed to fetch courses for ${title}`, error);
+                }
             } finally {
-                setLoading(false);
+                if (!abortController.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
-        fetchCourses();
-    }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, isExpanded, initialLimit, title]);
+        const timeoutId = setTimeout(() => {
+            fetchCourses();
+        }, 300); // 300ms Debounce
 
-    if (loading) {
+        return () => {
+            clearTimeout(timeoutId);
+            abortController.abort(); // Cancel pending request if filters change rapidly
+        };
+    }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, isExpanded, initialLimit, title, hasIntersected]);
+
+    if (!hasIntersected || loading) {
         return (
-            <section className="py-12 px-4 max-w-7xl mx-auto">
+            <section ref={sectionRef} className="py-12 px-4 max-w-7xl mx-auto min-h-[450px]">
                 <div className="h-8 w-64 bg-gray-100 rounded mb-4 animate-pulse" />
-                {/* Mobile: Horizontal scroll skeleton */}
                 <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
                     <div className="flex gap-4">
                         {[...Array(4)].map((_, i) => (
@@ -88,7 +118,6 @@ export default function CourseGridSection({
                         ))}
                     </div>
                 </div>
-                {/* Desktop: Grid skeleton */}
                 <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[...Array(4)].map((_, i) => (
                         <div key={i} className="h-[300px] bg-gray-50 rounded-2xl animate-pulse" />
@@ -98,10 +127,18 @@ export default function CourseGridSection({
         );
     }
 
-    if (courses.length === 0) return null;
+    if (courses.length === 0) return (
+        // Add ref here too to ensure observer still has an element to watch if it re-renders empty
+        <div ref={(node) => {
+            if (node) {
+                // @ts-ignore
+                sectionRef.current = node.parentElement;
+            }
+        }}></div>
+    );
 
     return (
-        <section className={`py-12 md:py-16 ${className}`}>
+        <section ref={sectionRef} className={`py-12 md:py-16 min-h-[450px] ${className}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
@@ -127,8 +164,6 @@ export default function CourseGridSection({
                 </div>
 
                 {/* Grid */}
-                {/* Mobile: Horizontal scroll (single row) */}
-                {/* Desktop: Vertical grid (all courses) */}
                 <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6">
                     {/* Mobile: Horizontal scroll container */}
                     <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">

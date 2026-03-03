@@ -7,7 +7,8 @@ const router: Router = Router();
 // Public: Get Active Banners
 router.get('/active', async (req, res, next) => {
     try {
-        const banners = await bannerService.getActiveBanners();
+        const position = req.query.position as 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' | undefined;
+        const banners = await bannerService.getActiveBanners(position);
         res.json({ success: true, data: banners });
     } catch (error) {
         next(error);
@@ -18,6 +19,16 @@ router.get('/active', async (req, res, next) => {
 router.get('/', authenticate, requireRole('ADMIN'), async (req, res, next) => {
     try {
         const banners = await bannerService.getAllBanners();
+        res.json({ success: true, data: banners });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Admin: Get Trashed Banners
+router.get('/trash', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        const banners = await bannerService.getTrashBanners();
         res.json({ success: true, data: banners });
     } catch (error) {
         next(error);
@@ -44,11 +55,31 @@ router.put('/:id', authenticate, requireRole('ADMIN'), async (req, res, next) =>
     }
 });
 
-// Admin: Delete Banner
+// Admin: Delete Banner (Soft)
 router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
     try {
         await bannerService.delete(String(req.params.id));
-        res.json({ success: true, message: 'Banner deleted' });
+        res.json({ success: true, message: 'Banner deleted (soft delete)' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Admin: Restore Banner
+router.put('/:id/restore', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        await bannerService.restore(String(req.params.id));
+        res.json({ success: true, message: 'Banner restored' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Admin: Force Delete Banner
+router.delete('/:id/force', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        await bannerService.forceDelete(String(req.params.id));
+        res.json({ success: true, message: 'Banner permanently deleted' });
     } catch (error) {
         next(error);
     }

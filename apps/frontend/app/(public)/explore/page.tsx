@@ -25,7 +25,7 @@ function MarketplaceContent() {
         rootCategoryId, categoryId, levelId, courseType, tutorId,
         minPrice, maxPrice, search, searchInput,
         setRootCategory, setCategory, setLevel, setCourseType,
-        setPriceRange, clearAll, setSearch, toggleTutor
+        setPriceRange, clearAll, setSearch, toggleTutor, updateParams
     } = useMarketplaceFilters();
 
     // 🌟 ยึดค่าจาก URL ตรงๆ เพียงอย่างเดียว เพื่อหยุดลูป Re-render
@@ -71,9 +71,12 @@ function MarketplaceContent() {
     } = useQuickFilter({
         categories,
         rootCategoryId: effectiveRootCategoryId,
-        onRootCategoryChange: setRootCategory,
-        onCategoryChange: setCategory,
-        onLevelChange: setLevel,
+        onQuickFilterChange: useCallback((id: string | null) => {
+            // Clear categoryId, levelId, AND tutorId when switching root category.
+            // Tutors are scoped to categories — a stale tutorId causes empty results
+            // when the selected tutor has no courses in the new category.
+            updateParams({ root: id, categoryId: null, levelId: null, tutorId: null });
+        }, [updateParams])
     });
 
     const activeFilters = useMemo(() => {
@@ -120,6 +123,26 @@ function MarketplaceContent() {
 
     const tutorCategoryId = categoryId ?? effectiveRootCategoryId;
 
+    const filteredLevels = useMemo(() => {
+        if (!activeFilterLabel || activeFilterLabel === "ทั้งหมด") return levels;
+
+        switch (activeFilterLabel) {
+            case "ประถม":
+                return levels.filter(l => l.name.startsWith("ป."));
+            case "ม.ต้น":
+                return levels.filter(l => ["ม.1", "ม.2", "ม.3"].includes(l.name));
+            case "ม.ปลาย":
+                return levels.filter(l => ["ม.4", "ม.5", "ม.6"].includes(l.name));
+            case "TCAS":
+                return levels.filter(l => l.name === "สอบเข้ามหาลัย");
+            case "SAT":
+            case "IELTS":
+                return levels.filter(l => l.name === "ทั่วไป");
+            default:
+                return levels;
+        }
+    }, [levels, activeFilterLabel]);
+
     return (
         <div className="min-h-screen bg-white">
             <div className="relative z-0">
@@ -144,10 +167,17 @@ function MarketplaceContent() {
                 />
             </div>
 
+            {/* ── Middle Promo Banner (วางระหว่าง QuickFilter และ Advanced Filter) ── */}
+            {middleBanners.length > 0 && (
+                <div className="max-w-5xl mx-auto px-4 mt-4">
+                    <BannerStrip banners={middleBanners} variant="middle" />
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto px-4 mt-6 md:mt-8">
                 <AdvancedFilterBar
                     subjectCategories={childCategories}
-                    levels={levels}
+                    levels={filteredLevels}
                     categoryId={categoryId}
                     levelId={levelId}
                     courseType={courseType}
@@ -169,8 +199,8 @@ function MarketplaceContent() {
                     categoryId={tutorCategoryId || undefined}
                     levelId={levelId || undefined}
                     courseType={courseType || undefined}
-                    minPrice={minPrice ? Number(minPrice) : undefined}
-                    maxPrice={maxPrice ? Number(maxPrice) : undefined}
+                    minPrice={minPrice || undefined}
+                    maxPrice={maxPrice || undefined}
                     search={search || undefined}
                 />
             </div>

@@ -10,7 +10,7 @@ export default function EditStudentPage() {
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
-    
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -19,13 +19,13 @@ export default function EditStudentPage() {
 
     // อิงตาม Schema ที่มีใน Database
     const [formData, setFormData] = useState({
-        name: '', 
-        nickname: '', 
-        phone: '', 
-        birthday: '', 
-        educationLevel: '', 
-        school: '', 
-        province: '', 
+        name: '',
+        nickname: '',
+        phone: '',
+        birthday: '',
+        educationLevel: '',
+        school: '',
+        province: '',
         address: '',
         email: '' // เอาไว้โชว์เฉยๆ (ห้ามแก้)
     });
@@ -42,9 +42,9 @@ export default function EditStudentPage() {
                     headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include'
                 });
-                
+
                 const data = await res.json();
-                
+
                 if (data.success && data.data) {
                     const student = data.data;
                     setFormData({
@@ -62,7 +62,7 @@ export default function EditStudentPage() {
                     if (student.profileImage) {
                         setImagePreview(student.profileImage);
                     } else {
-                        setImagePreview(`https://api.dicebear.com/7.x/avataaars/svg?seed=${student.id}`);
+                        setImagePreview(`https://api.dicebear.com/9.x/avataaars/svg?seed=${student.id}`);
                     }
                 } else {
                     toast.error("ไม่พบข้อมูลนักเรียน");
@@ -81,9 +81,9 @@ export default function EditStudentPage() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { 
-                toast.error("ไฟล์รูปภาพต้องไม่เกิน 2MB"); 
-                return; 
+            if (file.size > 2 * 1024 * 1024) {
+                toast.error("ไฟล์รูปภาพต้องไม่เกิน 2MB");
+                return;
             }
             setProfileImage(file);
             const reader = new FileReader();
@@ -103,13 +103,13 @@ export default function EditStudentPage() {
         try {
             const token = getToken();
             const submitData = new FormData();
-            
+
             if (profileImage) submitData.append('profileImage', profileImage);
-            
+
             // ใส่ข้อมูล Text ลงไปใน FormData
-            Object.entries(formData).forEach(([key, value]) => { 
+            Object.entries(formData).forEach(([key, value]) => {
                 if (key !== 'email') { // ไม่ส่ง email ไปอัปเดต
-                    submitData.append(key, value); 
+                    submitData.append(key, value);
                 }
             });
 
@@ -158,8 +158,8 @@ export default function EditStudentPage() {
                     <Link href="/admin/students" className="px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
                         ยกเลิก
                     </Link>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button
+                        onClick={handleSubmit}
                         disabled={saving}
                         className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -169,14 +169,14 @@ export default function EditStudentPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                
+
                 {/* 🌟 Section 1: ข้อมูลบัญชีและโปรไฟล์ */}
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
                         <User size={18} className="text-slate-500" />
                         <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">ข้อมูลบัญชีและรูปภาพ</h2>
                     </div>
-                    
+
                     <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
                         {/* Profile Image Column */}
                         <div className="flex flex-col items-center space-y-4">
@@ -232,6 +232,7 @@ export default function EditStudentPage() {
                                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">ระดับชั้นปัจจุบัน</label>
                                 <select name="educationLevel" value={formData.educationLevel} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 text-sm font-medium transition-all cursor-pointer">
                                     <option value="">เลือกระดับชั้น</option>
+                                    <option value="ประถม">ประถมศึกษา</option>
                                     <option value="ม.ต้น">มัธยมศึกษาตอนต้น</option>
                                     <option value="ม.ปลาย">มัธยมศึกษาตอนปลาย</option>
                                     <option value="มหาวิทยาลัย">มหาวิทยาลัย</option>
@@ -253,12 +254,12 @@ export default function EditStudentPage() {
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase flex items-center gap-1"><MapPin size={14}/> ที่อยู่จัดส่งเอกสาร</label>
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase flex items-center gap-1"><MapPin size={14} /> ที่อยู่จัดส่งเอกสาร</label>
                             <textarea name="address" value={formData.address} onChange={handleChange} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 text-sm font-medium transition-all resize-none" placeholder="บ้านเลขที่, หมู่, ซอย, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์..." />
                         </div>
                     </div>
                 </div>
             </form>
         </div>
-    ); 
+    );
 }

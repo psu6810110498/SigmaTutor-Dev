@@ -63,7 +63,9 @@ export function useMarketplaceFilters() {
 
     /** Select a root (QuickFilter) category. Clears child category automatically. */
     const setRootCategory = useCallback(
-        (id: string | null) => updateParams({ root: id, categoryId: null }),
+        // Also clear tutorId — tutors are scoped per category.
+        // Keeping a stale tutorId when switching categories causes empty results.
+        (id: string | null) => updateParams({ root: id, categoryId: null, tutorId: null }),
         [updateParams]
     );
 
@@ -141,5 +143,6 @@ export function useMarketplaceFilters() {
         toggleTutor,
         setSearch,
         clearAll,
+        updateParams,
     };
 }

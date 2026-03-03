@@ -8,10 +8,13 @@ export interface CartItem {
   id: string;
   title: string;
   price: number;
+  originalPrice?: number | null;
   image: string;
   category?: string;
   level?: string;
   instructor?: string;
+  courseType?: 'ONLINE' | 'ONLINE_LIVE' | 'ONSITE';
+  isBestSeller?: boolean;
 }
 
 /**
@@ -21,11 +24,15 @@ export function toCartItem(course: APICourse): CartItem {
   return {
     id: course.id,
     title: course.title,
+    // ถ้ามี promotionalPrice ให้ใช้เป็นราคาขายจริง (price) ส่วน originalPrice เก็บไว้แสดงขีดฆ่า
     price: course.promotionalPrice || course.price,
+    originalPrice: course.originalPrice || course.price,
     image: course.thumbnail || course.thumbnailSm || '/course-placeholder.jpg',
     category: course.category?.name,
     level: course.level?.name,
     instructor: course.instructor?.name,
+    courseType: course.courseType,
+    isBestSeller: course.isBestSeller,
   };
 }
 
@@ -51,7 +58,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     // โหลดข้อมูลจาก LocalStorage เมื่อเปิดหน้าเว็บ
     const savedCart = localStorage.getItem('sigma_cart');
     const savedWishlist = localStorage.getItem('sigma_wishlist');
-    
+
     // ตรวจสอบข้อมูลเก่า (ถ้า ID เป็นตัวเลขให้กรองออกเพื่อป้องกันระบบพัง)
     const isValidItem = (item: CartItem) => typeof item.id === 'string' && item.id.length > 5;
 

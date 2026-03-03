@@ -2,75 +2,113 @@
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
-import { Banner, BannerPosition } from '@/app/lib/types';
+import { Banner } from '@/app/lib/types';
 import Link from 'next/link';
+import { OptimizedImage } from '@/app/components/ui/OptimizedImage';
+
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
-import { BANNER_RATIO } from '@/app/lib/constants';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * 'top'    → Full-bleed hero strip (Explore Top)  — wider & taller  ~5:1
+ * 'middle' → Inline promo strip (Explore Middle)  — standard banner ~6:1
+ */
+type BannerVariant = 'top' | 'middle';
 
 interface BannerStripProps {
     banners: Banner[];
-    position?: BannerPosition; // Optional: purely for debugging or class adjustments
+    variant?: BannerVariant;
     className?: string;
 }
 
-export default function BannerStrip({ banners, className = "" }: BannerStripProps) {
+// ─── Aspect Ratio per Variant ─────────────────────────────────────────────────
+
+const CONTAINER_CLASSES: Record<BannerVariant, string> = {
+    top: 'w-full aspect-[16/9] md:aspect-[16/5]', // Mobile 800x450 (16:9), Desktop 1920x600 (16:5)
+    middle: 'hidden md:flex w-full aspect-[6/1] rounded-2xl overflow-hidden', // Hide on mobile, show on tablet+
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+/**
+ * BannerStrip — Swiper-based horizontal banner.
+ * Supports EXPLORE_TOP (full bleed) and EXPLORE_MIDDLE (inline).
+ *
+ * @example
+ * // Top banner
+ * <BannerStrip banners={topBanners} variant="top" />
+ *
+ * // Middle promo strip
+ * <BannerStrip banners={middleBanners} variant="middle" />
+ */
+export default function BannerStrip({
+    banners,
+    variant = 'top',
+    className = '',
+}: BannerStripProps) {
+    // Don't render anything if there are no banners
     if (!banners || banners.length === 0) return null;
 
+    const containerClass = CONTAINER_CLASSES[variant];
+
     return (
-        <div className={`w-full bg-white ${className}`}>
+        <div className={`${containerClass} ${className} bg-gray-50 flex items-center justify-center`}>
             <Swiper
                 modules={[Autoplay, Pagination, Navigation]}
                 spaceBetween={0}
                 slidesPerView={1}
                 navigation
                 pagination={{ clickable: true }}
-                autoplay={{
-                    delay: 5000,
-                    disableOnInteraction: false,
-                }}
+                autoplay={{ delay: 5000, disableOnInteraction: false }}
                 loop={banners.length > 1}
-                // Enforce the Strip Aspect Ratio from Constants
-                className={`w-full ${BANNER_RATIO.STRIP}`}
+                className="w-full h-full"
             >
-                {banners.map((banner) => (
+                {banners.map((banner, index) => (
                     <SwiperSlide key={banner.id}>
-                        <Link href={banner.ctaLink || '#'} className="block w-full h-full relative group">
-                            <picture className="w-full h-full block">
-                                {/* Mobile Image (Optional: You might want a different ratio for mobile strip) */}
-                                {banner.imageUrlMobile && (
-                                    <source media="(max-width: 768px)" srcSet={banner.imageUrlMobile} />
-                                )}
-                                {/* Desktop Image */}
-                                <img
-                                    src={banner.imageUrl}
+                        <Link
+                            href={banner.ctaLink || '#'}
+                            className="block w-full h-full relative group"
+                        >
+                            {/* Mobile Image */}
+                            {banner.imageUrlMobile && (
+                                <OptimizedImage
+                                    src={banner.imageUrlMobile}
                                     alt={banner.title}
-                                    className="w-full h-full object-cover"
+                                    imageClass="A"
+                                    priority={index === 0}
+                                    className="md:hidden transition-transform duration-500 group-hover:scale-[1.01]"
                                 />
-                            </picture>
-
-                            {/* Optional Overlay Text (If needed, can be toggleable) */}
-                            {/* 
-                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors" /> 
-                            */}
+                            )}
+                            {/* Desktop Image */}
+                            <OptimizedImage
+                                src={banner.imageUrl}
+                                alt={banner.title}
+                                imageClass="A"
+                                priority={index === 0}
+                                className={`transition-transform duration-500 group-hover:scale-[1.01] ${banner.imageUrlMobile ? 'hidden md:block' : 'block'}`}
+                            />
                         </Link>
                     </SwiperSlide>
                 ))}
             </Swiper>
 
-            {/* Custom Swiper Styles */}
+            {/* ── Global Swiper overrides ───────────────────────────────── */}
             <style jsx global>{`
-                .swiper-button-next, .swiper-button-prev {
+                .swiper-button-next,
+                .swiper-button-prev {
                     color: white;
-                    width: 40px;
-                    height: 40px;
-                    background: rgba(0,0,0,0.3);
+                    width: 36px;
+                    height: 36px;
+                    background: rgba(0, 0, 0, 0.28);
                     border-radius: 50%;
                     backdrop-filter: blur(4px);
                 }
-                .swiper-button-next:after, .swiper-button-prev:after {
-                    font-size: 18px;
+                .swiper-button-next:after,
+                .swiper-button-prev:after {
+                    font-size: 16px;
                     font-weight: bold;
                 }
                 .swiper-pagination-bullet {

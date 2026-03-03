@@ -48,6 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (res && res.status === 401) {
         setUser(null);
         localStorage.removeItem('sigma_user');
+        localStorage.removeItem('sigma_cart');
+        localStorage.removeItem('sigma_wishlist');
       }
     } catch (error) {
       console.error("Auth Check Failed");
@@ -80,7 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     localStorage.removeItem('sigma_user');
+    localStorage.removeItem('sigma_cart');
+    localStorage.removeItem('sigma_wishlist');
+    
+    // Clear the cart application state by reloading or pushing and letting context trigger
     router.push('/login');
+    setTimeout(() => window.location.reload(), 100);
   }, [router]);
 
   return (

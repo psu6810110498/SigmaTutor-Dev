@@ -10,10 +10,26 @@ export class TutorService {
   async getFiltered(query: TutorQueryInput) {
     const { categoryId, levelId, courseType, minPrice, maxPrice, search } = query;
 
+    // Handle Category Hierarchy
+    let categoryFilter: any = categoryId ? { categoryId } : {};
+
+    if (categoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { children: { select: { id: true } } },
+      });
+
+      if (category && category.children.length > 0) {
+        const childIds = category.children.map((c) => c.id);
+        categoryFilter = { categoryId: { in: [categoryId, ...childIds] } };
+      }
+    }
+
     // Build the course filter: instructors must have ≥1 matching published course
     const courseWhere: Record<string, unknown> = {
       status: 'PUBLISHED',
-      ...(categoryId && { categoryId }),
+      published: true,
+      ...categoryFilter,
       ...(levelId && { levelId }),
       ...(courseType && { courseType }),
       ...(minPrice !== undefined && { price: { gte: minPrice } }),

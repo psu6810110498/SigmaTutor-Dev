@@ -92,15 +92,14 @@ export const courseApi = {
      * GET /courses/marketplace — Public listing for Explore page
      * Supports: search, category, level, price, rating, sort 
      */
-    getMarketplace(params?: CourseQueryParams) {
+    getMarketplace(params?: CourseQueryParams, options?: RequestInit) {
         const query = params ? '?' + new URLSearchParams(
             Object.entries(params)
                 .filter(([, v]) => v !== undefined && v !== null && v !== '')
                 .map(([k, v]) => [k, String(v)])
         ).toString() : '';
 
-        // Cache for 2 minutes (courses may change frequently)
-        return request<CourseListResponse>(`/courses/marketplace${query}`, {}, true, 2 * 60 * 1000);
+        return request<CourseListResponse>(`/courses/marketplace${query}`, options);
     },
 
     /** GET /courses/enrolled — User's enrolled courses */
@@ -251,15 +250,19 @@ export const tutorApi = {
 // ============================================================
 
 export const bannerApi = {
-    /** GET /banners/active — For Homepage Slider */
-    getActive(position: BannerPosition = 'EXPLORE_TOP') {
-        // Cache banners for 5 minutes
-        return request<Banner[]>(`/banners/active?position=${position}`, {}, true, 5 * 60 * 1000);
+    getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' = 'EXPLORE_TOP') {
+        // Cache banners via Next.js fetch options (Revalidate every 5 minutes if fetched on server)
+        return request<Banner[]>(`/banners/active?position=${position}`, { next: { revalidate: 300 } } as RequestInit);
     },
 
     /** GET /banners — Admin List */
     getAll() {
         return request<Banner[]>('/banners');
+    },
+
+    /** GET /banners/trash — Admin List Trashed */
+    getTrash() {
+        return request<Banner[]>('/banners/trash', { headers: headers(true) });
     },
 
     /** POST /banners — Create */
@@ -280,13 +283,96 @@ export const bannerApi = {
         });
     },
 
-    /** DELETE /banners/:id — Delete */
+    /** DELETE /banners/:id — Soft Delete */
     delete(id: string) {
         return request<void>(`/banners/${id}`, {
             method: 'DELETE',
             headers: headers(true),
         });
     },
+
+    /** PUT /banners/:id/restore — Restore */
+    restore(id: string) {
+        return request<void>(`/banners/${id}/restore`, {
+            method: 'PUT',
+            headers: headers(true),
+        });
+    },
+
+    /** DELETE /banners/:id/force — Force Delete */
+    forceDelete(id: string) {
+        return request<void>(`/banners/${id}/force`, {
+            method: 'DELETE',
+            headers: headers(true),
+        });
+    },
+};
+
+// ============================================================
+// Coupon API
+// ============================================================
+
+export const couponApi = {
+    /** GET /coupons — Admin List */
+    list() {
+        return request<any>('/coupons', { headers: headers(true) });
+    },
+
+    /** GET /coupons/trash — Admin List Trashed */
+    getTrash() {
+        return request<any>('/coupons/trash', { headers: headers(true) });
+    },
+
+    /** POST /coupons — Create */
+    create(data: any) {
+        return request<any>('/coupons', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: headers(true),
+        });
+    },
+
+    /** PUT /coupons/:id — Update */
+    update(id: string, data: any) {
+        return request<any>(`/coupons/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+            headers: headers(true),
+        });
+    },
+
+    /** DELETE /coupons/:id — Soft Delete */
+    delete(id: string) {
+        return request<any>(`/coupons/${id}`, {
+            method: 'DELETE',
+            headers: headers(true),
+        });
+    },
+
+    /** PUT /coupons/:id/restore — Restore */
+    restore(id: string) {
+        return request<any>(`/coupons/${id}/restore`, {
+            method: 'PUT',
+            headers: headers(true),
+        });
+    },
+
+    /** DELETE /coupons/:id/force — Force Delete */
+    forceDelete(id: string) {
+        return request<any>(`/coupons/${id}/force`, {
+            method: 'DELETE',
+            headers: headers(true),
+        });
+    },
+
+    /** POST /coupons/validate — Public */
+    validate(code: string, courseIds: string[]) {
+        return request<any>('/coupons/validate', {
+            method: 'POST',
+            body: JSON.stringify({ code, courseIds }),
+            headers: headers(),
+        });
+    }
 };
 
 // ============================================================
