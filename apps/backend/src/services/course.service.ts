@@ -35,14 +35,14 @@ export class CourseService {
       data.enrollStartDate = new Date(data.enrollStartDate);
     if (typeof data.enrollEndDate === 'string') data.enrollEndDate = new Date(data.enrollEndDate);
 
-    // ✅ บังคับแปลง IDs เป็น Number ป้องกัน Foreign Key Error
-    if (data.levelId) data.levelId = Number(data.levelId);
-    if (data.categoryId) data.categoryId = Number(data.categoryId);
+    // ✅ ตรวจสอบ IDs ว่าเป็น string ที่ไม่ว่าง (cuid) ป้องกัน Foreign Key Error
+    if (data.levelId === '' || data.levelId === undefined) data.levelId = null;
+    if (data.categoryId === '' || data.categoryId === undefined) data.categoryId = null;
 
     // ✅ แก้ปัญหาติดชื่อแอดมิน: ถ้ามีการเลือกผู้สอน (instructorId) มา ให้ใช้คนนั้น
     // แต่ถ้าไม่มี (เช่น เป็นค่าว่าง) ให้ใช้ ID ของคนสร้าง (creatorId)
     const instructorId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
-    delete data.instructorId; 
+    delete data.instructorId;
 
     // If frontend sent a flat schedules array, convert it to Prisma nested create format
     if (Array.isArray(data.schedules)) {
@@ -73,7 +73,7 @@ export class CourseService {
    * Get a single course by ID
    */
   async findById(id: string) {
-        const course = await this.db.course.findUnique({
+    const course = await this.db.course.findUnique({
       where: { id },
       include: {
         instructor: { select: { id: true, name: true, email: true, profileImage: true } },
@@ -83,7 +83,7 @@ export class CourseService {
           include: { lessons: { orderBy: { order: 'asc' } } },
           orderBy: { order: 'asc' },
         },
-        		 schedules: { orderBy: { sessionNumber: 'asc' } },
+        schedules: { orderBy: { sessionNumber: 'asc' } },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           take: 5,
@@ -308,12 +308,12 @@ export class CourseService {
 
   async update(id: string, input: UpdateCourseInput) {
     await this.findById(id);
-    
+
     const updateData: any = { ...input };
 
-    // ✅ ปรับแก้ข้อมูล IDs และ URLs ให้ถูกต้องก่อนอัปเดต
-    if (updateData.levelId) updateData.levelId = Number(updateData.levelId);
-    if (updateData.categoryId) updateData.categoryId = Number(updateData.categoryId);
+    // ✅ ปรับแก้ข้อมูล IDs ให้ถูกต้องก่อนอัปเดต (string cuid หรือ null)
+    if (updateData.levelId === '' || updateData.levelId === undefined) updateData.levelId = null;
+    if (updateData.categoryId === '' || updateData.categoryId === undefined) updateData.categoryId = null;
 
     return this.db.course.update({
       where: { id },

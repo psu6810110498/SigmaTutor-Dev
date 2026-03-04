@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FileText, Video, User, Save, File, DollarSign } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { FileText, Video, User, Save, File, DollarSign, Folder } from "lucide-react";
 import { courseApi, categoryApi, levelApi } from "@/app/lib/api";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
@@ -17,6 +17,13 @@ interface CourseOverviewTabProps {
     onUpdate: () => void;
 }
 
+const QUICK_FILTERS = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"];
+const LEVEL_MAPPING: Record<string, string[]> = {
+    'ประถม': ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'],
+    'ม.ต้น': ['ม.1', 'ม.2', 'ม.3'],
+    'ม.ปลาย': ['ม.4', 'ม.5', 'ม.6'],
+};
+
 export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverviewTabProps) {
     const { toast } = useToast();
     const router = useRouter();
@@ -25,7 +32,15 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // ✅ รวมข้อมูลเดิมเข้ากับฟิลด์ใหม่ (วิดีโอ/ไฟล์) เพื่อให้บันทึกได้ครบ
+    // ── ข้อมูลอ้างอิงจาก API ──
+    const [categories, setCategories] = useState<any[]>([]);
+    const [levels, setLevels] = useState<any[]>([]);
+
+    useEffect(() => {
+        categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
+        levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
+    }, []);
+
     const [form, setForm] = useState<any>({
         title: course.title || "",
         description: course.description || "",
@@ -34,6 +49,8 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         promotionalPrice: course.promotionalPrice || null,
         instructorId: course.instructorId || "",
         courseType: course.courseType || "ONLINE",
+        categoryId: course.categoryId || null,
+        levelId: course.levelId || null,
         demoVideoUrl: course.demoVideoUrl || "",
         materialUrl: course.materialUrl || "",
         published: course.published ?? false,
@@ -41,6 +58,58 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         isRecommended: course.isRecommended ?? false,
     });
 
+    const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
+    const [rootCategoryId, setRootCategoryId] = useState<string>("");
+    const [activeQuickFilter, setActiveQuickFilter] = useState<string>("ทั้งหมด");
+
+    // โหลดข้อมูลหมวดหมู่ตอนเริ่มต้น เพื่อเลือกแท็บที่ถูกต้อง
+    useEffect(() => {
+        if (categories.length > 0 && course.categoryId) {
+            const currentCat = categories.find(c => c.id === course.categoryId);
+            if (currentCat) {
+                if (currentCat.parentId) {
+                    setRootCategoryId(currentCat.parentId);
+                    const parentCat = categories.find(c => c.id === currentCat.parentId);
+                    if (parentCat) {
+                        const filterName = QUICK_FILTERS.find(f => f === parentCat.name || parentCat.name.includes(f));
+                        if (filterName) setActiveQuickFilter(filterName);
+                    }
+                } else {
+                    setRootCategoryId(currentCat.id);
+                    const filterName = QUICK_FILTERS.find(f => f === currentCat.name || currentCat.name.includes(f));
+                    if (filterName) setActiveQuickFilter(filterName);
+                }
+            }
+        }
+    }, [categories, course.categoryId]);
+
+    const childCategories = useMemo(() => {
+        if (!rootCategoryId) return [];
+        return categories.filter(c => c.parentId === rootCategoryId);
+    }, [categories, rootCategoryId]);
+
+    const levelOptions = useMemo(() => {
+        const names = LEVEL_MAPPING[activeQuickFilter];
+        if (!names) return [];
+        return names.map(name => levels.find(l => l.name === name)).filter(Boolean);
+    }, [activeQuickFilter, levels]);
+
+    const showLevelDropdown = levelOptions.length > 0;
+
+    const handleQuickFilter = (label: string) => {
+        setActiveQuickFilter(label);
+        setForm((prev: any) => ({ ...prev, levelId: null }));
+        if (label === "ทั้งหมด") {
+            setRootCategoryId("");
+            setForm((prev: any) => ({ ...prev, categoryId: null }));
+            return;
+        }
+        const found = rootCategories.find(c => c.name === label);
+        if (found) {
+            setRootCategoryId(found.id);
+            setForm((prev: any) => ({ ...prev, categoryId: null }));
+        }
+    };
 
     const updateForm = (key: string, value: any) => {
         setForm((prev: any) => ({ ...prev, [key]: value }));
@@ -98,6 +167,15 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 } finally {
                     setUploadingPdf(false);
                 }
+            }
+
+            // จัดการเรื่องไอดีของระดับชั้นก่อนส่งเหมือนตอนสร้าง
+            if (showLevelDropdown) {
+                const found = levels.find(l => l.id === payload.levelId || l.name === payload.levelId);
+                payload.levelId = found ? found.id : null;
+            } else {
+                const fallback = levels.find(l => l.name === 'ทั่วไป' || l.name === 'ไม่ระบุ') || levels[0];
+                payload.levelId = fallback?.id || null;
             }
 
             console.log("FINAL PAYLOAD TO BACKEND:", payload);
@@ -238,7 +316,49 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                     </div>
                 </SectionCard>
 
-                {/* 3. ผู้สอน (เชื่อมกับฐานข้อมูลครู) */}
+                {/* 3. หมวดหมู่และระดับชั้น */}
+                <SectionCard title="หมวดหมู่และระดับชั้น" icon={Folder}>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {QUICK_FILTERS.map(f => (
+                            <button
+                                key={f}
+                                type="button"
+                                onClick={() => handleQuickFilter(f)}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeQuickFilter === f ? 'bg-secondary text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
+                    {rootCategoryId && childCategories.length > 0 && (
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกวิชา *</label>
+                            <select
+                                value={form.categoryId || ""}
+                                onChange={(e) => updateForm("categoryId", e.target.value)}
+                                className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:ring-2 focus:ring-primary/30 outline-none transition-all"
+                            >
+                                <option value="" disabled>-- เลือกวิชา --</option>
+                                {childCategories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+                    {showLevelDropdown && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">ระดับชั้น</label>
+                            <select
+                                value={form.levelId || ""}
+                                onChange={(e) => updateForm("levelId", e.target.value)}
+                                className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:ring-2 focus:ring-primary/30 outline-none transition-all"
+                            >
+                                <option value="">-- เลือกระดับชั้น --</option>
+                                {levelOptions.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+                </SectionCard>
+
+                {/* 4. ผู้สอน (เชื่อมกับฐานข้อมูลครู) */}
                 <SectionCard title="ผู้สอน" icon={User}>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้สอน</label>
