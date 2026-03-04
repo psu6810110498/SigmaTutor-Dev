@@ -105,6 +105,27 @@ export default function CreateCoursePage() {
 
     const updateForm = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }));
 
+    const parseDuration = (dStr: string | null) => {
+        if (!dStr) return { d: '', h: '', m: '' };
+        return {
+            d: dStr.match(/(\d+)\s*วัน/)?.[1] || '',
+            h: dStr.match(/(\d+)\s*(?:ชั่วโมง|ชม\.)/)?.[1] || '',
+            m: dStr.match(/(\d+)\s*นาที/)?.[1] || ''
+        };
+    };
+
+    const handleDurationChange = (type: 'd' | 'h' | 'm', val: string) => {
+        const current = parseDuration(form.duration);
+        current[type] = val;
+        const parts = [];
+        if (current.d && current.d !== '0') parts.push(`${current.d} วัน`);
+        if (current.h && current.h !== '0') parts.push(`${current.h} ชั่วโมง`);
+        if (current.m && current.m !== '0') parts.push(`${current.m} นาที`);
+        updateForm('duration', parts.length > 0 ? parts.join(' ') : null);
+    };
+
+    const parsedDuration = parseDuration(form.duration);
+
     const handleQuickFilter = (label: string) => {
         setActiveQuickFilter(label);
         updateForm("levelId", null);
@@ -309,21 +330,25 @@ export default function CreateCoursePage() {
                             <NumberInput label="ราคาขาย (บาท) *" value={form.price} onChange={(v) => updateForm("price", v)} />
                             <div>
                                 <label className={labelClass}>ระยะเวลาเรียน</label>
-                                <input type="text" value={form.duration || ""} onChange={(e) => updateForm("duration", e.target.value || null)} className={inputClass} placeholder="เช่น 3 ชั่วโมง, 2 เดือน" />
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                    {['3 ชั่วโมง', '6 ชั่วโมง', '1 เดือน', '3 เดือน', '6 เดือน', '1 ปี', 'ตลอดชีพ'].map((d) => (
-                                        <button
-                                            key={d}
-                                            type="button"
-                                            onClick={() => updateForm("duration", d)}
-                                            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors border ${form.duration === d
-                                                    ? 'bg-primary/10 text-primary border-primary/30'
-                                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            {d}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.d} onChange={(e) => handleDurationChange('d', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                            <span className="text-sm text-gray-500 whitespace-nowrap">วัน</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.h} onChange={(e) => handleDurationChange('h', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                            <span className="text-sm text-gray-500 whitespace-nowrap">ชม.</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.m} onChange={(e) => handleDurationChange('m', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                            <span className="text-sm text-gray-500 whitespace-nowrap">นาที</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -223,9 +223,7 @@ export default function CourseDetailPage() {
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 hover:bg-black/20 transition-colors">
                     <PlayCircle className="text-white drop-shadow-md" size={32} />
                   </div>
-                  {course.thumbnail && (
-                    <img src={course.thumbnail} className="w-full h-full object-cover" alt="Video thumbnail" />
-                  )}
+                  <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
                 </button>
 
                 <button
