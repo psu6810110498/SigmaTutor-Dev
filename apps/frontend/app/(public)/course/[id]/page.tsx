@@ -28,6 +28,7 @@ import {
   ThumbsUp,
   ExternalLink,
   Loader2,
+  Lock,
 } from 'lucide-react';
 import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
@@ -230,7 +231,12 @@ export default function CourseDetailPage() {
                 />
                 <StatCard
                   icon={<Clock size={20} />}
-                  value={course.duration || '-'}
+                  value={course.duration || (() => {
+                    const vCount = course.videoCount || course.schedules?.filter((s: any) => s.videoUrl)?.length || 0;
+                    if (vCount === 0) return '-';
+                    const totalHours = vCount + 5;
+                    return `${totalHours} ชม.`;
+                  })()}
                   label="ระยะเวลา"
                 />
               </>
@@ -367,76 +373,111 @@ export default function CourseDetailPage() {
                 ) : course.schedules && course.schedules.length > 0 ? (
                   /* Case 2: ไม่มี chapters แต่มี schedules → แสดง schedules เป็นบทเรียน */
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-3 ml-1">เนื้อหาบทเรียน</h3>
+                    <h3 className="font-bold text-gray-900 mb-3 ml-1">เนื้อหาบทเรียน ({course.schedules.length} บท)</h3>
                     <div className="space-y-2">
-                      {course.schedules.map((sched: any, i: number) => (
-                        <div
-                          key={sched.id}
-                          className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                        >
-                          <button
-                            onClick={() => toggleLesson(sched.id)}
-                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      {course.schedules.map((sched: any, i: number) => {
+                        const FREE_PREVIEW_COUNT = 2;
+                        const isLocked = i >= FREE_PREVIEW_COUNT;
+                        return (
+                          <div
+                            key={sched.id}
+                            className={`bg-white rounded-xl border overflow-hidden relative ${isLocked ? 'border-gray-200 opacity-75' : 'border-gray-100'
+                              }`}
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center text-sm font-bold">
-                                {sched.sessionNumber || i + 1}
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {sched.topic || `บทเรียนที่ ${i + 1}`}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 text-gray-400">
-                              {sched.videoUrl && (
-                                <span className="text-xs flex items-center gap-1">
-                                  <Video size={14} /> วิดีโอ
+                            <button
+                              onClick={() => !isLocked && toggleLesson(sched.id)}
+                              className={`w-full flex items-center justify-between p-4 transition-colors ${isLocked ? 'cursor-not-allowed' : 'hover:bg-gray-50'
+                                }`}
+                              disabled={isLocked}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${isLocked ? 'bg-gray-100 text-gray-400' : 'bg-primary/10 text-primary'
+                                  }`}>
+                                  {isLocked ? <Lock size={14} /> : (sched.sessionNumber || i + 1)}
                                 </span>
-                              )}
-                              {sched.materialUrl && (
-                                <span className="text-xs flex items-center gap-1">
-                                  <BookOpen size={14} /> ไฟล์
+                                <span className={`text-sm font-medium ${isLocked ? 'text-gray-400' : 'text-gray-900'
+                                  }`}>
+                                  {sched.topic || `บทเรียนที่ ${i + 1}`}
                                 </span>
-                              )}
-                              {expandedLessons.has(sched.id) ? (
-                                <ChevronUp size={16} />
-                              ) : (
-                                <ChevronDown size={16} />
-                              )}
-                            </div>
-                          </button>
-                          {expandedLessons.has(sched.id) && (
-                            <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50 space-y-3">
-                              {sched.chapterTitle && (
-                                <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
-                              )}
-                              {sched.videoUrl && (
-                                <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                                  <iframe
-                                    src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}`}
-                                    className="w-full h-full"
-                                    allowFullScreen
-                                    title={sched.topic}
-                                  />
-                                </div>
-                              )}
-                              {sched.materialUrl && (
-                                <a
-                                  href={sched.materialUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
-                                >
-                                  <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
-                                </a>
-                              )}
-                              {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
-                                <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                              </div>
+                              <div className="flex items-center gap-3 text-gray-400">
+                                {isLocked ? (
+                                  <span className="text-xs flex items-center gap-1 text-orange-500">
+                                    <Lock size={12} /> ล็อค
+                                  </span>
+                                ) : (
+                                  <>
+                                    {sched.videoUrl && (
+                                      <span className="text-xs flex items-center gap-1">
+                                        <Video size={14} /> วิดีโอ
+                                      </span>
+                                    )}
+                                    {sched.materialUrl && (
+                                      <span className="text-xs flex items-center gap-1">
+                                        <BookOpen size={14} /> ไฟล์
+                                      </span>
+                                    )}
+                                    {expandedLessons.has(sched.id) ? (
+                                      <ChevronUp size={16} />
+                                    ) : (
+                                      <ChevronDown size={16} />
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </button>
+                            {!isLocked && expandedLessons.has(sched.id) && (
+                              <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50 space-y-3">
+                                {sched.chapterTitle && (
+                                  <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
+                                )}
+                                {sched.videoUrl && (
+                                  <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                    <iframe
+                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}`}
+                                      className="w-full h-full"
+                                      allowFullScreen
+                                      title={sched.topic}
+                                    />
+                                  </div>
+                                )}
+                                {sched.materialUrl && (
+                                  <a
+                                    href={sched.materialUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
+                                  >
+                                    <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
+                                  </a>
+                                )}
+                                {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
+                                  <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                    {/* Paywall Message */}
+                    {course.schedules.length > 2 && (
+                      <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl text-center">
+                        <Lock size={20} className="mx-auto mb-2 text-orange-500" />
+                        <p className="text-sm font-bold text-gray-800">
+                          🔒 ดูฟรีได้ 2 บทเรียนแรกเท่านั้น
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          ต้องชำระเงินซื้อคอร์สก่อน ถึงจะดูเนื้อหาทั้ง {course.schedules.length} บทได้
+                        </p>
+                        <Link
+                          href="/checkout"
+                          className="inline-block mt-3 px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
+                        >
+                          <ShoppingCart size={14} className="inline mr-1" /> ซื้อคอร์สเพื่อปลดล็อค
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีบทเรียน</p>

@@ -127,7 +127,14 @@ export default function CreateCoursePage() {
         const formData = new FormData();
         formData.append("file", file);
         try {
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', { method: 'POST', credentials: 'include', body: formData });
+            let token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+            if (!token) {
+                const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
+                if (match) token = match[2];
+            }
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', { method: 'POST', credentials: 'include', headers, body: formData });
             const data = await res.json();
             if (data.url) { updateForm("materialUrl", data.url); toast.success("อัปโหลด PDF สำเร็จ"); }
         } catch (error) { console.error(error); } finally { setUploadingPdf(false); }

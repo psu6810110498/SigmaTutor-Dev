@@ -149,9 +149,17 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 try {
                     const formData = new FormData();
                     formData.append("file", newPdfFile);
+                    let pdfToken = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+                    if (!pdfToken) {
+                        const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
+                        if (match) pdfToken = match[2];
+                    }
+                    const pdfHeaders: Record<string, string> = {};
+                    if (pdfToken) pdfHeaders['Authorization'] = `Bearer ${pdfToken}`;
                     const upRes = await fetch('http://localhost:4000/api/courses/upload/pdf', {
                         method: 'POST',
                         credentials: 'include',
+                        headers: pdfHeaders,
                         body: formData
                     });
                     const upData = await upRes.json();

@@ -42,7 +42,7 @@ const inputBase =
 
 export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
     const sessions = value;
-    
+
     // ✅ เพิ่ม State สำหรับเช็กว่าบทเรียนไหนกำลังอัปโหลด PDF อยู่
     const [uploadingId, setUploadingId] = useState<string | null>(null);
 
@@ -68,13 +68,26 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
         formData.append("file", file);
 
         try {
+            // ✅ ดึง Token แบบเดียวกับ ScheduleTab (หาจาก localStorage และ Cookies)
+            let token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+            if (!token) {
+                const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
+                if (match) token = match[2];
+            }
+
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
                 method: 'POST',
                 credentials: 'include',
+                headers,
                 body: formData
             });
             const data = await res.json();
-            
+
             if (data.url) {
                 // อัปเดตลิงก์ PDF เข้าไปในบทเรียนนั้นๆ อัตโนมัติ
                 updateSession(id, 'materialUrl', data.url);
@@ -258,7 +271,7 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                                 />
                                             </div>
                                         </div>
-                                        
+
                                         {/* ✅ เพิ่มปุ่มอัปโหลด PDF สำหรับหน้าจอมือถือ */}
                                         <div>
                                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 text-blue-500/70">เอกสาร (Material URL)</label>
