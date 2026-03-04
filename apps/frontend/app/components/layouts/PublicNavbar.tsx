@@ -105,7 +105,9 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                                             <div className="divide-y divide-gray-50">
                                                 {cartItems.map((item) => (
                                                     <div key={item.id} className="flex items-center gap-3 p-3 hover:bg-gray-50">
-                                                        <div className="w-12 h-10 bg-gray-100 rounded flex-shrink-0" />
+                                                        <div className="w-12 h-10 bg-gray-100 rounded flex-shrink-0 overflow-hidden border border-gray-100">
+                                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                                        </div>
                                                         <div className="flex-grow min-w-0">
                                                             <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
                                                             <p className="text-xs text-primary font-bold">฿{item.price.toLocaleString()}</p>

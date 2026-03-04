@@ -4,11 +4,23 @@ import { Button } from '@/app/components/ui/Button';
 import { CheckCircle, BookOpen, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+
+  useEffect(() => {
+    if (sessionId) {
+      // Manually verify session to ensure enrollment is created even if webhook fails locally
+      fetch('http://localhost:4000/api/payments/verify-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ sessionId })
+      }).catch(err => console.error("Session verification failed", err));
+    }
+  }, [sessionId]);
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 text-center">

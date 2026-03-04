@@ -152,8 +152,8 @@ export class PaymentService {
 
       if (!existing) {
         await prisma.enrollment.create({
-          data: { 
-            userId, 
+          data: {
+            userId,
             courseId,
             status: 'ACTIVE' // 🌟 ระบุสถานะให้ตรงกับที่ระบบจัดการนักเรียนดึงไปแสดงผล
           },
@@ -180,6 +180,20 @@ export class PaymentService {
     });
 
     console.log(`❌ Checkout expired or failed for session ${session.id}`);
+  }
+
+  /**
+   * Manually verify a session and enroll the user (useful as fallback when webhooks fail)
+   */
+  async verifyAndEnroll(sessionId: string) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session) {
+        await this.handleCheckoutCompleted(session);
+      }
+    } catch (error) {
+      console.error('Error verifying session manually:', error);
+    }
   }
 }
 
