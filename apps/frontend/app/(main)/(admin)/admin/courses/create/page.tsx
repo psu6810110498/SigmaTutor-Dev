@@ -310,6 +310,21 @@ export default function CreateCoursePage() {
                             <div>
                                 <label className={labelClass}>ระยะเวลาเรียน</label>
                                 <input type="text" value={form.duration || ""} onChange={(e) => updateForm("duration", e.target.value || null)} className={inputClass} placeholder="เช่น 3 ชั่วโมง, 2 เดือน" />
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {['3 ชั่วโมง', '6 ชั่วโมง', '1 เดือน', '3 เดือน', '6 เดือน', '1 ปี', 'ตลอดชีพ'].map((d) => (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => updateForm("duration", d)}
+                                            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors border ${form.duration === d
+                                                    ? 'bg-primary/10 text-primary border-primary/30'
+                                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            {d}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </SectionCard>

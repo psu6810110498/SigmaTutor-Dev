@@ -424,6 +424,21 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                                 placeholder="เช่น 3 ชั่วโมง, 2 เดือน"
                                 className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
                             />
+                            <div className="flex flex-wrap gap-1.5 mt-2.5">
+                                {['3 ชั่วโมง', '6 ชั่วโมง', '1 เดือน', '3 เดือน', '6 เดือน', '1 ปี', 'ตลอดชีพ'].map((d) => (
+                                    <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => updateForm("duration", d)}
+                                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors border ${form.duration === d
+                                                ? 'bg-primary/10 text-primary border-primary/30'
+                                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        {d}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </SectionCard>

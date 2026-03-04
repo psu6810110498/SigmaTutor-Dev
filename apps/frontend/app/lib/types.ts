@@ -53,6 +53,7 @@ export interface Course {
     thumbnail: string | null;
     thumbnailSm: string | null;
     thumbnailLg: string | null;
+    demoVideoUrl?: string | null;
 
     // Relations
     categoryId: string | null;

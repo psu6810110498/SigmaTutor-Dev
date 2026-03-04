@@ -63,8 +63,13 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('lessons');
+  const [activeTab, setActiveTab] = useState('overview');
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
+  const [activeMedia, setActiveMedia] = useState<'video' | 'image'>('image');
+
+  useEffect(() => {
+    if (course?.demoVideoUrl) setActiveMedia('video');
+  }, [course]);
 
   // Reviews
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -175,25 +180,64 @@ export default function CourseDetailPage() {
         {/* Left Column — Content                    */}
         {/* ═══════════════════════════════════════ */}
         <div className="flex-1 min-w-0">
-          {/* Hero Image */}
-          <div className="rounded-2xl overflow-hidden bg-gray-100 h-64 md:h-80 relative mb-6">
-            {course.thumbnailLg || course.thumbnail ? (
-              <img
-                src={course.thumbnailLg || course.thumbnail!}
-                alt={course.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-300">
-                <BookOpen size={64} />
+          {/* Media Viewer Area (Steam Store Style) */}
+          <div className="mb-6">
+            {/* Main Viewer */}
+            <div className="rounded-2xl overflow-hidden bg-black aspect-video relative shadow-sm border border-gray-100 mb-3">
+              {activeMedia === 'video' && course.demoVideoUrl ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}?autoplay=1`}
+                  className="w-full h-full"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  title="Promotional Video"
+                />
+              ) : (
+                course.thumbnailLg || course.thumbnail ? (
+                  <img
+                    src={course.thumbnailLg || course.thumbnail!}
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
+                    <BookOpen size={64} />
+                  </div>
+                )
+              )}
+              {/* Type Badge */}
+              <span
+                className={`absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg text-sm font-medium border shadow-sm ${typeBadge[course.courseType].className}`}
+              >
+                {typeBadge[course.courseType].label}
+              </span>
+            </div>
+
+            {/* Thumbnails Row */}
+            {course.demoVideoUrl && (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+                <button
+                  onClick={() => setActiveMedia('video')}
+                  className={`relative w-28 md:w-36 aspect-video rounded-lg overflow-hidden border-2 transition-all flex-none ${activeMedia === 'video' ? 'border-primary ring-2 ring-primary/30' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                >
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 hover:bg-black/20 transition-colors">
+                    <PlayCircle className="text-white drop-shadow-md" size={32} />
+                  </div>
+                  {course.thumbnail && (
+                    <img src={course.thumbnail} className="w-full h-full object-cover" alt="Video thumbnail" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveMedia('image')}
+                  className={`relative w-28 md:w-36 aspect-video rounded-lg overflow-hidden border-2 transition-all flex-none ${activeMedia === 'image' ? 'border-primary ring-2 ring-primary/30' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                >
+                  {course.thumbnail && (
+                    <img src={course.thumbnail} className="w-full h-full object-cover" alt="Cover thumbnail" />
+                  )}
+                </button>
               </div>
             )}
-            {/* Type Badge */}
-            <span
-              className={`absolute top-4 left-4 px-3 py-1.5 rounded-lg text-sm font-medium border ${typeBadge[course.courseType].className}`}
-            >
-              {typeBadge[course.courseType].label}
-            </span>
           </div>
 
           {/* Title + Meta */}
