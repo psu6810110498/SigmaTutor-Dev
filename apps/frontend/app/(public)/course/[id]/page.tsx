@@ -225,7 +225,7 @@ export default function CourseDetailPage() {
               <>
                 <StatCard
                   icon={<PlayCircle size={20} />}
-                  value={`${course.videoCount}`}
+                  value={`${course.videoCount || course.schedules?.filter((s: any) => s.videoUrl)?.length || 0}`}
                   label="วิดีโอ"
                 />
                 <StatCard
@@ -288,11 +288,10 @@ export default function CourseDetailPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -305,9 +304,8 @@ export default function CourseDetailPage() {
             {/* === Lessons Tab (ONLINE) === */}
             {activeTab === 'lessons' && (
               <div className="space-y-6">
-                {!course.chapters || course.chapters.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีบทเรียน</p>
-                ) : (
+                {/* Case 1: มี chapters → แสดงแบบเดิม */}
+                {course.chapters && course.chapters.length > 0 ? (
                   course.chapters.map((chapter) => (
                     <div key={chapter.id}>
                       <h3 className="font-bold text-gray-900 mb-3 ml-1">{chapter.title}</h3>
@@ -366,6 +364,82 @@ export default function CourseDetailPage() {
                       </div>
                     </div>
                   ))
+                ) : course.schedules && course.schedules.length > 0 ? (
+                  /* Case 2: ไม่มี chapters แต่มี schedules → แสดง schedules เป็นบทเรียน */
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-3 ml-1">เนื้อหาบทเรียน</h3>
+                    <div className="space-y-2">
+                      {course.schedules.map((sched: any, i: number) => (
+                        <div
+                          key={sched.id}
+                          className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+                        >
+                          <button
+                            onClick={() => toggleLesson(sched.id)}
+                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center text-sm font-bold">
+                                {sched.sessionNumber || i + 1}
+                              </span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {sched.topic || `บทเรียนที่ ${i + 1}`}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-gray-400">
+                              {sched.videoUrl && (
+                                <span className="text-xs flex items-center gap-1">
+                                  <Video size={14} /> วิดีโอ
+                                </span>
+                              )}
+                              {sched.materialUrl && (
+                                <span className="text-xs flex items-center gap-1">
+                                  <BookOpen size={14} /> ไฟล์
+                                </span>
+                              )}
+                              {expandedLessons.has(sched.id) ? (
+                                <ChevronUp size={16} />
+                              ) : (
+                                <ChevronDown size={16} />
+                              )}
+                            </div>
+                          </button>
+                          {expandedLessons.has(sched.id) && (
+                            <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50 space-y-3">
+                              {sched.chapterTitle && (
+                                <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
+                              )}
+                              {sched.videoUrl && (
+                                <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}`}
+                                    className="w-full h-full"
+                                    allowFullScreen
+                                    title={sched.topic}
+                                  />
+                                </div>
+                              )}
+                              {sched.materialUrl && (
+                                <a
+                                  href={sched.materialUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
+                                >
+                                  <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
+                                </a>
+                              )}
+                              {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
+                                <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีบทเรียน</p>
                 )}
               </div>
             )}
@@ -383,15 +457,13 @@ export default function CourseDetailPage() {
                       return (
                         <div
                           key={sched.id}
-                          className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${
-                            isPast ? 'border-gray-100 opacity-60' : 'border-gray-200'
-                          }`}
+                          className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${isPast ? 'border-gray-100 opacity-60' : 'border-gray-200'
+                            }`}
                         >
                           {/* Session Number */}
                           <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${
-                              isPast ? 'bg-gray-100 text-gray-400' : 'bg-violet-50 text-violet-600'
-                            }`}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${isPast ? 'bg-gray-100 text-gray-400' : 'bg-violet-50 text-violet-600'
+                              }`}
                           >
                             {idx + 1}
                           </div>
@@ -628,11 +700,10 @@ export default function CourseDetailPage() {
             <button
               onClick={() => addToCart(toCartItem(course))}
               disabled={isInCart(course.id)}
-              className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
-                isInCart(course.id)
-                  ? 'bg-green-50 text-green-600 cursor-default'
-                  : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
-              }`}
+              className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
+                ? 'bg-green-50 text-green-600 cursor-default'
+                : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
+                }`}
             >
               {isInCart(course.id) ? (
                 '✓ อยู่ในตะกร้าแล้ว'

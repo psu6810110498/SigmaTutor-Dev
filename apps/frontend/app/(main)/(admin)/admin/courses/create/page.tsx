@@ -38,7 +38,7 @@ export default function CreateCoursePage() {
     useEffect(() => {
         categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
         levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
-        
+
         const fetchInstructors = async () => {
             try {
                 const res = await fetch('http://localhost:4000/api/users/instructors', { credentials: 'include' });
@@ -300,6 +300,10 @@ export default function CreateCoursePage() {
                         <div className="space-y-4">
                             <NumberInput label="ราคาตั้งต้น (บาท)" value={form.originalPrice || undefined} onChange={(v) => updateForm("originalPrice", v || null)} />
                             <NumberInput label="ราคาขาย (บาท) *" value={form.price} onChange={(v) => updateForm("price", v)} />
+                            <div>
+                                <label className={labelClass}>ระยะเวลาเรียน</label>
+                                <input type="text" value={form.duration || ""} onChange={(e) => updateForm("duration", e.target.value || null)} className={inputClass} placeholder="เช่น 3 ชั่วโมง, 2 เดือน" />
+                            </div>
                         </div>
                     </SectionCard>
                     <SectionCard title="รูปแบบการสอน" icon={BookOpen}>

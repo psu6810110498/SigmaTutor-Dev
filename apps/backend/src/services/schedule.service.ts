@@ -3,8 +3,8 @@ import { prisma } from '@sigma/db';
 export class ScheduleService {
     async create(courseId: string, data: any) {
         return prisma.courseSchedule.create({
-            data: { 
-                ...data, 
+            data: {
+                ...data,
                 courseId,
                 date: data.date || new Date(),
                 startTime: data.startTime || new Date(),
@@ -30,8 +30,11 @@ export class ScheduleService {
                 // 1. ลบข้อมูลเดิมของคอร์สนี้นออกทั้งหมด
                 await tx.courseSchedule.deleteMany({ where: { courseId } });
 
-                // ถ้าไม่มีข้อมูลส่งมาเลย (เช่น ลบเนื้อหาออกหมด) ให้หยุดการทำงานแค่นี้
-                if (!sessions || sessions.length === 0) return [];
+                // ถ้าไม่มีข้อมูลส่งมาเลย (เช่น ลบเนื้อหาออกหมด) ให้อัปเดต videoCount เป็น 0 แล้วหยุด
+                if (!sessions || sessions.length === 0) {
+                    await tx.course.update({ where: { id: courseId }, data: { videoCount: 0 } });
+                    return [];
+                }
 
                 // 2. บันทึกข้อมูลชุดใหม่เข้าไปตามลำดับ
                 const results = [];
@@ -52,12 +55,19 @@ export class ScheduleService {
                         }
                     }));
                 }
+                // ✅ หลัง sync เสร็จ: นับจำนวน session ที่มี videoUrl แล้วอัปเดต course.videoCount อัตโนมัติ
+                const videoCount = results.filter(r => r.videoUrl && r.videoUrl.trim() !== '').length;
+                await tx.course.update({
+                    where: { id: courseId },
+                    data: { videoCount },
+                });
+
                 return results;
             });
         } catch (error) {
             // ✅ ดักจับ Error ตรงนี้ จะได้รู้ว่าฐานข้อมูลด่าว่าอะไร
             console.error("🔥 Prisma Sync Error:", error);
-            throw error; 
+            throw error;
         }
     }
 }

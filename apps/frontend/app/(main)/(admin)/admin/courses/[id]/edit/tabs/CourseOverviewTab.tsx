@@ -407,6 +407,16 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                             value={form.originalPrice || undefined}
                             onChange={(val) => updateForm("originalPrice", val || null)}
                         />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">ระยะเวลาเรียน</label>
+                            <input
+                                type="text"
+                                value={form.duration || ""}
+                                onChange={(e) => updateForm("duration", e.target.value || null)}
+                                placeholder="เช่น 3 ชั่วโมง, 2 เดือน"
+                                className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                            />
+                        </div>
                     </div>
                 </SectionCard>
             </div>
