@@ -8,7 +8,7 @@ import multer from 'multer'; // 🌟 1. นำเข้า multer
 const router: express.Router = express.Router();
 
 // 🌟 2. ตั้งค่าการเก็บไฟล์ (เบื้องต้นเก็บไว้ใน Memory เพื่อรอจัดการต่อ)
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 } // จำกัด 2MB ตามหน้าบ้าน
 });
@@ -24,25 +24,27 @@ router.get(
     try {
       const [instructors, totalUniqueStudents] = await Promise.all([
         prisma.user.findMany({
-          where: { 
+          where: {
             OR: [{ role: 'INSTRUCTOR' }, { role: 'ADMIN' }]
           },
           select: {
             id: true,
             email: true,
             name: true,
-            nickname: true, 
-            title: true,    
-            bio: true,      
+            nickname: true,
+            title: true,
+            bio: true,
             role: true,
             profileImage: true,
-            expertise: true,   
-            education: true,   
-            experience: true,  
-            socialLink: true,  
+            expertise: true,
+            education: true,
+            experience: true,
+            socialLink: true,
             createdAt: true,
             courses: {
               select: {
+                id: true,
+                title: true,
                 price: true,
                 enrollments: { select: { userId: true, status: true } },
                 payments: {
@@ -51,7 +53,7 @@ router.get(
                 }
               }
             },
-            _count: {          
+            _count: {
               select: { courses: true }
             }
           },
@@ -116,9 +118,9 @@ router.get(
               course: { select: { title: true, price: true, instructor: { select: { name: true } } } }
             }
           },
-          payments: { 
+          payments: {
             where: { status: 'COMPLETED' },
-            select: { amount: true } 
+            select: { amount: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -128,7 +130,7 @@ router.get(
       const formattedStudents = students.map(s => {
         const activeTime = s.lastActive ? new Date(s.lastActive).getTime() : new Date(s.updatedAt).getTime();
         const diffMinutes = Math.floor((now.getTime() - activeTime) / 60000);
-        
+
         let totalSpent = s.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         if (totalSpent === 0) {
           const activeEnrollments = s.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED');
@@ -175,7 +177,7 @@ router.post(
       const hashedPassword = await bcrypt.hash(password || 'Sigma1234!', 12);
       const newTeacher = await prisma.user.create({
         data: {
-          name, email: finalEmail, password: hashedPassword, role: 'INSTRUCTOR', 
+          name, email: finalEmail, password: hashedPassword, role: 'INSTRUCTOR',
           nickname, title, bio, profileImage, expertise, education, experience, socialLink
         },
         select: { id: true, name: true, email: true, role: true }
@@ -191,18 +193,18 @@ router.post(
  * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้ (รองรับ FormData)
  */
 router.patch(
-  '/:id', 
-  authenticate as express.RequestHandler, 
+  '/:id',
+  authenticate as express.RequestHandler,
   upload.single('profileImage') as any, // 🌟 ใช้ Multer อ่าน FormData
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthRequest;
     const id = req.params.id as string;
-    
+
     try {
-      const { 
-        name, phone, birthday, educationLevel, school, province, address, 
+      const {
+        name, phone, birthday, educationLevel, school, province, address,
         expertise, education, experience, socialLink,
-        nickname, title, bio 
+        nickname, title, bio
       } = req.body;
 
       if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
@@ -218,19 +220,19 @@ router.patch(
 
       const user = await prisma.user.update({
         where: { id },
-        data: { 
+        data: {
           name, phone, educationLevel, school, province, address,
           expertise, education, experience, socialLink,
           nickname, title, bio, // 🌟 บันทึกข้อมูลคุณครูลง Database
           profileImage: profileImageUrl,
-          birthday: birthday ? new Date(birthday) : undefined 
+          birthday: birthday ? new Date(birthday) : undefined
         },
         select: { id: true, email: true, name: true, role: true, updatedAt: true },
       });
-      
+
       res.json({ success: true, data: user });
-    } catch (error) { 
-      res.status(500).json({ success: false, error: 'Failed to update user' }); 
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to update user' });
     }
   }
 );
@@ -261,15 +263,15 @@ router.get(
       const user = await prisma.user.findUnique({
         where: { id: req.params.id },
       });
-      
+
       if (!user) {
         res.status(404).json({ success: false, error: 'User not found' });
         return;
       }
-      
+
       // ลบรหัสผ่านทิ้งก่อนส่งให้หน้าบ้านเพื่อความปลอดภัย
-      const { password, ...userData } = user; 
-      
+      const { password, ...userData } = user;
+
       res.json({ success: true, data: userData });
     } catch (error) {
       console.error("🔥 Fetch User by ID Error:", error);

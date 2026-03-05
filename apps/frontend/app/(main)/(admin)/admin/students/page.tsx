@@ -51,9 +51,11 @@ export default function AdminStudentsPage() {
         );
     }, [students, searchTerm]);
 
+    const totalEnrolledCourses = students.reduce((sum: number, s: any) => sum + (s.enrolledCourses?.length || 0), 0);
+
     const stats = [
         { label: "นักเรียนทั้งหมด", value: students.length.toString(), icon: Users, color: "blue" },
-        { label: "สมัครใหม่เดือนนี้", value: "0", icon: Calendar, color: "purple" },
+        { label: "คอร์สที่ลงทะเบียน", value: totalEnrolledCourses.toString(), icon: BookOpen, color: "purple" },
     ];
 
     return (
@@ -97,7 +99,7 @@ export default function AdminStudentsPage() {
                             <tr className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                                 <th className="px-6 py-4">นักเรียน</th>
                                 <th className="px-6 py-4">ข้อมูลติดต่อ</th>
-                                <th className="px-6 py-4">ระดับชั้น/โรงเรียน</th>
+                                <th className="px-6 py-4">คอร์สที่ลงเรียน</th>
                                 <th className="px-6 py-4">สถานะ</th>
                                 <th className="px-6 py-4 text-right">จัดการ</th>
                             </tr>
@@ -149,14 +151,31 @@ export default function AdminStudentsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="space-y-1">
-                                                <p className="text-xs font-bold text-slate-700">{student.educationLevel || "-"}</p>
-                                                <p className="text-[10px] text-slate-500 truncate max-w-[150px]">{student.school || "-"}</p>
+                                                {student.enrolledCourses?.length > 0 ? (
+                                                    <>
+                                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-black rounded-full border border-blue-100">
+                                                            {student.enrolledCourses.length} คอร์ส
+                                                        </span>
+                                                        <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                                                            {student.enrolledCourses.slice(0, 2).map((c: any, idx: number) => (
+                                                                <span key={idx} className="px-1.5 py-0.5 bg-slate-50 text-slate-600 text-[9px] rounded truncate max-w-[140px] inline-block border border-slate-100">
+                                                                    {c.title}
+                                                                </span>
+                                                            ))}
+                                                            {student.enrolledCourses.length > 2 && (
+                                                                <span className="text-[9px] text-slate-400">+{student.enrolledCourses.length - 2} เพิ่มเติม</span>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-400 italic">ยังไม่มีคอร์ส</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${student.status === 'Online'
-                                                    ? 'bg-green-50 text-green-600 border-green-100'
-                                                    : 'bg-slate-50 text-slate-400 border-slate-100'
+                                                ? 'bg-green-50 text-green-600 border-green-100'
+                                                : 'bg-slate-50 text-slate-400 border-slate-100'
                                                 }`}>
                                                 {student.status || 'Offline'}
                                             </span>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
     Users, Search, Filter, Mail, Phone, MoreVertical,
-    Trash2, Edit, CheckCircle, XCircle, Plus, UserCheck
+    Trash2, Edit, CheckCircle, XCircle, Plus, UserCheck, BookOpen
 } from "lucide-react";
 import { AdminTableLayout } from "@/app/components/layouts/AdminTableLayout";
 import { Button } from "@/app/components/ui/Button";
@@ -71,7 +71,8 @@ export default function AdminTeachersPage() {
             icon={UserCheck}
             stats={[
                 { label: "ผู้สอนทั้งหมด", value: teachers.length.toString(), icon: UserCheck, color: "blue" },
-                { label: "กำลังออนไลน์", value: "0", icon: CheckCircle, color: "green" },
+                { label: "คอร์สทั้งหมด", value: teachers.reduce((sum: number, t: any) => sum + (t._count?.courses || 0), 0).toString(), icon: BookOpen, color: "purple" },
+                { label: "นักเรียนทั้งหมด", value: teachers.reduce((sum: number, t: any) => sum + (t._count?.enrollments || 0), 0).toString(), icon: Users, color: "green" },
             ]}
             actions={
                 <Button variant="primary">
@@ -106,7 +107,8 @@ export default function AdminTeachersPage() {
                             <tr className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                                 <th className="px-6 py-4">ผู้สอน</th>
                                 <th className="px-6 py-4">ข้อมูลติดต่อ</th>
-                                <th className="px-6 py-4">ตำแหน่ง/วิชาที่สอน</th>
+                                <th className="px-6 py-4">คอร์สที่สอน</th>
+                                <th className="px-6 py-4">นักเรียน</th>
                                 <th className="px-6 py-4">สถานะ</th>
                                 <th className="px-6 py-4 text-right">จัดการ</th>
                             </tr>
@@ -114,13 +116,13 @@ export default function AdminTeachersPage() {
                         <tbody className="divide-y divide-slate-50">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm animate-pulse">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm animate-pulse">
                                         กำลังโหลดข้อมูล...
                                     </td>
                                 </tr>
                             ) : filteredTeachers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">
                                         ไม่พบข้อมูลผู้สอน
                                     </td>
                                 </tr>
@@ -157,10 +159,30 @@ export default function AdminTeachersPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-1">
-                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded">
-                                                    {teacher.role || "Instructor"}
-                                                </span>
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-black rounded-full border border-blue-100">
+                                                        {teacher._count?.courses || 0} คอร์ส
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                                    {teacher.courses?.slice(0, 2).map((c: any) => (
+                                                        <span key={c.id} className="px-1.5 py-0.5 bg-slate-50 text-slate-600 text-[9px] rounded truncate max-w-[140px] inline-block border border-slate-100">
+                                                            {c.title}
+                                                        </span>
+                                                    ))}
+                                                    {(teacher.courses?.length || 0) > 2 && (
+                                                        <span className="text-[9px] text-slate-400">+{teacher.courses.length - 2} เพิ่มเติม</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xs font-black border border-emerald-100">
+                                                    {teacher._count?.enrollments || 0}
+                                                </div>
+                                                <span className="text-[10px] text-slate-500">คน</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
