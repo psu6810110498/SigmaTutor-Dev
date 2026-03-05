@@ -46,7 +46,7 @@ router.get(
                 id: true,
                 title: true,
                 price: true,
-                enrollments: { select: { userId: true, status: true } },
+                enrollments: { select: { userId: true, status: true, createdAt: true, user: { select: { name: true, profileImage: true } } } },
                 payments: {
                   where: { status: 'COMPLETED' },
                   select: { amount: true }

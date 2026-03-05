@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
     Users, Search, Filter, Mail, Phone, MoreVertical,
-    Trash2, Edit, CheckCircle, XCircle, Plus, UserCheck, BookOpen, X
+    Trash2, Edit, CheckCircle, XCircle, Plus, UserCheck, BookOpen, X, ChevronDown
 } from "lucide-react";
 import { AdminTableLayout } from "@/app/components/layouts/AdminTableLayout";
 import { Button } from "@/app/components/ui/Button";
@@ -15,6 +15,7 @@ export default function AdminTeachersPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [coursePopup, setCoursePopup] = useState<{ teacher: any } | null>(null);
+    const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
     const fetchTeachers = async () => {
         try {
@@ -204,7 +205,7 @@ export default function AdminTeachersPage() {
 
             {/* Course List — Right Side Drawer */}
             {coursePopup && (
-                <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setCoursePopup(null)}>
+                <div className="fixed inset-0 bg-black/30 z-50" onClick={() => { setCoursePopup(null); setExpandedCourse(null); }}>
                     <div
                         className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right"
                         onClick={(e) => e.stopPropagation()}
@@ -216,30 +217,78 @@ export default function AdminTeachersPage() {
                                 <p className="text-sm text-slate-500 mt-1">ของ {coursePopup.teacher.name}</p>
                             </div>
                             <button
-                                onClick={() => setCoursePopup(null)}
+                                onClick={() => { setCoursePopup(null); setExpandedCourse(null); }}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <X size={18} />
                             </button>
                         </div>
 
-                        {/* Course List */}
+                        {/* Course List with Expandable Students */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             {coursePopup.teacher.courses?.length > 0 ? (
-                                coursePopup.teacher.courses.map((course: any) => (
-                                    <div
-                                        key={course.id}
-                                        className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
-                                    >
-                                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
-                                            <BookOpen size={18} />
+                                coursePopup.teacher.courses.map((course: any) => {
+                                    const isExpanded = expandedCourse === course.id;
+                                    const activeStudents = course.enrollments?.filter((e: any) => e.status === 'ACTIVE' || e.status === 'COMPLETED') || [];
+                                    return (
+                                        <div key={course.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                                            {/* Course Header — clickable */}
+                                            <button
+                                                onClick={() => setExpandedCourse(isExpanded ? null : course.id)}
+                                                className="w-full flex items-center gap-4 p-4 hover:bg-blue-50/30 transition-colors text-left"
+                                            >
+                                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                                                    <BookOpen size={18} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-bold text-slate-900">{course.title}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">
+                                                        {activeStudents.length} นักเรียน
+                                                    </p>
+                                                </div>
+                                                <ChevronDown
+                                                    size={16}
+                                                    className={`text-slate-400 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
+                                                />
+                                            </button>
+
+                                            {/* Expanded Student List */}
+                                            {isExpanded && (
+                                                <div className="border-t border-slate-100 bg-slate-50/50">
+                                                    {activeStudents.length > 0 ? (
+                                                        activeStudents.map((enrollment: any) => (
+                                                            <div key={enrollment.userId} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0">
+                                                                <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0">
+                                                                    <img
+                                                                        src={enrollment.user?.profileImage || `https://api.dicebear.com/9.x/avataaars/svg?seed=${enrollment.userId}`}
+                                                                        alt={enrollment.user?.name || 'Student'}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-xs font-bold text-slate-800 truncate">{enrollment.user?.name || 'ไม่ระบุชื่อ'}</p>
+                                                                    <p className="text-[10px] text-slate-400">
+                                                                        {enrollment.createdAt ? new Date(enrollment.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                                                                    </p>
+                                                                </div>
+                                                                <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full border ${enrollment.status === 'COMPLETED'
+                                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                        : enrollment.status === 'ACTIVE'
+                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                            : 'bg-slate-50 text-slate-400 border-slate-200'
+                                                                    }`}>
+                                                                    {enrollment.status === 'COMPLETED' ? 'เรียนจบ' : enrollment.status === 'ACTIVE' ? 'กำลังเรียน' : 'ยกเลิก'}
+                                                                </span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <p className="text-center text-slate-400 text-xs py-4">ยังไม่มีนักเรียน</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-slate-900">{course.title}</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">ผู้สอน: {coursePopup.teacher.name}</p>
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <p className="text-center text-slate-400 text-sm py-8">ยังไม่มีคอร์ส</p>
                             )}
