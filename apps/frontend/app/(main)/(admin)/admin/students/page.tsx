@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
     Users, Search, Filter, Mail, Phone, MoreVertical,
     Trash2, Edit, CheckCircle, XCircle, Plus, Eye,
-    GraduationCap, MapPin, Calendar, BookOpen
+    GraduationCap, MapPin, Calendar, BookOpen, X
 } from "lucide-react";
 import { AdminTableLayout } from "@/app/components/layouts/AdminTableLayout";
 import { Button } from "@/app/components/ui/Button";
@@ -18,6 +18,7 @@ export default function AdminStudentsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [coursePopup, setCoursePopup] = useState<{ student: any } | null>(null);
 
     const fetchStudents = async () => {
         try {
@@ -150,27 +151,18 @@ export default function AdminStudentsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="space-y-1">
+                                            <button
+                                                onClick={() => setCoursePopup({ student })}
+                                                className="text-left hover:opacity-80 transition-opacity cursor-pointer"
+                                            >
                                                 {student.enrolledCourses?.length > 0 ? (
-                                                    <>
-                                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-black rounded-full border border-blue-100">
-                                                            {student.enrolledCourses.length} คอร์ส
-                                                        </span>
-                                                        <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
-                                                            {student.enrolledCourses.slice(0, 2).map((c: any, idx: number) => (
-                                                                <span key={idx} className="px-1.5 py-0.5 bg-slate-50 text-slate-600 text-[9px] rounded truncate max-w-[140px] inline-block border border-slate-100">
-                                                                    {c.title}
-                                                                </span>
-                                                            ))}
-                                                            {student.enrolledCourses.length > 2 && (
-                                                                <span className="text-[9px] text-slate-400">+{student.enrolledCourses.length - 2} เพิ่มเติม</span>
-                                                            )}
-                                                        </div>
-                                                    </>
+                                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-black rounded-full border border-blue-100">
+                                                        {student.enrolledCourses.length} คอร์ส
+                                                    </span>
                                                 ) : (
                                                     <span className="text-[10px] text-slate-400 italic">ยังไม่มีคอร์ส</span>
                                                 )}
-                                            </div>
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${student.status === 'Online'
@@ -201,6 +193,58 @@ export default function AdminStudentsPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Course List — Right Side Drawer */}
+            {coursePopup && (
+                <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setCoursePopup(null)}>
+                    <div
+                        className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 flex items-start justify-between shrink-0">
+                            <div>
+                                <h3 className="font-bold text-slate-900 text-lg">คอร์สที่ลงทะเบียน</h3>
+                                <p className="text-sm text-slate-500 mt-1">ของ {coursePopup.student.name}</p>
+                            </div>
+                            <button
+                                onClick={() => setCoursePopup(null)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Course List */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {coursePopup.student.enrolledCourses?.length > 0 ? (
+                                coursePopup.student.enrolledCourses.map((course: any, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/20 transition-colors"
+                                    >
+                                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                                            <BookOpen size={18} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-slate-900">{course.title}</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">ผู้สอน: {course.instructorName}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center text-slate-400 text-sm py-8">ยังไม่มีคอร์ส</p>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm shrink-0">
+                            <span className="text-slate-500">รวมทั้งหมด</span>
+                            <span className="font-black text-blue-600">{coursePopup.student.enrolledCourses?.length || 0} คอร์ส</span>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AdminTableLayout>
     );
 }
