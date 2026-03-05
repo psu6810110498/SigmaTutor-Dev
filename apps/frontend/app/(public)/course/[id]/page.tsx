@@ -29,9 +29,11 @@ import {
   ExternalLink,
   Loader2,
   Lock,
+  CheckCircle,
 } from 'lucide-react';
 import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
+import { useAuth } from '@/app/context/AuthContext';
 import type { Course, Review, ReviewListResponse, CourseType } from '@/app/lib/types';
 
 // ── Tab Config per CourseType ─────────────────────────────
@@ -60,12 +62,14 @@ export default function CourseDetailPage() {
   const params = useParams();
   const slug = params.id as string;
   const { addToCart, isInCart } = useCourse();
+  const { user } = useAuth();
 
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [activeMedia, setActiveMedia] = useState<'video' | 'image'>('image');
+  const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
     if (course?.demoVideoUrl) setActiveMedia('video');
@@ -96,6 +100,26 @@ export default function CourseDetailPage() {
     };
     fetchCourse();
   }, [slug]);
+
+  // ── Check Enrollment ──────────────────────────────────
+  useEffect(() => {
+    if (!course || !user) return;
+    const checkEnrollment = async () => {
+      try {
+        const res = await fetch('http://localhost:4000/api/courses/enrolled', {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const enrolled = data.data.some((c: any) => c.id === course.id || c.courseId === course.id);
+          setIsEnrolled(enrolled);
+        }
+      } catch (err) {
+        console.error('Failed to check enrollment:', err);
+      }
+    };
+    checkEnrollment();
+  }, [course, user]);
 
   // ── Fetch Reviews ─────────────────────────────────────
   useEffect(() => {
@@ -780,28 +804,44 @@ export default function CourseDetailPage() {
             </div>
 
             {/* CTA Buttons */}
-            <button
-              onClick={() => addToCart(toCartItem(course))}
-              disabled={isInCart(course.id)}
-              className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
-                ? 'bg-green-50 text-green-600 cursor-default'
-                : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
-                }`}
-            >
-              {isInCart(course.id) ? (
-                '✓ อยู่ในตะกร้าแล้ว'
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <ShoppingCart size={16} /> เพิ่มลงตะกร้า
-                </span>
-              )}
-            </button>
-            <Link
-              href="/checkout"
-              className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
-            >
-              ซื้อเลย
-            </Link>
+            {isEnrolled ? (
+              <>
+                <div className="w-full py-3 rounded-xl text-sm font-bold text-center bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center gap-2">
+                  <CheckCircle size={18} /> คุณได้ซื้อคอร์สนี้แล้ว
+                </div>
+                <Link
+                  href={`/courses/${course.id}/learn`}
+                  className="block w-full py-3 rounded-xl text-sm font-bold text-center bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                >
+                  ▶ เข้าเรียนเลย
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => addToCart(toCartItem(course))}
+                  disabled={isInCart(course.id)}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
+                    ? 'bg-green-50 text-green-600 cursor-default'
+                    : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
+                    }`}
+                >
+                  {isInCart(course.id) ? (
+                    '✓ อยู่ในตะกร้าแล้ว'
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <ShoppingCart size={16} /> เพิ่มลงตะกร้า
+                    </span>
+                  )}
+                </button>
+                <Link
+                  href="/checkout"
+                  className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
+                >
+                  ซื้อเลย
+                </Link>
+              </>
+            )}
 
             {/* Stats */}
             <div className="flex items-center justify-around pt-4 border-t border-gray-100 text-center">

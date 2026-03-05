@@ -164,10 +164,6 @@ export default function LearningPage() {
                     <Link href="/my-courses" className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="คอร์สของฉัน">
                         <ArrowLeft size={20} />
                     </Link>
-                    <button className="p-3 text-blue-600 bg-blue-50 rounded-xl transition-all shadow-sm" title="ห้องเรียน">
-                        <PlayCircle size={20} />
-                    </button>
-                    {/* Add more icons if needed */}
                 </nav>
             </div>
 
