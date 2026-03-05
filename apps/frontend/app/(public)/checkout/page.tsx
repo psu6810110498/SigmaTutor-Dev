@@ -1,272 +1,146 @@
 'use client';
 
-import { useCourse } from '@/app/context/CourseContext';
-import { useAuth } from '@/app/context/AuthContext';
-import { Button } from '@/app/components/ui/Button';
-import { useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { ShoppingCart, CreditCard, QrCode, Shield, Trash2, ArrowLeft, LogIn } from 'lucide-react';
+import { ArrowLeft, LogIn, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+import { Button } from '@/app/components/ui/Button';
+import { useCheckout } from '@/app/hooks/useCheckout';
+import { useCourse } from '@/app/context/CourseContext';
+import { CartItemCard } from '@/app/components/checkout/CartItemCard';
+import { OrderSummary } from '@/app/components/checkout/OrderSummary';
+import { RecommendedCourses } from '@/app/components/checkout/RecommendedCourses';
 
 export default function CheckoutPage() {
-  const { cartItems, removeFromCart, addToCart } = useCourse();
-  const { user, loading: authLoading } = useAuth();
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.price, 0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { removeFromCart } = useCourse(); // Needed for remove action
+  const {
+    cartItems,
+    user,
+    authLoading,
+    totalPrice,
+    totalOriginalPrice,
+    totalDiscount,
+    isLoading,
+    error,
+    handleCheckout,
+    couponCode,
+    setCouponCode,
+    appliedCoupon,
+    isApplyingCoupon,
+    couponError,
+    applyCoupon,
+    removeCoupon,
+  } = useCheckout();
 
-  const handleCheckout = async () => {
-    if (cartItems.length === 0) return;
-
-    // Check auth before proceeding
-    if (!user) {
-      setError('กรุณาเข้าสู่ระบบก่อนชำระเงิน');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-
-      const response = await fetch(`${apiUrl}/payments/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          items: cartItems.map((item) => ({
-            courseId: item.id,
-            title: item.title,
-            price: item.price,
-          })),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error('Stripe failed to load');
-      }
-
-      // Redirect to Stripe hosted checkout page
-      window.location.href = data.data.checkoutUrl;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong';
-      setError(message);
-      setIsLoading(false);
-    }
-  };
-
-  // Dev: load real courses from API into cart for testing
-  const loadTestCourses = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-      const res = await fetch(`${apiUrl}/courses?limit=3&status=PUBLISHED`, {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.success && data.data?.courses) {
-        for (const c of data.data.courses) {
-          addToCart({
-            id: c.id,
-            title: c.title,
-            price: c.price,
-            image: c.thumbnail || c.thumbnailSm || '/course-placeholder.jpg',
-            category: c.category?.name,
-            level: c.level?.name,
-            instructor: c.instructor?.name,
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load test courses:', err);
-    }
-  };
-
+  // Empty State
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-6">
-          <ShoppingCart size={40} />
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-primary/10 rounded-full blur-2xl transform scale-150"></div>
+          <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center text-primary shadow-xl border border-primary/5 relative z-10">
+            <ShoppingCart size={56} strokeWidth={1.5} />
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">ตะกร้าว่างเปล่า</h1>
-        <p className="text-gray-500 mb-8 max-w-md">
-          คุณยังไม่ได้เพิ่มคอร์สเรียนลงตะกร้า เลือกคอร์สที่สนใจแล้วกลับมาที่นี่
+
+        <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">ตะกร้าของคุณยังว่างเปล่า</h1>
+        <p className="text-gray-500 mb-10 max-w-md leading-relaxed text-lg">
+          เริ่มค้นหาคอร์สเรียนที่ใช่ แล้วอัปเกรดทักษะของคุณไปอีกขั้น  มีคอร์สคุณภาพรอคุณอยู่มากมาย
         </p>
-        <div className="flex gap-4">
-          <Link href="/explore">
-            <Button size="lg">
-              <ArrowLeft size={18} className="mr-2" />
-              เลือกคอร์สเรียน
-            </Button>
-          </Link>
-          <Button size="lg" variant="outline" onClick={loadTestCourses}>
-            🧪 เพิ่มคอร์สทดสอบ
+
+        <Link href="/explore">
+          <Button size="xl" className="font-bold rounded-2xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+            <ArrowLeft size={18} className="mr-2" />
+            เลือกดูคอร์สเรียนทั้งหมด
           </Button>
-        </div>
+        </Link>
       </div>
     );
   }
 
+  // Active Cart State
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
       {/* Header */}
-      <div className="mb-8">
-        <Link
-          href="/explore"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
-        >
-          <ArrowLeft size={16} className="mr-1" />
-          กลับไปเลือกคอร์ส
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900">ชำระเงิน</h1>
+      <div className="mb-10 text-center md:text-left">
+        <h1 className="text-4xl font-black text-gray-900 tracking-tight">ตะกร้าสินค้า <span className="text-primary text-2xl ml-2 font-bold opacity-80">(Shopping Cart)</span></h1>
+        <p className="text-lg text-gray-500 mt-2">ตรวจสอบรายการคอร์สเรียนของคุณก่อนชำระเงิน</p>
       </div>
 
       {/* Login prompt */}
       {!authLoading && !user && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <LogIn size={20} className="text-yellow-600" />
+        <div className="bg-orange-50/50 border border-orange-200 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="bg-orange-100 p-2.5 rounded-full shrink-0">
+              <LogIn size={22} className="text-orange-600" />
+            </div>
             <div>
-              <p className="text-sm font-medium text-yellow-800">กรุณาเข้าสู่ระบบก่อนชำระเงิน</p>
-              <p className="text-xs text-yellow-600 mt-0.5">
-                คุณต้องเข้าสู่ระบบเพื่อดำเนินการชำระเงิน
+              <p className="text-base font-bold text-orange-900">เข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+              <p className="text-sm text-orange-700/80 mt-1 leading-relaxed">
+                เนื่องจากคอร์สเรียนจะถูกผูกเข้ากับบัญชีของคุณ กรุณาเข้าสู่ระบบก่อนชำระเงิน
               </p>
             </div>
           </div>
-          <Link href="/login">
-            <Button size="sm" variant="outline">
-              เข้าสู่ระบบ
+          <Link href="/login" className="w-full sm:w-auto shrink-0">
+            <Button size="lg" variant="outline" fullWidth className="border-orange-200 hover:bg-orange-50 hover:text-orange-700">
+              เข้าสู่ระบบตอนนี้
             </Button>
           </Link>
         </div>
       )}
 
-      <div className="grid lg:grid-cols-5 gap-8">
-        {/* Cart Items — Left Side */}
-        <div className="lg:col-span-3 space-y-4">
-          <h2 className="text-lg font-bold text-gray-900">รายการคอร์ส ({cartItems.length})</h2>
+      <div className="grid lg:grid-cols-12 gap-10">
+        {/* Cart Items — Left Side (7 columns) */}
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-8">
 
-          <div className="space-y-3">
+          {/* Main Item List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-xl font-bold text-gray-900">รายการคอร์สเรียน ({cartItems.length})</h2>
+            </div>
             {cartItems.map((item) => (
-              <div
+              <CartItemCard
                 key={item.id}
-                className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
-              >
-                {/* Course thumbnail */}
-                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
-                  {item.image ? (
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-2xl">📚</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Course info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{item.title}</h3>
-                  {item.instructor && (
-                    <p className="text-sm text-gray-500 mt-0.5">{item.instructor}</p>
-                  )}
-                </div>
-
-                {/* Price + Remove */}
-                <div className="flex items-center gap-4 shrink-0">
-                  <span className="font-bold text-primary text-lg">
-                    ฿{item.price.toLocaleString()}
-                  </span>
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="ลบออกจากตะกร้า"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
+                item={item}
+                onRemove={removeFromCart}
+              />
             ))}
           </div>
-        </div>
 
-        {/* Order Summary — Right Side */}
-        <div className="lg:col-span-2">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm sticky top-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">สรุปคำสั่งซื้อ</h2>
-
-            {/* Breakdown */}
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>ราคาคอร์ส ({cartItems.length} รายการ)</span>
-                <span>฿{totalPrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>ส่วนลด</span>
-                <span className="text-green-600">฿0</span>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-100 pt-4 mb-6">
-              <div className="flex justify-between text-xl font-bold">
-                <span>ยอดรวมสุทธิ</span>
-                <span className="text-primary">฿{totalPrice.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* Checkout Button */}
-            <Button
-              fullWidth
-              size="lg"
-              onClick={handleCheckout}
-              isLoading={isLoading}
-              disabled={isLoading || (!authLoading && !user)}
-            >
-              {isLoading ? 'กำลังเชื่อมต่อ Stripe...' : !user ? 'กรุณาเข้าสู่ระบบ' : 'ชำระเงิน'}
-            </Button>
-
-            {/* Payment Methods Info */}
-            <div className="mt-5 space-y-3">
-              <p className="text-xs text-gray-500 text-center font-medium uppercase tracking-wider">
-                ช่องทางการชำระเงิน
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg">
-                  <CreditCard size={16} className="text-gray-500" />
-                  <span className="text-xs text-gray-600 font-medium">บัตรเครดิต/เดบิต</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg">
-                  <QrCode size={16} className="text-gray-500" />
-                  <span className="text-xs text-gray-600 font-medium">PromptPay</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Security Badge */}
-            <div className="mt-6 flex items-center justify-center gap-2 text-gray-400">
-              <Shield size={14} />
-              <span className="text-xs">ชำระเงินอย่างปลอดภัยผ่าน Stripe</span>
-            </div>
+          {/* Continue Shopping Button */}
+          <div className="pt-4 pb-10">
+            <Link href="/explore">
+              <Button variant="ghost" className="text-primary hover:bg-primary/5 font-semibold -ml-4">
+                <ArrowLeft size={16} className="mr-2" />
+                ต้องการดูคอร์สอื่นอีกไหม? ดูคอร์สแนะนำที่นี่
+              </Button>
+            </Link>
           </div>
         </div>
+
+        {/* Order Summary — Right Side (5 columns) */}
+        <div className="lg:col-span-5 xl:col-span-4">
+          <OrderSummary
+            itemCount={cartItems.length}
+            totalOriginalPrice={totalOriginalPrice}
+            totalDiscount={totalDiscount}
+            totalPrice={totalPrice}
+            isLoading={isLoading}
+            isAuthenticated={!!user}
+            error={error}
+            onCheckout={handleCheckout}
+            couponCode={couponCode}
+            setCouponCode={setCouponCode}
+            appliedCoupon={appliedCoupon}
+            isApplyingCoupon={isApplyingCoupon}
+            couponError={couponError}
+            applyCoupon={applyCoupon}
+            removeCoupon={removeCoupon}
+          />
+        </div>
+      </div>
+
+      {/* Recommended Courses (Upsell) */}
+      <div className="mt-16">
+        <RecommendedCourses />
       </div>
     </div>
   );

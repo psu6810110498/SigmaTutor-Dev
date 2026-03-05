@@ -12,6 +12,7 @@ model Banner {
   endDate        DateTime? // Schedule End
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime? // Soft delete for Recycle Bin
   position       BannerPosition @default(EXPLORE_TOP)
 
   @@map("banners")

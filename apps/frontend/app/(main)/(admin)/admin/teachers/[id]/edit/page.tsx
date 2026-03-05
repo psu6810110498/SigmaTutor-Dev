@@ -14,7 +14,7 @@ export default function EditTeacherPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    const { user } = useAuth(); 
+    const { user } = useAuth();
 
     const [profileImage, setProfileImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -31,12 +31,12 @@ export default function EditTeacherPage() {
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                
+
                 const data = await res.json();
-                
+
                 if (data.success) {
                     const teacher = data.data.find((t: any) => String(t.id) === String(params.id));
-                    
+
                     if (teacher) {
                         setFormData({
                             name: teacher.name || '', nickname: teacher.nickname || '', title: teacher.title || '',
@@ -46,7 +46,7 @@ export default function EditTeacherPage() {
                         if (teacher.profileImage) {
                             setImagePreview(teacher.profileImage);
                         } else {
-                            setImagePreview(`https://api.dicebear.com/7.x/avataaars/svg?seed=${params.id}`);
+                            setImagePreview(`https://api.dicebear.com/9.x/avataaars/svg?seed=${params.id}`);
                         }
                     } else {
                         toast.error("ไม่พบข้อมูลคุณครู");
@@ -89,7 +89,7 @@ export default function EditTeacherPage() {
         setSaving(true);
         try {
             const submitData = new FormData();
-            
+
             if (profileImage) submitData.append('profileImage', profileImage);
             Object.entries(formData).forEach(([key, value]) => { submitData.append(key, value); });
 
@@ -137,8 +137,8 @@ export default function EditTeacherPage() {
                     <Link href="/admin/teachers" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm">
                         ยกเลิก
                     </Link>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button
+                        onClick={handleSubmit}
                         disabled={saving}
                         className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -148,14 +148,14 @@ export default function EditTeacherPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                
+
                 {/* 🌟 Section 1: Basic Info & Profile Image */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
                         <User size={18} className="text-gray-500" />
                         <h2 className="text-base font-semibold text-gray-800">ข้อมูลพื้นฐาน (Basic Information)</h2>
                     </div>
-                    
+
                     <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
                         {/* Profile Image Column */}
                         <div className="flex flex-col items-center space-y-4">
@@ -206,7 +206,7 @@ export default function EditTeacherPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">ประวัติการทำงาน / Bio</label>
                             <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-gray-900 sm:text-sm transition-all shadow-sm resize-y" placeholder="เขียนประวัติย่อหรือคำแนะนำตัวที่น่าสนใจ..." />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">ความเชี่ยวชาญ (Expertise)</label>
@@ -236,5 +236,5 @@ export default function EditTeacherPage() {
                 </div>
             </form>
         </div>
-    ); 
+    );
 }

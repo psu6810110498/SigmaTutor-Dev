@@ -9,6 +9,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:mock": "tsx scripts/seed-mockdata.ts",
     "dev": "prisma generate --watch",
     "lint": "eslint ."
   },

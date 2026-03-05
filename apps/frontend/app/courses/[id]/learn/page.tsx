@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from "@/app/components/ui/Toast";
+import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
 
 export default function LearningPage() {
     const params = useParams();
@@ -79,6 +80,52 @@ export default function LearningPage() {
         // ในระบบจริงควรจะ Request ไป Backend ยืนยันว่าเรียนจบ
     };
 
+    // รวมบทเรียนทั้งหมดเป็น flat array เพื่อใช้ในการนำทาง prev/next
+    // ⚠️ Hook ต้องอยู่ก่อน early return เสมอ เพื่อไม่ให้ผิดกฎ Rules of Hooks
+    const allLessons = useMemo(() => {
+        if (!course) return [];
+        if (course.chapters?.length > 0) {
+            return course.chapters.flatMap((ch: any) => ch.lessons || []);
+        } else if (course.schedules?.length > 0) {
+            return course.schedules;
+        }
+        return [];
+    }, [course]);
+
+    const currentIndex = allLessons.findIndex((l: any) => l.id === currentLesson?.id);
+
+    const goToPrev = () => {
+        if (currentIndex > 0) {
+            const prevLesson = allLessons[currentIndex - 1];
+            setCurrentLesson(prevLesson);
+            // Expand the chapter that contains the prev lesson
+            if (course?.chapters?.length > 0) {
+                const parentChapter = course.chapters.find((ch: any) =>
+                    ch.lessons?.some((l: any) => l.id === prevLesson.id)
+                );
+                if (parentChapter) {
+                    setExpandedChapters(prev => new Set([...prev, parentChapter.id]));
+                }
+            }
+        }
+    };
+
+    const goToNext = () => {
+        if (currentIndex < allLessons.length - 1) {
+            const nextLesson = allLessons[currentIndex + 1];
+            setCurrentLesson(nextLesson);
+            // Expand the chapter that contains the next lesson
+            if (course?.chapters?.length > 0) {
+                const parentChapter = course.chapters.find((ch: any) =>
+                    ch.lessons?.some((l: any) => l.id === nextLesson.id)
+                );
+                if (parentChapter) {
+                    setExpandedChapters(prev => new Set([...prev, parentChapter.id]));
+                }
+            }
+        }
+    };
+
     if (authLoading || loading) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -110,8 +157,8 @@ export default function LearningPage() {
 
             {/* --- Sidebar ซ้ายสุด (Navigation เล็กๆ) --- */}
             <div className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-6 shrink-0 z-10 shadow-sm">
-                <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg mb-8">
-                    M
+                <div className="mb-8">
+                    <SigmaLogo size="sm" showText={false} href="/my-courses" />
                 </div>
                 <nav className="flex flex-col gap-6">
                     <Link href="/my-courses" className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="คอร์สของฉัน">
@@ -128,8 +175,8 @@ export default function LearningPage() {
             <div className="flex-1 flex flex-col overflow-y-auto w-full relative">
                 {/* Header */}
                 <div className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-100 shrink-0">
-                    <Link href={`/course/${course.id}`} className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 transition-colors font-medium">
-                        <ArrowLeft size={16} /> กลับไปหน้าคอร์ส
+                    <Link href="/my-courses" className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 transition-colors font-medium">
+                        <ArrowLeft size={16} /> กลับไปคอร์สของฉัน
                     </Link>
                     <div className="flex items-center gap-4">
                         <span className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
@@ -166,10 +213,24 @@ export default function LearningPage() {
                             </p>
                         </div>
                         <div className="flex gap-3 shrink-0">
-                            <button className="px-4 py-2 bg-white text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2">
+                            <button
+                                onClick={goToPrev}
+                                disabled={currentIndex <= 0}
+                                className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
+                                    ${currentIndex <= 0
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                            >
                                 <ArrowLeft size={16} /> ก่อนหน้า
                             </button>
-                            <button className="px-4 py-2 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2">
+                            <button
+                                onClick={goToNext}
+                                disabled={currentIndex >= allLessons.length - 1}
+                                className={`px-4 py-2 font-bold text-sm rounded-xl transition-all flex items-center gap-2
+                                    ${currentIndex >= allLessons.length - 1
+                                        ? 'bg-blue-300 text-white cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'}`}
+                            >
                                 ถัดไป <ArrowLeft size={16} className="rotate-180" />
                             </button>
                         </div>

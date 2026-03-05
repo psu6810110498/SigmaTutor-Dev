@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch } from 'react-icons/fi';
+import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch, FiBookOpen, FiPlay } from 'react-icons/fi';
 import Link from 'next/link';
 // ✅ แก้ไขพาร์ทการ Import ให้ถูกต้องตามโครงสร้างโฟลเดอร์ของคุณ
 import { useAuth } from '../../../context/AuthContext';
@@ -9,7 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 // --- Types ---
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
 
-interface Course {
+interface ScheduleCourse {
   id: number;
   title: string;
   code: string;
@@ -22,8 +22,19 @@ interface Course {
   isLive?: boolean;
 }
 
+interface EnrolledCourse {
+  id: string;
+  title: string;
+  thumbnail: string | null;
+  categoryName: string;
+  instructor: string;
+  courseType: 'ONLINE' | 'ONLINE_LIVE' | 'ONSITE';
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  progress: number;
+}
+
 // --- Mock Data (ว่างไว้ก่อน) ---
-const myCourses: Course[] = [];
+const myCourses: ScheduleCourse[] = [];
 
 const dayMap: Record<string, string> = {
   'Monday': 'จ.', 'Tuesday': 'อ.', 'Wednesday': 'พ.',
@@ -40,7 +51,9 @@ export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   const [today, setToday] = useState<DayOfWeek>('Monday');
-  const [todaysPlan, setTodaysPlan] = useState<Course[]>([]);
+  const [todaysPlan, setTodaysPlan] = useState<ScheduleCourse[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
+  const [enrolledLoading, setEnrolledLoading] = useState(true);
 
   useEffect(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -51,6 +64,32 @@ export default function DashboardPage() {
     plan.sort((a, b) => a.startTime.localeCompare(b.startTime));
     setTodaysPlan(plan);
   }, []);
+
+  // ✅ ดึงคอร์สที่ enrolled จาก API
+  useEffect(() => {
+    const fetchEnrolledCourses = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const res = await fetch(`${apiUrl}/courses/my-courses`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.success) {
+          setEnrolledCourses(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch enrolled courses:', error);
+      } finally {
+        setEnrolledLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchEnrolledCourses();
+    } else {
+      setEnrolledLoading(false);
+    }
+  }, [user]);
 
   // ✅ แสดงสถานะ Loading ระหว่างรอข้อมูลจาก Google เพื่อป้องกันชื่อขึ้น undefined
   if (loading) {
@@ -116,7 +155,58 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* --- Section 2: Weekly Schedule --- */}
+      {/* --- Section 2: คอร์สที่ลงทะเบียน --- */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center border-l-4 border-green-500 pl-3">
+            <h2 className="text-lg font-bold text-gray-800">คอร์สที่ลงทะเบียน</h2>
+          </div>
+          <Link href="/my-courses" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+            ดูทั้งหมด <FiArrowRight size={14} />
+          </Link>
+        </div>
+
+        {enrolledLoading ? (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center animate-pulse">
+            <p className="text-gray-400 text-sm">กำลังโหลดคอร์สที่ลงทะเบียน...</p>
+          </div>
+        ) : enrolledCourses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {enrolledCourses.slice(0, 3).map((course) => (
+              <Link key={course.id} href={`/courses/${course.id}/learn`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all flex gap-4">
+                <div className="w-20 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+                  <img
+                    src={course.thumbnail || `https://placehold.co/200x160/2a303c/ffffff?text=${encodeURIComponent(course.categoryName)}`}
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-gray-900 text-sm line-clamp-1">{course.title}</h4>
+                  <p className="text-xs text-gray-500 mt-1">โดย {course.instructor}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{course.categoryName}</span>
+                    <FiPlay size={12} className="text-blue-500" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-8 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center">
+            <div className="w-14 h-14 bg-green-50 text-green-300 rounded-full flex items-center justify-center mb-3">
+              <FiBookOpen size={28} />
+            </div>
+            <h3 className="text-gray-800 font-bold">ยังไม่มีคอร์สที่ลงทะเบียน</h3>
+            <p className="text-gray-500 text-sm mt-1 mb-4">เริ่มต้นการเรียนรู้โดยเลือกคอร์สที่สนใจ</p>
+            <Link href="/explore" className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+              ค้นหาคอร์สเรียน
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* --- Section 3: Weekly Schedule --- */}
       <div>
         <div className="flex items-center mb-4 border-l-4 border-orange-500 pl-3">
           <h2 className="text-lg font-bold text-gray-800">ตารางเรียนรายสัปดาห์</h2>

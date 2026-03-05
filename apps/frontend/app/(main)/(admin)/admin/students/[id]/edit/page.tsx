@@ -58,7 +58,7 @@ export default function EditStudentPage() {
                     if (student.profileImage) {
                         setImagePreview(student.profileImage);
                     } else {
-                        setImagePreview(`https://api.dicebear.com/7.x/avataaars/svg?seed=${student.id}`);
+                        setImagePreview(`https://api.dicebear.com/9.x/avataaars/svg?seed=${student.id}`);
                     }
                 } else {
                     toast.error("ไม่พบข้อมูลนักเรียน");
@@ -226,6 +226,7 @@ export default function EditStudentPage() {
                                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">ระดับชั้นปัจจุบัน</label>
                                 <select name="educationLevel" value={formData.educationLevel} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 text-sm font-medium transition-all cursor-pointer">
                                     <option value="">เลือกระดับชั้น</option>
+                                    <option value="ประถม">ประถมศึกษา</option>
                                     <option value="ม.ต้น">มัธยมศึกษาตอนต้น</option>
                                     <option value="ม.ปลาย">มัธยมศึกษาตอนปลาย</option>
                                     <option value="มหาวิทยาลัย">มหาวิทยาลัย</option>
