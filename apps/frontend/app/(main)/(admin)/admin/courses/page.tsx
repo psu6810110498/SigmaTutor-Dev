@@ -48,13 +48,6 @@ export default function AdminCoursesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ✅ ฟังก์ชันช่วยดึง Token
-  const getToken = () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-    }
-    return '';
-  };
 
   // ── Load reference data & Students Count ─────────────────
   useEffect(() => {
@@ -67,13 +60,11 @@ export default function AdminCoursesPage() {
 
     const fetchStudentsCount = async () => {
       try {
-        const token = getToken();
         const response = await fetch('http://localhost:4000/api/users/students', {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json' 
+          headers: {
+            'Content-Type': 'application/json'
           },
-          credentials: 'include', // ✅ เพิ่มบรรทัดนี้แล้ว (สำคัญมากสำหรับการส่ง Cookie)
+          credentials: 'include',
         });
         const res = await response.json();
         if (res.success && res.data) {
@@ -83,7 +74,7 @@ export default function AdminCoursesPage() {
         console.error('Failed to fetch students count', error);
       }
     };
-    
+
     fetchStudentsCount();
   }, []);
 
@@ -91,8 +82,6 @@ export default function AdminCoursesPage() {
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      const token = getToken();
-
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
@@ -102,7 +91,6 @@ export default function AdminCoursesPage() {
 
       const response = await fetch(`http://localhost:4000/api/courses/admin?${params.toString()}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -166,17 +154,15 @@ export default function AdminCoursesPage() {
   // ── อัปเดตสถานะคอร์ส (API PATCH) ──────────────────────────
   const handleStatusChange = async (courseId: string, newStatus: string) => {
     try {
-      const token = getToken();
       const response = await fetch(`http://localhost:4000/api/courses/${courseId}/status`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // ✅ เพิ่มบรรทัดนี้แล้ว! หมดปัญหา No token provided
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus }),
       });
-      
+
       const res = await response.json();
 
       if (res.success) {
@@ -196,11 +182,9 @@ export default function AdminCoursesPage() {
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      const token = getToken();
       const response = await fetch(`http://localhost:4000/api/courses/${deletingId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -210,7 +194,7 @@ export default function AdminCoursesPage() {
       if (res.success) {
         toast.success('ลบคอร์สเรียบร้อยแล้ว');
         setDeletingId(null);
-        fetchCourses(); 
+        fetchCourses();
       } else {
         toast.error(res.error || 'เกิดข้อผิดพลาดในการลบคอร์ส');
       }
@@ -487,17 +471,16 @@ export default function AdminCoursesPage() {
                         {course.instructor?.name || '-'}
                       </span>
                     </td>
-                    
+
                     <td className="px-5 py-4 text-center">
                       <select
                         value={course.status}
                         onChange={(e) => handleStatusChange(course.id, e.target.value)}
-                        className={`text-xs font-semibold rounded-lg px-4 py-1.5 outline-none cursor-pointer border text-center shadow-sm hover:shadow transition-all ${
-                          course.status === 'PUBLISHED' 
-                            ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' 
-                            : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
-                        }`}
-                        style={{ WebkitAppearance: 'none', appearance: 'none' }} 
+                        className={`text-xs font-semibold rounded-lg px-4 py-1.5 outline-none cursor-pointer border text-center shadow-sm hover:shadow transition-all ${course.status === 'PUBLISHED'
+                          ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                          }`}
+                        style={{ WebkitAppearance: 'none', appearance: 'none' }}
                       >
                         <option value="PUBLISHED" className="bg-white text-gray-900">เผยแพร่แล้ว</option>
                         <option value="DRAFT" className="bg-white text-gray-900">แบบร่าง</option>

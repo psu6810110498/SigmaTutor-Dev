@@ -1,25 +1,16 @@
 import { z } from 'zod';
 
 // ── Chapter ──────────────────────────────────────────────────
-
 export const createChapterSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     order: z.number().int().optional(),
 });
-
 export const updateChapterSchema = createChapterSchema.partial();
-
 export const reorderChapterSchema = z.object({
-    orders: z.array(
-        z.object({
-            id: z.string(),
-            order: z.number().int(),
-        })
-    ),
+    orders: z.array(z.object({ id: z.string(), order: z.number().int() })),
 });
 
 // ── Lesson ───────────────────────────────────────────────────
-
 export const createLessonSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     type: z.enum(['VIDEO', 'FILE', 'QUIZ']).default('VIDEO'),
@@ -28,27 +19,22 @@ export const createLessonSchema = z.object({
     duration: z.number().int().optional(),
     order: z.number().int().optional(),
 });
-
 export const updateLessonSchema = createLessonSchema.partial();
 
-export const reorderLessonSchema = z.object({
-    orders: z.array(
-        z.object({
-            id: z.string(),
-            order: z.number().int(),
-        })
-    ),
-});
-
-// ── Schedule ─────────────────────────────────────────────────
-
+// ── Schedule (ปรับโฉมเป็นเนื้อหาบทเรียน) ───────────────────────────
 export const createScheduleSchema = z.object({
-    date: z.string().datetime(),
-    startTime: z.string().datetime(),
-    endTime: z.string().datetime(),
     topic: z.string().min(1, 'Topic is required'),
+    chapterTitle: z.string().optional().nullable(), // ✅ ชื่อบทเรียน
+    videoUrl: z.string().optional().nullable().or(z.literal("")), // ✅ ลิงก์วิดีโอ
+    materialUrl: z.string().optional().nullable().or(z.literal("")), // ✅ ลิงก์ไฟล์
+    sessionNumber: z.number().optional().nullable(),
+    status: z.enum(['ON_SCHEDULE', 'POSTPONED', 'CANCELLED']).optional(),
+    // คงฟิลด์เดิมไว้เป็น Optional เพื่อความปลอดภัย
+    date: z.string().datetime().optional().nullable(),
+    startTime: z.string().datetime().optional().nullable(),
+    endTime: z.string().datetime().optional().nullable(),
     location: z.string().optional().nullable(),
-    isOnline: z.boolean().optional().default(false),
+    isOnline: z.boolean().optional(),
 });
 
 export const updateScheduleSchema = createScheduleSchema.partial();

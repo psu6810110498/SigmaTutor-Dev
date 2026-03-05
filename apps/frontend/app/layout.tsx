@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { CourseProvider } from "./context/CourseContext";
 import { Providers } from './providers';
+import { ToastProvider } from "./components/ui/Toast";
 
 const kanit = Kanit({
   subsets: ["thai", "latin"],
@@ -37,7 +38,9 @@ export default function RootLayout({
           {/* AuthProvider from HEAD, CourseProvider from Main */}
           <AuthProvider>
             <CourseProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </CourseProvider>
           </AuthProvider>
         </Providers>

@@ -1,60 +1,60 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     ArrowLeft, Edit, User, MapPin, GraduationCap,
-    Phone, Mail, Calendar, BookOpen
+    Phone, Mail, Calendar, BookOpen, BookText, CreditCard
 } from 'lucide-react';
+import { useToast } from "@/app/components/ui/Toast";
 
-export default function ViewStudentPage() {
+export default function AdminStudentViewPage() {
     const params = useParams();
+    const router = useRouter();
+    const { toast } = useToast();
+
     const [student, setStudent] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    const getToken = () => localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+    const id = params.id as string;
 
     useEffect(() => {
-        const fetchStudentData = async () => {
+        const fetchStudent = async () => {
             try {
-                const token = getToken();
-                const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                const res = await fetch(`http://localhost:4000/api/users/students`, {
                     credentials: 'include'
                 });
-
                 const data = await res.json();
-                if (data.success && data.data) {
-                    setStudent(data.data);
+
+                if (data.success) {
+                    const found = data.data.find((s: any) => s.id === id);
+                    if (found) {
+                        setStudent(found);
+                    } else {
+                        toast.error("ไม่พบข้อมูลนักเรียน");
+                        router.push('/admin/students');
+                    }
+                } else {
+                    toast.error("ไม่สามารถโหลดข้อมูลนักเรียนได้");
+                    router.push('/admin/students');
                 }
             } catch (error) {
-                console.error("ดึงข้อมูลไม่สำเร็จ:", error);
+                console.error(error);
+                toast.error("เกิดข้อผิดพลาดในการโหลดข้อมูล");
             } finally {
                 setLoading(false);
             }
         };
 
-        if (params.id) fetchStudentData();
-    }, [params.id]);
+        if (id) fetchStudent();
+    }, [id, router, toast]);
 
-    if (loading) return (
-        <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-medium text-slate-500">กำลังโหลดข้อมูลนักเรียน...</p>
-        </div>
-    );
+    if (loading) {
+        return <div className="p-8 text-center text-gray-500 animate-pulse font-medium">กำลังโหลดข้อมูล...</div>;
+    }
 
-    if (!student) return (
-        <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
-            <User size={48} className="text-slate-300" />
-            <p className="text-lg font-bold text-slate-600">ไม่พบข้อมูลนักเรียน</p>
-            <Link href="/admin/students" className="text-blue-600 hover:underline text-sm font-medium">
-                กลับไปหน้ารวมนักเรียน
-            </Link>
-        </div>
-    );
+    if (!student) return null;
 
     return (
         <div className="p-4 md:p-8 max-w-5xl mx-auto animate-in fade-in duration-500">
@@ -80,7 +80,6 @@ export default function ViewStudentPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
                 {/* 🌟 คอลัมน์ซ้าย: รูปโปรไฟล์ & ข้อมูลหลัก */}
                 <div className="md:col-span-1 space-y-6">
                     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
@@ -92,27 +91,33 @@ export default function ViewStudentPage() {
                             />
                         </div>
                         <h2 className="text-xl font-black text-slate-900">{student.name}</h2>
-                        <p className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full mt-2">
-                            {student.nickname || 'ไม่ได้ระบุชื่อเล่น'}
-                        </p>
+                        <div className="flex flex-col items-center gap-2 mt-2">
+                            <p className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                                {student.nickname || 'ไม่ได้ระบุชื่อเล่น'}
+                            </p>
+                            <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded
+                                ${student.status === 'Online' ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                                {student.status || 'Offline'}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">ข้อมูลติดต่อ</h3>
-
-                        <div className="flex items-center gap-3 text-slate-700">
-                            <div className="p-2 bg-slate-50 rounded-lg text-slate-400"><Mail size={16} /></div>
-                            <div className="flex-1 overflow-hidden">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">อีเมล</p>
-                                <p className="text-sm font-medium truncate">{student.email}</p>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 text-slate-700">
+                                <div className="p-2 bg-slate-50 rounded-lg text-slate-400"><Mail size={16} /></div>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">อีเมล</p>
+                                    <p className="text-sm font-medium truncate">{student.email}</p>
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-slate-700">
-                            <div className="p-2 bg-slate-50 rounded-lg text-slate-400"><Phone size={16} /></div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">เบอร์โทรศัพท์</p>
-                                <p className="text-sm font-medium">{student.phone || '-'}</p>
+                            <div className="flex items-center gap-3 text-slate-700">
+                                <div className="p-2 bg-slate-50 rounded-lg text-slate-400"><Calendar size={16} /></div>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">วันที่สมัคร</p>
+                                    <p className="text-sm font-medium">{new Date(student.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -120,16 +125,14 @@ export default function ViewStudentPage() {
 
                 {/* 🌟 คอลัมน์ขวา: ข้อมูลการศึกษา & ที่อยู่ */}
                 <div className="md:col-span-2 space-y-6">
-
                     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
                             <GraduationCap size={18} className="text-slate-500" />
                             <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">ข้อมูลการศึกษาและส่วนตัว</h2>
                         </div>
-
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                             <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-1 flex items-center gap-1.5"><Calendar size={14} /> วันเกิด</p>
+                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">วันเกิด</p>
                                 <p className="text-sm font-bold text-slate-800">
                                     {student.birthday
                                         ? new Date(student.birthday).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -137,7 +140,7 @@ export default function ViewStudentPage() {
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-1 flex items-center gap-1.5"><BookOpen size={14} /> ระดับชั้น</p>
+                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">ระดับชั้น</p>
                                 <p className="text-sm font-bold text-slate-800">{student.educationLevel || '-'}</p>
                             </div>
                             <div className="md:col-span-2">
@@ -152,7 +155,6 @@ export default function ViewStudentPage() {
                             <MapPin size={18} className="text-slate-500" />
                             <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">ที่อยู่จัดส่งเอกสาร</h2>
                         </div>
-
                         <div className="p-6 space-y-4">
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase mb-1">จังหวัด</p>
@@ -167,6 +169,52 @@ export default function ViewStudentPage() {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+                            <h3 className="font-bold text-gray-900 flex items-center justify-between border-b border-gray-100 pb-3">
+                                <div className="flex items-center gap-2">
+                                    <BookText size={18} className="text-blue-500" />
+                                    คอร์สเรียนที่ลงทะเบียน
+                                </div>
+                                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                    {student.enrolledCourses?.length || 0} คอร์ส
+                                </span>
+                            </h3>
+
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+                                {student.enrolledCourses && student.enrolledCourses.length > 0 ? (
+                                    student.enrolledCourses.map((course: any, idx: number) => (
+                                        <div key={idx} className="flex gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-100 bg-gray-50/50 hover:bg-blue-50/30 transition-colors">
+                                            <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 shadow-sm">
+                                                <BookText size={16} className="text-blue-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-900 leading-tight">{course.title}</p>
+                                                <p className="text-xs text-gray-500 mt-1">ผู้สอน: {course.instructorName}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-gray-400 italic text-center py-4">ยังไม่ลงคอร์สเรียนใดๆ</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+                            <h3 className="font-bold text-gray-900 flex items-center justify-between border-b border-gray-100 pb-3">
+                                <div className="flex items-center gap-2">
+                                    <CreditCard size={18} className="text-green-500" />
+                                    ข้อมูลทางการเงิน
+                                </div>
+                            </h3>
+                            <div className="bg-green-50 rounded-xl p-4 border border-green-100 flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-green-600 uppercase tracking-widest">ยอดซื้อรวม (Total Spent)</p>
+                                    <p className="text-2xl font-black text-gray-900 mt-1">฿{(student.totalSpent || 0).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

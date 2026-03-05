@@ -26,6 +26,8 @@ router.post(
   validate(createCourseSchema),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // Debugging: log incoming payload (trimmed) to help trace missing schedules
+      try { console.log('Create course payload:', JSON.stringify(req.body).slice(0, 1000)); } catch { };
       const course = await courseService.create(req.user!.userId, req.body);
       res.status(201).json({ success: true, data: course });
     } catch (error) {
@@ -35,13 +37,29 @@ router.post(
   }
 );
 
-// ✅ เพิ่มเติม: API สำหรับอัปโหลดไฟล์ PDF (วางไว้ตรงนี้เพื่อไม่ให้ชนกับ /:id)
+// "Master Key" Middleware for grabbing HttpOnly cookies automatically
+const forceInjectToken = (req: any, res: Response, next: NextFunction) => {
+  let token = '';
+  if (req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)(accessToken|token)=([^;]+)/);
+    if (match) token = match[2];
+  }
+  if (token) {
+    req.headers.authorization = `Bearer ${token}`;
+    if (!req.cookies) req.cookies = {};
+    req.cookies.accessToken = token;
+    req.cookies.token = token;
+  }
+  next();
+};
+
 /**
  * POST /api/courses/upload/pdf
  * General file upload for course materials (PDF)
  */
 router.post(
   '/upload/pdf',
+  forceInjectToken,
   authenticate,
   requireRole('ADMIN', 'INSTRUCTOR'),
   upload.single('file'), // รับไฟล์ที่ชื่อ field ว่า 'file' จากหน้าบ้าน

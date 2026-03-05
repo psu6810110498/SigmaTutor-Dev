@@ -30,16 +30,12 @@ export default function EditStudentPage() {
         email: '' // เอาไว้โชว์เฉยๆ (ห้ามแก้)
     });
 
-    const getToken = () => localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-
     useEffect(() => {
         const fetchStudentData = async () => {
             try {
-                const token = getToken();
                 // ดึงข้อมูลส่วนตัวจาก API ที่เราเพิ่งสร้าง
                 const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` },
                     credentials: 'include'
                 });
 
@@ -101,7 +97,6 @@ export default function EditStudentPage() {
         e.preventDefault();
         setSaving(true);
         try {
-            const token = getToken();
             const submitData = new FormData();
 
             if (profileImage) submitData.append('profileImage', profileImage);
@@ -115,7 +110,6 @@ export default function EditStudentPage() {
 
             const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` },
                 credentials: 'include',
                 body: submitData
             });

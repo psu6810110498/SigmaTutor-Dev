@@ -8,8 +8,7 @@ import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { AdminFormLayout } from "@/app/components/layouts/AdminFormLayout";
 import { CourseOverviewTab } from "./tabs/CourseOverviewTab";
-import { CurriculumTab } from "./tabs/CurriculumTab";
-import { ScheduleTab } from "./tabs/ScheduleTab";
+import { ScheduleTab } from "./tabs/ScheduleTab"; // ✅ ลบ CurriculumTab ออก แล้วใช้แค่ ScheduleTab
 
 export default function EditCoursePage() {
     const params = useParams();
@@ -18,31 +17,22 @@ export default function EditCoursePage() {
     const courseId = params?.id as string;
 
     const [course, setCourse] = useState<Course | null>(null);
-    const [instructors, setInstructors] = useState<any[]>([]); // ✅ เพิ่ม State เก็บรายชื่อครู
+    const [instructors, setInstructors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "schedule">("overview");
-
-    const getToken = () => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
-        }
-        return '';
-    };
+    
+    // ✅ เหลือแค่ overview กับ schedule
+    const [activeTab, setActiveTab] = useState<"overview" | "schedule">("overview");
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const token = getToken();
             const headers = {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
 
-            // 1. ดึงข้อมูลคอร์ส
             const courseRes = await fetch(`http://localhost:4000/api/courses/${courseId}`, { headers, credentials: 'include' });
             const courseData = await courseRes.json();
 
-            // 2. ดึงรายชื่อคุณครู (เหมือนหน้าสร้าง)
             const instRes = await fetch(`http://localhost:4000/api/users/instructors`, { headers, credentials: 'include' });
             const instData = await instRes.json();
 
@@ -84,19 +74,25 @@ export default function EditCoursePage() {
         >
             <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
                 <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutDashboard} label="ข้อมูลทั่วไป" />
-                {course.courseType === "ONLINE" && <TabButton active={activeTab === "curriculum"} onClick={() => setActiveTab("curriculum")} icon={BookOpen} label="เนื้อหาบทเรียน" />}
-                {(course.courseType === "ONLINE_LIVE" || course.courseType === "ONSITE") && <TabButton active={activeTab === "schedule"} onClick={() => setActiveTab("schedule")} icon={Calendar} label="ตารางเรียน" />}
+                
+                {/* ✅ ใช้ปุ่มเดียวสำหรับบทเรียน แต่เปลี่ยนชื่อและไอคอนตามประเภทคอร์ส */}
+                <TabButton 
+                    active={activeTab === "schedule"} 
+                    onClick={() => setActiveTab("schedule")} 
+                    icon={course.courseType === "ONLINE" ? BookOpen : Calendar} 
+                    label={course.courseType === "ONLINE" ? "เนื้อหาบทเรียน" : "ตารางเรียน"} 
+                />
             </div>
 
             <div className="animate-fade-in-up">
                 {activeTab === "overview" && (
-                    <CourseOverviewTab 
-                        course={course} 
-                        instructors={instructors} // ✅ ส่งรายชื่อครูไปที่ Tab
-                        onUpdate={fetchData} 
+                    <CourseOverviewTab
+                        course={course}
+                        instructors={instructors}
+                        onUpdate={fetchData}
                     />
                 )}
-                {activeTab === "curriculum" && <CurriculumTab course={course} onUpdate={fetchData} />}
+                {/* ✅ บังคับให้เรียกใช้ ScheduleTab เสมอ เพื่อให้หน้าตาเหมือนตอนสร้างคอร์สเป๊ะๆ */}
                 {activeTab === "schedule" && <ScheduleTab course={course} onUpdate={fetchData} />}
             </div>
         </AdminFormLayout>

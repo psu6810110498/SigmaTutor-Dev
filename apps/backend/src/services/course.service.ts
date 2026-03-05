@@ -13,17 +13,13 @@ type DbClient = typeof prisma;
 export class CourseService {
   /**
    * Dependency Injection: Accept database via constructor.
-   * Enables clean Unit/Integration testing by injecting a mock DB.
-   *
-   * Production:  `new CourseService()`       → uses real prisma client
-   * In Tests:    `new CourseService(mockDb)` → uses a test double
    */
   constructor(private db: DbClient = prisma) { }
 
   /**
    * Create a new course
    */
-  async create(instructorId: string, input: CreateCourseInput) {
+  async create(creatorId: string, input: CreateCourseInput) {
     const slug =
       input.title
         .toLowerCase()
@@ -33,9 +29,39 @@ export class CourseService {
       Date.now().toString().slice(-4);
 
     const data = { ...input } as any;
+
+    // ✅ จัดการเรื่องวันที่
     if (typeof data.enrollStartDate === 'string')
       data.enrollStartDate = new Date(data.enrollStartDate);
     if (typeof data.enrollEndDate === 'string') data.enrollEndDate = new Date(data.enrollEndDate);
+
+    // ✅ ตรวจสอบ IDs ว่าเป็น string ที่ไม่ว่าง (cuid) ป้องกัน Foreign Key Error
+    if (data.levelId === '' || data.levelId === undefined) data.levelId = null;
+    if (data.categoryId === '' || data.categoryId === undefined) data.categoryId = null;
+
+    // ✅ แก้ปัญหาติดชื่อแอดมิน: ถ้ามีการเลือกผู้สอน (instructorId) มา ให้ใช้คนนั้น
+    // แต่ถ้าไม่มี (เช่น เป็นค่าว่าง) ให้ใช้ ID ของคนสร้าง (creatorId)
+    const instructorId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
+    delete data.instructorId;
+
+    // If frontend sent a flat schedules array, convert it to Prisma nested create format
+    if (Array.isArray(data.schedules)) {
+      const sessions = data.schedules as any[];
+      data.schedules = {
+        create: sessions.map((s, idx) => ({
+          sessionNumber: s.sessionNumber ?? (idx + 1),
+          topic: s.title ?? s.topic ?? 'ไม่มีหัวข้อ',
+          chapterTitle: s.chapterTitle ?? null,
+          videoUrl: s.videoUrl ?? null,
+          materialUrl: s.materialUrl ?? null,
+          // provide minimal required defaults for schedule model
+          date: new Date(),
+          startTime: new Date(),
+          endTime: new Date(),
+          status: 'ON_SCHEDULE',
+        })),
+      };
+    }
 
     return this.db.course.create({
       data: { ...data, slug, instructorId },
@@ -57,7 +83,7 @@ export class CourseService {
           include: { lessons: { orderBy: { order: 'asc' } } },
           orderBy: { order: 'asc' },
         },
-        schedules: { orderBy: { date: 'asc' } },
+        schedules: { orderBy: { sessionNumber: 'asc' } },
         reviews: {
           include: { user: { select: { id: true, name: true } } },
           take: 5,
@@ -113,7 +139,6 @@ export class CourseService {
     const minPrice = query.minPrice;
     const maxPrice = query.maxPrice;
 
-    // Handle Category Hierarchy
     let categoryFilter: any = categoryId ? { categoryId } : {};
 
     if (categoryId) {
@@ -197,9 +222,6 @@ export class CourseService {
     };
   }
 
-  /**
-   * Get courses enrolled by a user
-   */
   async getUserEnrolledCourses(userId: string) {
     return this.db.enrollment.findMany({
       where: { userId, status: 'ACTIVE' },
@@ -219,9 +241,6 @@ export class CourseService {
     });
   }
 
-  /**
-   * Get enrolled courses for the authenticated user
-   */
   async getMyCourses(userId: string) {
     const enrollments = await this.db.enrollment.findMany({
       where: { userId },
@@ -248,9 +267,6 @@ export class CourseService {
     }));
   }
 
-  /**
-   * Admin/Instructor Course List
-   */
   async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
     const { search, status, instructorId } = query;
     const page = Number(query.page) || 1;
@@ -290,21 +306,22 @@ export class CourseService {
     };
   }
 
-  /**
-   * Update a course
-   */
   async update(id: string, input: UpdateCourseInput) {
     await this.findById(id);
+
+    const updateData: any = { ...input };
+
+    // ✅ ปรับแก้ข้อมูล IDs ให้ถูกต้องก่อนอัปเดต (string cuid หรือ null)
+    if (updateData.levelId === '' || updateData.levelId === undefined) updateData.levelId = null;
+    if (updateData.categoryId === '' || updateData.categoryId === undefined) updateData.categoryId = null;
+
     return this.db.course.update({
       where: { id },
-      data: input as any,
+      data: updateData,
       include: { instructor: { select: { id: true, name: true, email: true } } },
     });
   }
 
-  /**
-   * Update course status (DRAFT → PUBLISHED → ARCHIVED)
-   */
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
     await this.findById(id);
     const isPublished = input.status === 'PUBLISHED';
@@ -314,17 +331,11 @@ export class CourseService {
     });
   }
 
-  /**
-   * Delete a course
-   */
   async delete(id: string) {
     await this.findById(id);
     return this.db.course.delete({ where: { id } });
   }
 
-  /**
-   * Update thumbnail URL after upload
-   */
   async updateThumbnail(id: string, thumbnailUrl: string) {
     return this.db.course.update({
       where: { id },

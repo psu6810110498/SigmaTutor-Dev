@@ -9,12 +9,12 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { apiLimiter } from './middleware/rate-limit.middleware.js';
 import cookieParser from 'cookie-parser';
+import scheduleRoutes from './routes/schedule.routes.js';
 
 console.log('🔑 ตรวจสอบ DATABASE_URL:', process.env.DATABASE_URL ? 'เจอแล้ว!' : 'ยังว่างเปล่า...');
 const app = express();
 const PORT = process.env.PORT || 4000;
-
-// 1. CORS Middleware
+// 1. CORS Middleware (must run before any routes)
 app.use(
   cors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
@@ -23,6 +23,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
   })
 );
+
+// Mount schedule routes after CORS so preflight responses are handled
+app.use('/api/schedules', scheduleRoutes);
 
 // 2. Body Parser (รวม Stripe Webhook และขยาย Limit สำหรับรูป Profile)
 app.use((req, res, next) => {

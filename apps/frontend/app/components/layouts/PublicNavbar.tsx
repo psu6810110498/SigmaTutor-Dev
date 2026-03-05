@@ -105,7 +105,9 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                                             <div className="divide-y divide-gray-50">
                                                 {cartItems.map((item) => (
                                                     <div key={item.id} className="flex items-center gap-3 p-3 hover:bg-gray-50">
-                                                        <div className="w-12 h-10 bg-gray-100 rounded flex-shrink-0" />
+                                                        <div className="w-12 h-10 bg-gray-100 rounded flex-shrink-0 overflow-hidden border border-gray-100">
+                                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                                        </div>
                                                         <div className="flex-grow min-w-0">
                                                             <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
                                                             <p className="text-xs text-primary font-bold">฿{item.price.toLocaleString()}</p>
@@ -140,7 +142,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                         {user ? (
                             // Show Profile if Logged In
                             <div className="hidden md:flex items-center gap-3 pl-2">
-                                <Link href="/dashboard" className="flex items-center gap-2 group">
+                                <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className="flex items-center gap-2 group">
                                     <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 group-hover:border-primary transition-colors">
                                         <img
                                             src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
@@ -208,7 +210,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                         <div className="border-t border-gray-100 pt-3 mt-3">
                             {user ? (
                                 <div className="space-y-2">
-                                    <Link href="/dashboard" className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded-lg">
+                                    <Link href={user.role === 'ADMIN' ? '/admin' : '/dashboard'} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 rounded-lg">
                                         <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
                                             <img
                                                 src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
