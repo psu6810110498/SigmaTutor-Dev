@@ -15,6 +15,7 @@ export default function HomePage() {
 
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Fetch Data
   useEffect(() => {
@@ -170,8 +171,186 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 6. Feature Section */}
+      {/* 6. Student Success Section */}
+      <section className="py-16 md:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">รวมความสำเร็จลูกศิษย์</h2>
+            <p className="text-gray-500">กี่โพวท์ ได้พาน้องๆ ไปถึงคณะในฝัน</p>
+          </div>
+          {/* Student cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14">
+            {[
+              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์' },
+              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์' },
+              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์' },
+              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์' },
+            ].map((s, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden shadow-md bg-white">
+                <div className="h-48 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary text-2xl font-bold">S</div>
+                </div>
+                <div className="p-4 text-center">
+                  <span className="inline-block bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full mb-2">CONGRATS!!</span>
+                  <p className="font-bold text-sm text-gray-900">{s.faculty}</p>
+                  <p className="text-xs text-gray-500">{s.major}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Stats row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <h3 className="text-4xl font-extrabold text-primary mb-2">10,000+</h3>
+              <p className="text-gray-600 font-medium">นักเรียนที่ไว้วางใจ</p>
+            </div>
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <h3 className="text-4xl font-extrabold text-primary mb-2">40+</h3>
+              <p className="text-gray-600 font-medium">คอร์สเรียนคุณภาพ</p>
+            </div>
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+              <h3 className="text-4xl font-extrabold text-primary mb-2">98%</h3>
+              <p className="text-gray-600 font-medium">สอบคณะที่หวัง</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. University Logos Section */}
+      <section className="py-14 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+            ศิษย์เก่าของเราสอบติดที่ไหนบ้าง?
+          </h2>
+          <div className="flex flex-wrap justify-center items-center gap-6 md:gap-10">
+            {[
+              { name: 'จุฬา', color: 'from-pink-400 to-pink-600' },
+              { name: 'มหิดล', color: 'from-blue-400 to-blue-600' },
+              { name: 'ธรรมศาสตร์', color: 'from-yellow-400 to-yellow-600' },
+              { name: 'เกษตร', color: 'from-green-400 to-green-600' },
+              { name: 'ลาดกระบัง', color: 'from-purple-400 to-purple-600' },
+              { name: 'KMUTT', color: 'from-orange-400 to-orange-600' },
+            ].map((u, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${u.color} flex items-center justify-center shadow-md`}>
+                  <span className="text-white font-bold text-xs text-center leading-tight px-1">{u.name.slice(0,2)}</span>
+                </div>
+                <span className="text-xs text-gray-500 font-medium">{u.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. Tutor Profiles Section */}
+      <section className="py-16 md:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+              ติวเตอร์ตัวจริง... จากสนามสอบจริง
+            </h2>
+            <p className="text-gray-500 max-w-xl mx-auto">
+              อาจารย์ผู้สอนทุกคนผ่านประสบการณ์สนามสอบจริง มีผลคะแนนที่พิสูจน์ได้
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: 'พี่บอส (สรวิธ วิฒนรงค์)', subject: 'วิชา: คอมพิวเตอร์', desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์โอลิมปิก' },
+              { name: 'พี่พีช (พารีย์ ยาเก)', subject: 'วิชา: คอมพิวเตอร์', desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์ระดับชาติ' },
+              { name: 'พี่บอส (สรวิธ วิฒนรงค์)', subject: 'วิชา: คอมพิวเตอร์', desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์ระดับชาติ' },
+            ].map((t, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center text-primary text-3xl font-bold mb-4 shadow">
+                  {t.name.charAt(3)}
+                </div>
+                <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full mb-3">{t.subject}</span>
+                <h3 className="font-bold text-gray-900 mb-2">{t.name}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-4">{t.desc}</p>
+                <a href="#" className="text-primary text-sm font-semibold hover:underline">ดูคอร์สเรียน &amp; หลักสูตรทั้งหมด →</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Testimonial Section */}
+      <section className="py-16 md:py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+            เสียงยืนยันจากกรุ๊ปที่... ที่ทำสำเร็จแล้ว
+          </h2>
+          <div className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start">
+            <div className="flex-shrink-0">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/40 to-primary flex items-center justify-center text-white text-2xl font-bold shadow">
+                น
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-800 text-lg leading-relaxed mb-4 italic">
+                &ldquo;จากที่เกลียดฟิสิกส์ กลายเป็นวิชาทำคะแนน!
+                เทคนิคของพี่บอส ช่วยให้มองงานยากกว่าออก ไม่ต้องท่องสูตร สอบติด
+                วิศวกรรมคอมพิวเตอร์ ม.ดัง มาแล้ว ขอบคุณมากๆ&rdquo;
+              </p>
+              <div>
+                <p className="font-bold text-gray-900">น้องพลอย</p>
+                <p className="text-primary text-sm font-medium">วิศวกรรมศาสตร์ สาขาคอมพิวเตอร์</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. Feature Section */}
       <FeatureSection />
+
+      {/* 11. FAQ Section */}
+      <section className="py-16 md:py-24 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+            คำถามที่พบบ่อย (FAQ)
+          </h2>
+          <div className="space-y-3">
+            {[
+              { q: 'เรียนผ่าน iPad หรือมือถือได้ไหม?', a: 'ได้เลย! ระบบรองรับทุกอุปกรณ์ ทั้ง iPad, มือถือ, แท็บเล็ต และคอมพิวเตอร์ ไม่ต้องติดตั้งแอปเพิ่มเติม' },
+              { q: 'สมัครเรียนได้เลยไหม?', a: 'สมัครได้เลยทันที หลังสมัครสามารถเข้าเรียนได้ภายใน 24 ชั่วโมง ไม่มีค่าสมัครเพิ่มเติม' },
+              { q: 'มีคอร์สเรียนสดด้วย เรียนที่ไหนบ้างได้บ้าง?', a: 'มีทั้งคอร์สออนไลน์และ Live สด สามารถเรียนได้จากทุกที่ผ่านระบบออนไลน์ของเรา' },
+            ].map((faq, i) => (
+              <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex justify-between items-center px-6 py-4 text-left font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
+                >
+                  <span>{faq.q}</span>
+                  <span className={`ml-4 flex-shrink-0 text-primary transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+                {openFaq === i && (
+                  <div className="px-6 pb-4 text-gray-600 text-sm leading-relaxed border-t border-gray-100 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 12. CTA Banner */}
+      <section className="py-16 md:py-24 bg-gradient-to-r from-orange-400 via-orange-500 to-primary">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-snug">
+            อย่าให้ถึงวันสอบ...<br />
+            เริ่ม<span className="text-yellow-300">เตรียมตัววันนี้</span> เพื่ออนาคต<span className="text-yellow-300">ที่เลือกได้</span>
+          </h2>
+          <p className="text-orange-100 mb-8 text-lg">
+            เวลาไม่คอยใคร แต่ระหว่างนี้ เรา อยู่ที่นี่ พร้อมพาทุกคนไปถึงฝัน
+          </p>
+          <Link href="/register">
+            <button className="bg-white hover:bg-yellow-50 text-primary text-lg font-extrabold px-10 py-4 rounded-xl shadow-lg transition-all hover:-translate-y-1">
+              สมัครเรียนเลยตอนนี้
+            </button>
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
