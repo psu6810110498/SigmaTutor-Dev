@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ import {
   Loader2,
   Lock,
   CheckCircle,
+  Trash2,
 } from 'lucide-react';
 import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
@@ -60,8 +61,9 @@ const typeBadge: Record<CourseType, { label: string; className: string }> = {
 
 export default function CourseDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.id as string;
-  const { addToCart, isInCart } = useCourse();
+  const { addToCart, isInCart, removeFromCart } = useCourse();
   const { user } = useAuth();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -857,27 +859,45 @@ export default function CourseDetailPage() {
             ) : (
               <>
                 <button
-                  onClick={() => addToCart(toCartItem(course))}
-                  disabled={isInCart(course.id)}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
-                    ? 'bg-green-50 text-green-600 cursor-default'
+                  onClick={() => {
+                    if (isInCart(course.id)) {
+                      removeFromCart(course.id);
+                    } else {
+                      addToCart(toCartItem(course));
+                    }
+                  }}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${isInCart(course.id)
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
                     : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
                     }`}
                 >
                   {isInCart(course.id) ? (
-                    '✓ อยู่ในตะกร้าแล้ว'
+                    <>
+                      <span className="flex items-center justify-center gap-2 group-hover:hidden">
+                        <CheckCircle size={16} /> อยู่ในตะกร้าแล้ว
+                      </span>
+                      <span className="hidden items-center justify-center gap-2 group-hover:flex">
+                        <Trash2 size={16} /> เอาออกจากตะกร้า
+                      </span>
+                    </>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <ShoppingCart size={16} /> เพิ่มลงตะกร้า
                     </span>
                   )}
                 </button>
-                <Link
-                  href="/checkout"
+                <button
+                  onClick={() => {
+                    if (!isInCart(course.id)) {
+                      addToCart(toCartItem(course));
+                    }
+                    // Use setTimeout to ensure context state is flushed slightly before routing
+                    setTimeout(() => router.push('/checkout'), 50);
+                  }}
                   className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
                 >
                   ซื้อเลย
-                </Link>
+                </button>
               </>
             )}
 
