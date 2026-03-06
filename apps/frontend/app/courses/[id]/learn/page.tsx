@@ -409,12 +409,22 @@ export default function LearningPage() {
                 <div className="p-4 border-t border-slate-100 bg-white">
                     <button
                         className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                            ${currentLesson && completedLessons.has(currentLesson.id)
+                            ${currentIndex === allLessons.length - 1 && currentLesson && completedLessons.has(currentLesson.id)
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
-                        onClick={() => currentLesson && toggleCompleted(currentLesson.id)}
+                        onClick={() => {
+                            if (!currentLesson) return;
+                            if (!completedLessons.has(currentLesson.id)) {
+                                toggleCompleted(currentLesson.id);
+                            }
+                            if (currentIndex < allLessons.length - 1) {
+                                goToNext();
+                            }
+                        }}
                     >
-                        {currentLesson && completedLessons.has(currentLesson.id) ? (
+                        {currentIndex < allLessons.length - 1 ? (
+                            <>บทเรียนถัดไป <ArrowLeft size={16} className="rotate-180" /></>
+                        ) : currentLesson && completedLessons.has(currentLesson.id) ? (
                             <><CheckCircle size={18} /> เรียนจบแล้ว</>
                         ) : (
                             'ทำเครื่องหมายว่าเรียนจบ'
