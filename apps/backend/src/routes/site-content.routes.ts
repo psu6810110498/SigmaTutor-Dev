@@ -8,45 +8,45 @@ const ALLOWED_KEYS = ['students', 'stats', 'universities', 'tutors', 'testimonia
 
 /** GET /api/site-content — all sections (public) */
 router.get('/', async (_req, res: Response) => {
-  try {
-    const data = await siteContentService.getAll();
-    res.json({ success: true, data });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch site content' });
-  }
+    try {
+        const data = await siteContentService.getAll();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to fetch site content' });
+    }
 });
 
 /** GET /api/site-content/:key — single section (public) */
 router.get('/:key', async (req, res: Response) => {
-  const { key } = req.params;
-  if (!ALLOWED_KEYS.includes(key)) {
-    return res.status(404).json({ success: false, error: 'Unknown section key' });
-  }
-  try {
-    const data = await siteContentService.getByKey(key);
-    res.json({ success: true, data });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch section' });
-  }
+    const { key } = req.params;
+    if (!ALLOWED_KEYS.includes(key)) {
+        return res.status(404).json({ success: false, error: 'Unknown section key' });
+    }
+    try {
+        const data = await siteContentService.getByKey(key);
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to fetch section' });
+    }
 });
 
 /** PUT /api/site-content/:key — update section (ADMIN only) */
 router.put(
-  '/:key',
-  authenticate,
-  requireRole('ADMIN'),
-  async (req: AuthRequest, res: Response) => {
-    const { key } = req.params;
-    if (!ALLOWED_KEYS.includes(key)) {
-      return res.status(400).json({ success: false, error: 'Unknown section key' });
+    '/:key',
+    authenticate,
+    requireRole('ADMIN'),
+    async (req: AuthRequest, res: Response) => {
+        const { key } = req.params;
+        if (!ALLOWED_KEYS.includes(key)) {
+            return res.status(400).json({ success: false, error: 'Unknown section key' });
+        }
+        try {
+            const updated = await siteContentService.upsert(key, req.body);
+            res.json({ success: true, data: updated.data });
+        } catch (error) {
+            res.status(500).json({ success: false, error: 'Failed to update section' });
+        }
     }
-    try {
-      const updated = await siteContentService.upsert(key, req.body);
-      res.json({ success: true, data: updated.data });
-    } catch (error) {
-      res.status(500).json({ success: false, error: 'Failed to update section' });
-    }
-  }
 );
 
 export default router;

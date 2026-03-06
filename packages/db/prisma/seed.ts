@@ -604,6 +604,114 @@ async function main() {
     console.log(`   📘 Seeded course: ${c.title}`);
   }
 
+  // ----------------------------------------------------------------
+  // Site Content (Homepage CMS)
+  // ----------------------------------------------------------------
+  console.log('\n🏠 Seeding site content...');
+
+  const SITE_CONTENT: { key: string; data: unknown }[] = [
+    {
+      key: 'students',
+      data: [
+        { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์', color: 'from-blue-400 to-indigo-600', image: null },
+        { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาไฟฟ้า', color: 'from-purple-400 to-blue-600', image: null },
+        { faculty: 'แพทยศาสตร์', major: 'คณะแพทยศาสตร์', color: 'from-cyan-400 to-blue-500', image: null },
+        { faculty: 'สถาปัตยกรรมศาสตร์', major: 'สาขาออกแบบ', color: 'from-indigo-400 to-purple-600', image: null },
+      ],
+    },
+    {
+      key: 'stats',
+      data: [
+        { value: '10,000+', label: 'นักเรียนที่ไว้วางใจ' },
+        { value: '40+', label: 'คอร์สเรียนคุณภาพ' },
+        { value: '98%', label: 'สอบคณะที่หวัง' },
+      ],
+    },
+    {
+      key: 'universities',
+      data: [
+        { name: 'จุฬาฯ', abbr: 'จฬ', bg: 'bg-pink-100', text: 'text-pink-600' },
+        { name: 'มหิดล', abbr: 'มห', bg: 'bg-blue-100', text: 'text-blue-600' },
+        { name: 'ธรรมศาสตร์', abbr: 'ธศ', bg: 'bg-red-100', text: 'text-red-600' },
+        { name: 'เกษตรฯ', abbr: 'กษ', bg: 'bg-green-100', text: 'text-green-600' },
+        { name: 'ลาดกระบัง', abbr: 'ลก', bg: 'bg-orange-100', text: 'text-orange-600' },
+        { name: 'มจธ.', abbr: 'มจ', bg: 'bg-purple-100', text: 'text-purple-600' },
+      ],
+    },
+    {
+      key: 'tutors',
+      data: [
+        {
+          name: 'พี่บอส (สรวิธ วิฒนรงค์)',
+          subject: 'วิชา: คอมพิวเตอร์',
+          desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์โอลิมปิกและสอบเข้ามหาวิทยาลัย',
+          initial: 'บ',
+          color: 'from-blue-500 to-indigo-600',
+          image: null,
+        },
+        {
+          name: 'พี่พีช (พารีย์ ยาเก)',
+          subject: 'วิชา: คอมพิวเตอร์',
+          desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์ระดับชาติและนานาชาติ',
+          initial: 'พ',
+          color: 'from-purple-500 to-blue-600',
+          image: null,
+        },
+        {
+          name: 'พี่แนน (ณัชช์พิชา จิตธนะอ่อน)',
+          subject: 'วิชา: คณิตศาสตร์',
+          desc: 'ผ่านสนามสอบคณิตโอลิมปิกระดับนานาชาติ เน้นสอนให้เข้าใจลึกและแก้โจทย์ได้ทุกรูปแบบ',
+          initial: 'น',
+          color: 'from-rose-400 to-pink-600',
+          image: null,
+        },
+      ],
+    },
+    {
+      key: 'testimonial',
+      data: {
+        quote: 'จากที่เกลียดฟิสิกส์ กลายเป็นวิชาทำคะแนน! เทคนิคของพี่บอสช่วยให้มองงานยากกว่าออก ไม่ต้องท่องสูตร สอบติด วิศวกรรมคอมพิวเตอร์ ม.ดัง มาแล้ว ขอบคุณมากๆ',
+        name: 'น้องพลอย',
+        faculty: 'วิศวกรรมศาสตร์ สาขาคอมพิวเตอร์',
+        image: null,
+      },
+    },
+    {
+      key: 'faqs',
+      data: [
+        {
+          q: 'เรียนผ่าน iPad หรือมือถือได้ไหม?',
+          a: 'ได้เลย! ระบบรองรับทุกอุปกรณ์ ทั้ง iPad, มือถือ, แท็บเล็ต และคอมพิวเตอร์ ไม่ต้องติดตั้งแอปเพิ่มเติม',
+        },
+        {
+          q: 'สมัครเรียนได้เลยไหมหรือต้องรอ?',
+          a: 'สมัครได้เลยทันที หลังสมัครสามารถเข้าเรียนได้ภายใน 24 ชั่วโมง ไม่มีค่าสมัครเพิ่มเติม',
+        },
+        {
+          q: 'มีคอร์สเรียนสดด้วย เรียนที่ไหนได้บ้าง?',
+          a: 'มีทั้งคอร์สออนไลน์และ Live สด สามารถเรียนได้จากทุกที่ผ่านระบบออนไลน์ของเรา',
+        },
+        {
+          q: 'ถ้าดูคลิปแล้วไม่เข้าใจทำอย่างไรดี?',
+          a: 'สามารถถามตอบได้ผ่านระบบ Q&A ในแต่ละบทเรียน ทีมติวเตอร์จะตอบภายใน 24 ชั่วโมง',
+        },
+        {
+          q: 'คอร์สดูได้นานแค่ไหน?',
+          a: 'เข้าถึงได้ตลอดชีพหลังจากซื้อคอร์ส ไม่มีวันหมดอายุ สามารถกลับมาทบทวนได้ทุกเมื่อ',
+        },
+      ],
+    },
+  ];
+
+  for (const item of SITE_CONTENT) {
+    await prisma.siteContent.upsert({
+      where: { key: item.key },
+      update: { data: item.data as any },
+      create: { key: item.key, data: item.data as any },
+    });
+    console.log(`   ✅ site_content[${item.key}] seeded`);
+  }
+
   console.log('\n🎉 Seeding complete!');
   await prisma.$disconnect();
 }

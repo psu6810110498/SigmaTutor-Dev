@@ -434,11 +434,10 @@ export default function AdminSettingsPage() {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px ${
-                            activeTab === tab.id
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 -mb-px ${activeTab === tab.id
                                 ? 'border-primary text-primary bg-primary/5'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                        }`}
+                            }`}
                     >
                         {tab.label}
                     </button>
