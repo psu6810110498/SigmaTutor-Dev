@@ -501,7 +501,7 @@ export default function CourseDetailPage() {
                                   </span>
                                 ) : (
                                   <>
-                                    {sched.videoUrl && (
+                                    {(sched.videoUrl || sched.gumletVideoId) && (
                                       <span className="text-xs flex items-center gap-1">
                                         <Video size={14} /> วิดีโอ
                                       </span>
