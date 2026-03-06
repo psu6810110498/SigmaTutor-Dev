@@ -28,7 +28,7 @@ export default function MyCoursesPage() {
     const fetchMyCourses = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-        const res = await fetch(`${apiUrl}/courses/my-courses`, {
+        const res = await fetch(`${apiUrl}/courses/enrolled`, {
           credentials: 'include', // ✅ ต้องส่งคุกกี้ไปเพื่อยืนยันตัวตน
         });
         const data = await res.json();
@@ -64,7 +64,7 @@ export default function MyCoursesPage() {
           <div className="w-full bg-gray-100 rounded-full h-1.5 mb-4">
             <div className="bg-green-500 h-1.5 rounded-full w-full"></div>
           </div>
-          <Link href={`/courses/${course.id}/review`} className="block w-full text-center py-2.5 rounded-xl border-2 border-orange-400 text-orange-500 text-sm font-black hover:bg-orange-50 transition-colors">
+          <Link href={`/course/${course.id}/reviews`} className="block w-full text-center py-2.5 rounded-xl border-2 border-orange-400 text-orange-500 text-sm font-black hover:bg-orange-50 transition-colors">
             รีวิวเลย
           </Link>
         </div>
@@ -116,10 +116,10 @@ export default function MyCoursesPage() {
           </div>
         ) : filteredCourses.length > 0 ? (
           filteredCourses.map((course) => (
-            <div key={course.id} className="bg-white rounded-[1.5rem] p-5 shadow-lg shadow-gray-100/50 border border-gray-100 flex flex-col hover:-translate-y-1 transition-transform duration-300">
+            <div key={course.id} className="bg-white rounded-3xl p-5 shadow-lg shadow-gray-100/50 border border-gray-100 flex flex-col hover:-translate-y-1 transition-transform duration-300">
               
               {/* ภาพหน้าปกคอร์ส */}
-              <div className="relative h-44 rounded-[1rem] overflow-hidden bg-slate-800 mb-5 group">
+              <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-800 mb-5 group">
                 <img 
                   src={course.thumbnail || `https://placehold.co/600x400/2a303c/ffffff?text=${course.categoryName}`} 
                   alt={course.title} 
@@ -150,13 +150,13 @@ export default function MyCoursesPage() {
             </div>
           ))
         ) : (
-          <div className="col-span-full py-16 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200">
+          <div className="col-span-full py-16 text-center bg-gray-50 rounded-4xl border-2 border-dashed border-gray-200">
             <p className="text-gray-500 font-bold">ไม่พบคอร์สเรียนในหมวดหมู่นี้</p>
           </div>
         )}
 
         {/* --- Card สำหรับลงทะเบียนคอร์สใหม่ --- */}
-        <Link href="/explore" className="flex flex-col items-center justify-center min-h-[340px] rounded-[1.5rem] border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-white hover:border-primary hover:shadow-xl hover:shadow-primary/10 transition-all group p-6 cursor-pointer">
+        <Link href="/explore" className="flex flex-col items-center justify-center min-h-85 rounded-3xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-white hover:border-primary hover:shadow-xl hover:shadow-primary/10 transition-all group p-6 cursor-pointer">
           <div className="w-16 h-16 rounded-full bg-white border border-gray-200 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:border-primary group-hover:text-primary transition-all shadow-sm">
             <FiPlus className="w-8 h-8 text-gray-400 group-hover:text-primary" />
           </div>
