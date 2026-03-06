@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { FaArrowRight, FaBook, FaStar, FaChevronDown } from 'react-icons/fa';
 import { courseApi } from '@/app/lib/api';
 import { Course } from '@/app/lib/types';
-import CategorySection from '@/app/components/home/CategorySection';
 import FeatureSection from '@/app/components/home/FeatureSection';
 
 const FILTER_TABS = ['ทั้งหมด', 'ประถม', 'ม.ต้น', 'ม.ปลาย', 'TCAS', 'SAT', 'IELTS'];
@@ -71,11 +70,13 @@ export default function HomePage() {
 
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
-
       {/* ─── 1. HERO ─────────────────────────────────────────────────── */}
       <section
         className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #1a1f6e 0%, #2563eb 60%, #3b82f6 100%)', minHeight: '520px' }}
+        style={{
+          background: 'linear-gradient(135deg, #1a1f6e 0%, #2563eb 60%, #3b82f6 100%)',
+          minHeight: '520px',
+        }}
       >
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-600/30 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4" />
@@ -83,7 +84,8 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div className="text-white">
               <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight mb-5">
-                สอบติดคณะในฝัน...<br />
+                สอบติดคณะในฝัน...
+                <br />
                 <span className="text-yellow-300">ไม่ใช่เรื่องบังเอิญ</span>
               </h1>
               <p className="text-blue-100 text-base md:text-lg leading-relaxed mb-8 max-w-md">
@@ -129,7 +131,10 @@ export default function HomePage() {
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">คอร์สเรียนยอดฮิต</h2>
               <p className="text-gray-500 text-sm mt-1">กี่โพวท์ ยกเครื่อง จบต้องจบ</p>
             </div>
-            <Link href="/explore" className="hidden md:flex items-center text-primary font-semibold hover:underline text-sm">
+            <Link
+              href="/explore"
+              className="hidden md:flex items-center text-primary font-semibold hover:underline text-sm"
+            >
               ดูคอร์สเรียนทั้งหมด <FaArrowRight className="ml-1.5 text-xs" />
             </Link>
           </div>
@@ -154,7 +159,11 @@ export default function HomePage() {
           {!loading && popularCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
               {popularCourses.map((course) => (
-                <Link key={course.id} href={`/course/${course.slug || course.id}`} className="group block">
+                <Link
+                  key={course.id}
+                  href={`/course/${course.slug || course.id}`}
+                  className="group block"
+                >
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 h-full flex flex-col">
                     <div className="aspect-video bg-gray-100 relative overflow-hidden">
                       {course.thumbnail ? (
@@ -177,16 +186,18 @@ export default function HomePage() {
                         {course.title}
                       </h3>
                       <div className="flex items-center gap-1 text-xs mb-1">
-                        <span className="text-yellow-500 font-bold">{course.rating?.toFixed(1) || '4.8'}</span>
+                        <span className="text-yellow-500 font-bold">
+                          {course.rating?.toFixed(1) || '4.8'}
+                        </span>
                         <FaStar size={10} className="text-yellow-400" />
                         <span className="text-gray-400">({course.reviewCount || 220} รีวิว)</span>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">
-                        1,500+ ผู้เรียน
-                      </p>
+                      <p className="text-xs text-gray-400 mb-3">1,500+ ผู้เรียน</p>
                       <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-50">
                         <div>
-                          <span className="text-primary font-extrabold text-sm">฿{course.price.toLocaleString()}</span>
+                          <span className="text-primary font-extrabold text-sm">
+                            ฿{course.price.toLocaleString()}
+                          </span>
                         </div>
                         <span className="text-[11px] bg-primary/10 hover:bg-primary hover:text-white text-primary font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
                           ดูรายละเอียด
@@ -211,29 +222,48 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── 3. CATEGORY ─────────────────────────────────────────────── */}
-      <CategorySection />
-
       {/* ─── 4. STUDENT SUCCESS ──────────────────────────────────────── */}
       <section className="py-16 md:py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">รวมความสำเร็จลูกศิษย์</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              รวมความสำเร็จลูกศิษย์
+            </h2>
             <p className="text-gray-500">กี่โพวท์ ได้พาน้องๆ ไปถึงคณะในฝัน</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             {[
-              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์', color: 'from-blue-400 to-indigo-600' },
-              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์', color: 'from-purple-400 to-blue-600' },
-              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์', color: 'from-cyan-400 to-blue-500' },
-              { faculty: 'วิศวกรรมศาสตร์', major: 'สาขาคอมพิวเตอร์', color: 'from-indigo-400 to-purple-600' },
+              {
+                faculty: 'วิศวกรรมศาสตร์',
+                major: 'สาขาคอมพิวเตอร์',
+                color: 'from-blue-400 to-indigo-600',
+              },
+              {
+                faculty: 'วิศวกรรมศาสตร์',
+                major: 'สาขาคอมพิวเตอร์',
+                color: 'from-purple-400 to-blue-600',
+              },
+              {
+                faculty: 'วิศวกรรมศาสตร์',
+                major: 'สาขาคอมพิวเตอร์',
+                color: 'from-cyan-400 to-blue-500',
+              },
+              {
+                faculty: 'วิศวกรรมศาสตร์',
+                major: 'สาขาคอมพิวเตอร์',
+                color: 'from-indigo-400 to-purple-600',
+              },
             ].map((s, i) => (
               <div key={i} className="rounded-2xl overflow-hidden shadow-md bg-white">
                 <div className={`h-44 bg-linear-to-br ${s.color} flex items-center justify-center`}>
-                  <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white text-2xl font-bold">น</div>
+                  <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white text-2xl font-bold">
+                    น
+                  </div>
                 </div>
                 <div className="p-4 text-center">
-                  <span className="inline-block bg-yellow-400 text-gray-900 text-[11px] font-extrabold px-3 py-1 rounded-full mb-2">CONGRATS!!</span>
+                  <span className="inline-block bg-yellow-400 text-gray-900 text-[11px] font-extrabold px-3 py-1 rounded-full mb-2">
+                    CONGRATS!!
+                  </span>
                   <p className="font-bold text-sm text-gray-900">{s.faculty}</p>
                   <p className="text-xs text-gray-500">{s.major}</p>
                 </div>
@@ -271,7 +301,9 @@ export default function HomePage() {
               { name: 'มจธ.', bg: 'bg-purple-100', text: 'text-purple-600', abbr: 'มจ' },
             ].map((u, i) => (
               <div key={i} className="flex flex-col items-center gap-2">
-                <div className={`w-16 h-16 rounded-full ${u.bg} flex items-center justify-center shadow-sm`}>
+                <div
+                  className={`w-16 h-16 rounded-full ${u.bg} flex items-center justify-center shadow-sm`}
+                >
                   <span className={`${u.text} font-extrabold text-sm`}>{u.abbr}</span>
                 </div>
                 <span className="text-xs text-gray-500 font-medium">{u.name}</span>
@@ -294,8 +326,13 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {TUTORS.map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
-                <div className={`w-24 h-24 rounded-full bg-linear-to-br ${t.color} flex items-center justify-center text-white text-3xl font-extrabold mb-4 shadow-lg`}>
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow"
+              >
+                <div
+                  className={`w-24 h-24 rounded-full bg-linear-to-br ${t.color} flex items-center justify-center text-white text-3xl font-extrabold mb-4 shadow-lg`}
+                >
                   {t.initial}
                 </div>
                 <span className="bg-orange-400 text-white text-xs font-bold px-4 py-1 rounded-full mb-3">
@@ -303,7 +340,10 @@ export default function HomePage() {
                 </span>
                 <h3 className="font-bold text-gray-900 mb-2">{t.name}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed mb-5">{t.desc}</p>
-                <Link href="/explore" className="text-primary text-sm font-semibold hover:underline">
+                <Link
+                  href="/explore"
+                  className="text-primary text-sm font-semibold hover:underline"
+                >
                   ดูคอร์สเรียน &amp; หลักสูตรทั้งหมด →
                 </Link>
               </div>
@@ -326,9 +366,9 @@ export default function HomePage() {
             </div>
             <div>
               <p className="text-gray-800 text-lg leading-relaxed mb-5 italic">
-                &ldquo;จากที่เกลียดฟิสิกส์ กลายเป็นวิชาทำคะแนน!
-                เทคนิคของพี่บอส ช่วยให้มองงานยากกว่าออก ไม่ต้องท่องสูตร สอบติด
-                วิศวกรรมคอมพิวเตอร์ ม.ดัง มาแล้ว ขอบคุณมากๆ&rdquo;
+                &ldquo;จากที่เกลียดฟิสิกส์ กลายเป็นวิชาทำคะแนน! เทคนิคของพี่บอส
+                ช่วยให้มองงานยากกว่าออก ไม่ต้องท่องสูตร สอบติด วิศวกรรมคอมพิวเตอร์ ม.ดัง มาแล้ว
+                ขอบคุณมากๆ&rdquo;
               </p>
               <p className="font-bold text-gray-900">น้องพลอย</p>
               <p className="text-primary text-sm font-medium">วิศวกรรมศาสตร์ สาขาคอมพิวเตอร์</p>
@@ -377,7 +417,8 @@ export default function HomePage() {
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-snug">
-            อย่าให้ถึงวันสอบ...<br />
+            อย่าให้ถึงวันสอบ...
+            <br />
             เริ่ม<span className="text-yellow-300">เตรียมตัววันนี้</span> เพื่ออนาคต
             <span className="text-yellow-300">ที่เลือกได้</span>
           </h2>
@@ -391,7 +432,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-
     </div>
   );
 }
