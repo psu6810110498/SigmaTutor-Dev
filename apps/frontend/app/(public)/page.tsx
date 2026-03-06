@@ -7,6 +7,7 @@ import { courseApi } from '@/app/lib/api';
 import { Course } from '@/app/lib/types';
 import FeatureSection from '@/app/components/home/FeatureSection';
 import QuickFilters from '../components/marketplace/QuickFilters';
+import CourseCard from '@/app/components/marketplace/CourseCard';
 
 const FILTER_TABS = ['ทั้งหมด', 'ประถม', 'ม.ต้น', 'ม.ปลาย', 'TCAS', 'SAT', 'IELTS'];
 
@@ -140,7 +141,6 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* filter tabs */}
           <QuickFilters
             filters={FILTER_TABS}
             activeFilter={activeTab}
@@ -151,53 +151,7 @@ export default function HomePage() {
           {!loading && popularCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
               {popularCourses.map((course) => (
-                <Link
-                  key={course.id}
-                  href={`/course/${course.slug || course.id}`}
-                  className="group block"
-                >
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 h-full flex flex-col">
-                    <div className="aspect-video bg-gray-100 relative overflow-hidden">
-                      {course.thumbnail ? (
-                        <img
-                          src={course.thumbnail}
-                          alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100">
-                          <FaBook size={28} className="text-blue-200" />
-                        </div>
-                      )}
-                      <span className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                        Best Seller
-                      </span>
-                    </div>
-                    <div className="p-4 flex flex-col grow">
-                      <h3 className="font-bold text-sm text-gray-900 mb-1.5 line-clamp-2 group-hover:text-primary leading-snug">
-                        {course.title}
-                      </h3>
-                      <div className="flex items-center gap-1 text-xs mb-1">
-                        <span className="text-yellow-500 font-bold">
-                          {course.rating?.toFixed(1) || '4.8'}
-                        </span>
-                        <FaStar size={10} className="text-yellow-400" />
-                        <span className="text-gray-400">({course.reviewCount || 220} รีวิว)</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-3">1,500+ ผู้เรียน</p>
-                      <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-50">
-                        <div>
-                          <span className="text-primary font-extrabold text-sm">
-                            ฿{course.price.toLocaleString()}
-                          </span>
-                        </div>
-                        <span className="text-[11px] bg-primary/10 hover:bg-primary hover:text-white text-primary font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
-                          ดูรายละเอียด
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                <CourseCard key={course.id} course={course} />
               ))}
             </div>
           ) : (
