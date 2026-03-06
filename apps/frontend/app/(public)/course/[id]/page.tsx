@@ -845,17 +845,12 @@ export default function CourseDetailPage() {
 
             {/* CTA Buttons */}
             {isEnrolled ? (
-              <>
-                <div className="w-full py-3 rounded-xl text-sm font-bold text-center bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center gap-2">
-                  <CheckCircle size={18} /> คุณได้ซื้อคอร์สนี้แล้ว
-                </div>
-                <Link
-                  href={`/courses/${course.id}/learn`}
-                  className="block w-full py-3 rounded-xl text-sm font-bold text-center bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                >
-                  ▶ เข้าเรียนเลย
-                </Link>
-              </>
+              <Link
+                href={`/courses/${course.id}/learn`}
+                className="w-full flex items-center justify-center py-3 rounded-xl text-sm font-bold text-center bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all active:scale-[0.98] gap-2"
+              >
+                <PlayCircle size={18} /> เข้าสู่บทเรียน
+              </Link>
             ) : (
               <>
                 <button

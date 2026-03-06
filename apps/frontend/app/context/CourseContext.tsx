@@ -50,10 +50,14 @@ interface CourseContextType {
 
 const CourseContext = createContext<CourseContextType | undefined>(undefined);
 
+import { useAuth } from './AuthContext';
+
 export function CourseProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [wishlistItems, setWishlistItems] = useState<CartItem[]>([]);
+  const { user } = useAuth(); // ดึงข้อมูล user ปัจจุบัน
 
+  // โหลดตะกร้าและ Wishlist เริ่มต้น
   useEffect(() => {
     // โหลดข้อมูลจาก LocalStorage เมื่อเปิดหน้าเว็บ
     const savedCart = localStorage.getItem('sigma_cart');
@@ -74,10 +78,43 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Sync กับ LocalStorage เมื่อ State เปลี่ยน
   useEffect(() => {
     localStorage.setItem('sigma_cart', JSON.stringify(cartItems));
     localStorage.setItem('sigma_wishlist', JSON.stringify(wishlistItems));
   }, [cartItems, wishlistItems]);
+
+  // ซิงค์เพื่อลบคอร์สที่ซื้อแล้วออกจากตะกร้า
+  useEffect(() => {
+    const fetchAndFilterOwnedCourses = async () => {
+      if (!user) return; // ถ้าไม่ได้ล็อกอิน ไม่ต้องเช็ค
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const res = await fetch(`${apiUrl}/courses/my-courses`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          const ownedCourseIds = new Set(data.data.map((course: any) => course.id));
+
+          setCartItems(prevItems => {
+            const filteredItems = prevItems.filter(item => !ownedCourseIds.has(item.id));
+            if (filteredItems.length !== prevItems.length) {
+              // อัปเดต LocalStorage ทันทีเมื่อมีการนำคอร์สออก
+              localStorage.setItem('sigma_cart', JSON.stringify(filteredItems));
+            }
+            return filteredItems;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch owned courses for cart filtering:', error);
+      }
+    };
+
+    fetchAndFilterOwnedCourses();
+  }, [user]); // ทำงานเมื่อ user เปลี่ยนแปลง (รวมถึงตอนล็อกอินสำเร็จ)
 
   const addToCart = (item: CartItem) => {
     if (!cartItems.find((c) => c.id === item.id)) {
@@ -101,7 +138,11 @@ export function CourseProvider({ children }: { children: ReactNode }) {
 
   const isInCart = (id: string) => cartItems.some((item) => item.id === id);
   const isInWishlist = (id: string) => wishlistItems.some((item) => item.id === id);
-  const clearCart = () => setCartItems([]);
+
+  const clearCart = () => {
+    setCartItems([]);
+    localStorage.removeItem('sigma_cart'); // ลบจาก Local Storage ทันที
+  };
 
   return (
     <CourseContext.Provider
