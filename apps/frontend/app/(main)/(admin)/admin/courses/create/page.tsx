@@ -91,6 +91,8 @@ export default function CreateCoursePage() {
         meetingId: null,
         priceRange: null,
         demoVideoUrl: "",
+        gumletVideoId: "",
+        videoProvider: "YOUTUBE",
         materialUrl: "",
         published: false,
         tags: [],
@@ -205,7 +207,7 @@ export default function CreateCoursePage() {
             } else { payload[key] = null; }
         });
 
-        ['demoVideoUrl', 'location', 'materialUrl', 'mapUrl', 'zoomLink', 'meetingId'].forEach((key) => {
+        ['demoVideoUrl', 'gumletVideoId', 'location', 'materialUrl', 'mapUrl', 'zoomLink', 'meetingId'].forEach((key) => {
             if (payload[key] === "") payload[key] = null;
         });
 
@@ -317,9 +319,29 @@ export default function CreateCoursePage() {
 
                             <div className="grid grid-cols-1 gap-4 pt-4 border-t border-gray-100">
                                 <div>
-                                    <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (MP4 / Youtube)</label>
-                                    <input type="url" value={form.demoVideoUrl} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={inputClass} placeholder="https://www.youtube.com/watch?v=..." />
+                                    <label className={labelClass}>ผู้ให้บริการวิดีโอตัวอย่าง</label>
+                                    <select
+                                        value={form.videoProvider}
+                                        onChange={(e) => updateForm("videoProvider", e.target.value)}
+                                        className={inputClass}
+                                    >
+                                        <option value="YOUTUBE">YouTube</option>
+                                        <option value="GUMLET">Gumlet</option>
+                                    </select>
                                 </div>
+
+                                {form.videoProvider === 'GUMLET' ? (
+                                    <div>
+                                        <label className={labelClass}>Gumlet Video ID</label>
+                                        <input type="text" value={form.gumletVideoId || ""} onChange={(e) => updateForm("gumletVideoId", e.target.value)} className={inputClass} placeholder="เช่น 65f... (ID จาก Gumlet Dashboard)" />
+                                        <p className="text-xs text-gray-500 mt-1">Enter the video ID from your Gumlet dashboard (e.g., 65f...).</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (Youtube / MP4)</label>
+                                        <input type="url" value={form.demoVideoUrl || ""} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={inputClass} placeholder="https://www.youtube.com/watch?v=..." />
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF หรืออัปโหลดใหม่)</label>

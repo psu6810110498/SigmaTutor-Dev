@@ -54,6 +54,8 @@ export interface Course {
     thumbnailSm: string | null;
     thumbnailLg: string | null;
     demoVideoUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
 
     // Relations
     categoryId: string | null;
@@ -199,6 +201,8 @@ export interface CreateCourseInput {
     tags?: string[]; // Added
     isBestSeller?: boolean; // Added
     isRecommended?: boolean; // Added
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
 }
 
 export interface Banner {

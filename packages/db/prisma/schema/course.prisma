@@ -12,6 +12,8 @@ model Course {
   status           CourseStatus @default(DRAFT)
   courseType       CourseType   @default(ONLINE)
   demoVideoUrl     String? // สำหรับใส่ลิงก์ MP4 หรือ Youtube
+  gumletVideoId    String? // สำหรับใส่ ID วิดีโอ Gumlet รีวิวคอร์ส
+  videoProvider    VideoProvider @default(YOUTUBE) // ค่ายวิดีโอ (นำมาจาก chapter.prisma ที่มี enum ไว้แล้ว)
   materialUrl      String? // สำหรับใส่ลิงก์ไฟล์ PDF
 
   thumbnail   String?

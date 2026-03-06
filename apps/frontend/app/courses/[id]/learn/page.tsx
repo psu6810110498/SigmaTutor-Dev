@@ -182,32 +182,53 @@ export default function LearningPage() {
                 <div className="p-8 max-w-5xl mx-auto w-full">
                     {/* Video Player */}
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
+                        {/* 1. Lesson has Gumlet */}
                         {currentLesson?.videoProvider === 'GUMLET' && currentLesson?.gumletVideoId ? (
                             <iframe
-                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId}`}
+                                src={`https://player.gumlet.com/embed/${currentLesson.gumletVideoId}`}
                                 className="w-full h-full"
-                                allow="autoplay; fullscreen; picture-in-picture"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                                 title={currentLesson?.title || 'Gumlet Video'}
                             />
-                        ) : (() => {
-                            const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl || course.demoVideoUrl;
-                            const vid = rawUrl
-                                ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop())
-                                : '';
-                            return vid ? (
-                                <iframe
-                                    src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
-                                    className="w-full h-full"
-                                    allowFullScreen
-                                />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
-                                    <PlayCircle size={48} className="opacity-50 text-slate-300" />
-                                    <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
-                                </div>
-                            );
-                        })()}
+                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || !currentLesson?.videoProvider) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
+                            (() => {
+                                const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl;
+                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                        className="w-full h-full"
+                                        allowFullScreen
+                                    />
+                                );
+                            })()
+                        ) : (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) ? (
+                            <iframe
+                                src={`https://player.gumlet.com/embed/${course.gumletVideoId}`}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                title="Course Demo Video"
+                            />
+                        ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
+                            (() => {
+                                const rawUrl = course.demoVideoUrl;
+                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                        className="w-full h-full"
+                                        allowFullScreen
+                                    />
+                                );
+                            })()
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
+                                <PlayCircle size={48} className="opacity-50 text-slate-300" />
+                                <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Lesson Title & Desc */}

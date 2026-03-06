@@ -72,7 +72,8 @@ export default function CourseDetailPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
-    if (course?.demoVideoUrl) setActiveMedia('video');
+    if (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) setActiveMedia('video');
+    else if (course?.demoVideoUrl) setActiveMedia('video');
   }, [course]);
 
   // Reviews
@@ -208,14 +209,25 @@ export default function CourseDetailPage() {
           <div className="mb-6">
             {/* Main Viewer */}
             <div className="rounded-2xl overflow-hidden bg-black aspect-video relative shadow-sm border border-gray-100 mb-3">
-              {activeMedia === 'video' && course.demoVideoUrl ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}?autoplay=1`}
-                  className="w-full h-full"
-                  allow="autoplay; fullscreen"
-                  allowFullScreen
-                  title="Promotional Video"
-                />
+              {activeMedia === 'video' && ((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) ? (
+                course.videoProvider === 'GUMLET' && course.gumletVideoId ? (
+                  <iframe
+                    src={`https://player.gumlet.com/embed/${course.gumletVideoId}`}
+                    title="Gumlet video player"
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${course.demoVideoUrl!.includes('v=') ? course.demoVideoUrl!.split('v=')[1]?.split('&')[0] : course.demoVideoUrl!.split('/').pop()}?autoplay=1`}
+                    className="w-full h-full"
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                    title="Promotional Video"
+                  />
+                )
               ) : (
                 course.thumbnailLg || course.thumbnail ? (
                   <img
@@ -238,7 +250,7 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Thumbnails Row */}
-            {course.demoVideoUrl && (
+            {((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) && (
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
                 <button
                   onClick={() => setActiveMedia('video')}
@@ -247,7 +259,13 @@ export default function CourseDetailPage() {
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 hover:bg-black/20 transition-colors">
                     <PlayCircle className="text-white drop-shadow-md" size={32} />
                   </div>
-                  <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                  {course.videoProvider === 'GUMLET' ? (
+                    <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                      <Video className="text-white opacity-50" size={24} />
+                    </div>
+                  ) : course.demoVideoUrl ? (
+                    <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                  ) : null}
                 </button>
 
                 <button
