@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FaArrowRight, FaBook, FaStar, FaChevronDown } from 'react-icons/fa';
-import { courseApi } from '@/app/lib/api';
-import { Course } from '@/app/lib/types';
+import { courseApi, categoryApi } from '@/app/lib/api';
+import { Course, Category } from '@/app/lib/types';
 import FeatureSection from '@/app/components/home/FeatureSection';
 import QuickFilters from '../components/marketplace/QuickFilters';
 import CourseCard from '@/app/components/marketplace/CourseCard';
@@ -55,11 +55,31 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ทั้งหมด');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
+  // Fetch categories once for name → id mapping
   useEffect(() => {
-    const fetchData = async () => {
+    categoryApi.list().then((res) => {
+      if (res.success && res.data) setCategories(res.data);
+    });
+  }, []);
+
+  // Re-fetch courses whenever activeTab changes
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoading(true);
       try {
-        const courseRes = await courseApi.getMarketplace({ sort: 'popular', limit: 5 });
+        const matchedCategory = categories.find(
+          (c) => c.name === activeTab
+        );
+        const params = {
+          sort: 'popular' as const,
+          limit: 5,
+          ...(activeTab !== 'ทั้งหมด' && matchedCategory
+            ? { categoryId: matchedCategory.id }
+            : {}),
+        };
+        const courseRes = await courseApi.getMarketplace(params);
         if (courseRes.success && courseRes.data) setPopularCourses(courseRes.data.courses);
       } catch (error) {
         console.error('Failed to fetch homepage data', error);
@@ -67,8 +87,8 @@ export default function HomePage() {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchCourses();
+  }, [activeTab, categories]);
 
   return (
     <div className="font-sans text-gray-900 bg-white flex flex-col min-h-screen">
