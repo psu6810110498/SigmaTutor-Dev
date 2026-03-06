@@ -6,6 +6,7 @@ import { FaArrowRight, FaBook, FaStar, FaChevronDown } from 'react-icons/fa';
 import { courseApi } from '@/app/lib/api';
 import { Course } from '@/app/lib/types';
 import FeatureSection from '@/app/components/home/FeatureSection';
+import QuickFilters from '../components/marketplace/QuickFilters';
 
 const FILTER_TABS = ['ทั้งหมด', 'ประถม', 'ม.ต้น', 'ม.ปลาย', 'TCAS', 'SAT', 'IELTS'];
 
@@ -140,21 +141,12 @@ export default function HomePage() {
           </div>
 
           {/* filter tabs */}
-          <div className="flex gap-2 flex-wrap mb-8">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-                  activeTab === tab
-                    ? 'bg-orange-400 text-white border-orange-400 shadow'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:text-orange-500'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          <QuickFilters
+            filters={FILTER_TABS}
+            activeFilter={activeTab}
+            onFilterChange={(tab) => setActiveTab(tab)}
+            className="mb-7"
+          />
 
           {!loading && popularCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
