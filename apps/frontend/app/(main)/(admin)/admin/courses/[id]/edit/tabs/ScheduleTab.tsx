@@ -59,12 +59,20 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
                 headers['Authorization'] = `Bearer ${token}`; // แทรก Token ตรงนี้ถ้าหาเจอ
             }
 
-            // ✅ 3. ส่งข้อมูลไปพร้อมกับ Token และ Credentials
+            // ✅ 3. ส่งข้อมูลไปพร้อมกับ Token และ Credentials และ Ensure Gumlet properties exist
+            const payloadSessions = sessions.map(s => {
+                // หากมีการกรอก Gumlet Video ID หรือ VideoProvider เป็น GUMLET ให้ยึดเป็น GUMLET ตอน Save เสมอ
+                if ((s.gumletVideoId && s.gumletVideoId.trim() !== '') || s.videoProvider === 'GUMLET') {
+                    return { ...s, videoProvider: 'GUMLET' };
+                }
+                return s;
+            });
+
             const res = await fetch(`http://localhost:4000/api/schedules/sync/${course.id}`, {
                 method: 'PUT',
                 headers: headers,
                 credentials: 'include',
-                body: JSON.stringify({ sessions }),
+                body: JSON.stringify({ sessions: payloadSessions }),
             });
 
             // บางครั้ง Backend อาจส่ง Error กลับมาเป็น Text ไม่ใช่ JSON

@@ -183,15 +183,15 @@ export default function LearningPage() {
                     {/* Video Player */}
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
                         {/* 1. Lesson has Gumlet */}
-                        {currentLesson?.videoProvider === 'GUMLET' && currentLesson?.gumletVideoId ? (
+                        {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId)) && currentLesson?.gumletVideoId ? (
                             <iframe
-                                src={`https://player.gumlet.com/embed/${currentLesson.gumletVideoId}`}
+                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId}`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                                 title={currentLesson?.title || 'Gumlet Video'}
                             />
-                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || !currentLesson?.videoProvider) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
+                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId)) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
                             (() => {
                                 const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl;
                                 const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
@@ -203,9 +203,9 @@ export default function LearningPage() {
                                     />
                                 );
                             })()
-                        ) : (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) ? (
+                        ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId)) && course?.gumletVideoId) ? (
                             <iframe
-                                src={`https://player.gumlet.com/embed/${course.gumletVideoId}`}
+                                src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen

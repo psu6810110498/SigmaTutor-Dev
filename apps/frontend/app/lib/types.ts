@@ -127,6 +127,11 @@ export interface CourseSchedule {
     startTime: string; // ISO String
     endTime: string;   // ISO String
     topic: string;
+    chapterTitle?: string | null;
+    videoUrl?: string | null;
+    materialUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
     location: string | null;
     isOnline: boolean;
     status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED';

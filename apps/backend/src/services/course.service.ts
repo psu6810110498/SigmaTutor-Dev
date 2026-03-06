@@ -53,6 +53,8 @@ export class CourseService {
           topic: s.title ?? s.topic ?? 'ไม่มีหัวข้อ',
           chapterTitle: s.chapterTitle ?? null,
           videoUrl: s.videoUrl ?? null,
+          gumletVideoId: s.gumletVideoId ?? null,
+          videoProvider: s.videoProvider ?? 'YOUTUBE',
           materialUrl: s.materialUrl ?? null,
           // provide minimal required defaults for schedule model
           date: new Date(),

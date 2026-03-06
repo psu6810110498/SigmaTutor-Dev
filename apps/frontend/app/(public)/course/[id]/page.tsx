@@ -212,7 +212,7 @@ export default function CourseDetailPage() {
               {activeMedia === 'video' && ((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) ? (
                 course.videoProvider === 'GUMLET' && course.gumletVideoId ? (
                   <iframe
-                    src={`https://player.gumlet.com/embed/${course.gumletVideoId}`}
+                    src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
                     title="Gumlet video player"
                     className="w-full h-full"
                     frameBorder="0"
@@ -435,7 +435,7 @@ export default function CourseDetailPage() {
                             {expandedLessons.has(lesson.id) && (
                               <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
                                 {lesson.content || 'ไม่มีรายละเอียดเนื้อหา'}
-                                {lesson.videoProvider === 'GUMLET' && lesson.gumletVideoId ? (
+                                {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
                                   <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
                                       src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
@@ -448,7 +448,7 @@ export default function CourseDetailPage() {
                                 ) : lesson.youtubeUrl && (
                                   <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
-                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.split('v=')[1] || lesson.youtubeUrl.split('/').pop()}`}
+                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
                                       className="w-full h-full"
                                       allowFullScreen
                                     />
@@ -525,10 +525,20 @@ export default function CourseDetailPage() {
                                 {sched.chapterTitle && (
                                   <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
                                 )}
-                                {sched.videoUrl && (
+                                {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
+                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                    <iframe
+                                      src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
+                                      className="w-full h-full"
+                                      allow="autoplay; fullscreen; picture-in-picture"
+                                      allowFullScreen
+                                      title={sched.topic}
+                                    />
+                                  </div>
+                                ) : sched.videoUrl && (
                                   <div className="aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
-                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}`}
+                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
                                       className="w-full h-full"
                                       allowFullScreen
                                       title={sched.topic}
