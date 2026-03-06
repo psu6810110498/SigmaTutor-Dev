@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { FiUser, FiGrid, FiBook, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from "@/app/components/ui/Toast";
 import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
@@ -13,7 +14,13 @@ export default function LearningPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const { user, loading: authLoading } = useAuth();
+    const { user, logout, loading: authLoading } = useAuth();
+
+    const menuItems = [
+        { name: 'แดชบอร์ด', icon: FiGrid, href: '/dashboard' },
+        { name: 'คอร์สของฉัน', icon: FiBook, href: '/my-courses' },
+        { name: 'ข้อมูลส่วนตัว', icon: FiUser, href: '/profile' },
+    ];
 
     const courseId = params.id as string;
     const [course, setCourse] = useState<any>(null);
@@ -188,17 +195,81 @@ export default function LearningPage() {
     return (
         <div className="flex h-screen bg-slate-50 text-slate-700 font-sans overflow-hidden">
 
-            {/* --- Sidebar ซ้ายสุด (Navigation เล็กๆ) --- */}
-            <div className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-6 shrink-0 z-10 shadow-sm">
-                <div className="mb-8">
-                    <SigmaLogo size="sm" showText={false} href="/my-courses" />
+            {/* --- Sidebar ซ้ายสุด (Navigation) --- */}
+            <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-40 hidden md:flex font-sans">
+                <div className="h-16 flex items-center px-8 border-b border-gray-50/50 shrink-0">
+                    <SigmaLogo size="lg" showText={true} />
                 </div>
-                <nav className="flex flex-col gap-6">
-                    <Link href="/my-courses" className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="คอร์สของฉัน">
-                        <ArrowLeft size={20} />
-                    </Link>
-                </nav>
-            </div>
+
+                <div className="p-8 h-full flex flex-col overflow-y-auto">
+                    {/* Profile Section */}
+                    <div className="flex flex-col items-center mb-10 text-center">
+                        {/* Avatar with Glowing Gradient Ring */}
+                        <div className="relative group mb-4">
+                            <div className="absolute -inset-1 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-500 to-blue-400">
+                                <div className="w-full h-full rounded-full bg-white p-1 overflow-hidden">
+                                    <img
+                                        src={
+                                            user?.profileImage ||
+                                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`
+                                        }
+                                        alt="Profile"
+                                        className="w-full h-full object-cover rounded-full bg-gray-50"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1 w-full px-2">
+                            <h3 className="font-bold text-gray-900 text-lg line-clamp-1 leading-tight">
+                                {user?.name || 'Promtada Pippo'}
+                            </h3>
+                            <p className="text-gray-400 text-xs truncate font-medium">
+                                {user?.email || 'pippo662006@gmail.com'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Navigation Menu */}
+                    <nav className="space-y-2 flex-1 pt-4">
+                        {menuItems.map((item) => {
+                            // On the Learning page, we consider "คอร์สของฉัน" as active
+                            const isActive = item.name === 'คอร์สของฉัน';
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`
+                                        flex items-center px-5 py-3.5 transition-all duration-200 font-semibold text-sm group
+                                        ${isActive
+                                            ? 'bg-[#3b82f6] text-white rounded-[12px] shadow-lg shadow-blue-500/30'
+                                            : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600 rounded-[12px]'
+                                        }
+                                    `}
+                                >
+                                    <item.icon
+                                        className={`w-5 h-5 mr-4 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-500'
+                                            }`}
+                                    />
+                                    {item.name}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Logout Section */}
+                    <div className="pt-6 mt-6 border-t border-gray-50">
+                        <button
+                            onClick={() => logout()}
+                            className="flex items-center px-5 py-3.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-[12px] w-full transition-all duration-200 text-sm font-semibold group"
+                        >
+                            <FiLogOut className="w-5 h-5 mr-4 group-hover:scale-110 transition-transform" />
+                            ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+            </aside>
 
             {/* --- พื้นที่เนื้อหาหลัก (ตรงกลาง) --- */}
             <div className="flex-1 flex flex-col overflow-y-auto w-full relative">

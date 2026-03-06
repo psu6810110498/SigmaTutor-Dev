@@ -48,36 +48,43 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
         {/* --- 2. Sidebar (Left) --- */}
         <aside
           className={`
-          fixed md:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out z-40
+          fixed md:static inset-y-0 left-0 w-72 bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out z-40
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
           pt-20 md:pt-0 
         `}
         >
-          {/* Added top padding for mobile sidebar to clear navbar */}
-
-          <div className="p-6 h-full flex flex-col">
-            {/* User Info Card */}
-            <div className="flex flex-col items-center mb-8 pt-4">
-              <div className="w-20 h-20 rounded-full mb-3 relative p-1 bg-gradient-to-tr from-blue-400 to-purple-400">
-                <div className="w-full h-full rounded-full bg-white p-0.5 overflow-hidden">
-                  <img
-                    src={
-                      user?.profileImage ||
-                      `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`
-                    }
-                    alt="Profile"
-                    className="w-full h-full object-cover rounded-full"
-                  />
+          <div className="p-8 h-full flex flex-col font-sans">
+            {/* --- Profile Section --- */}
+            <div className="flex flex-col items-center mb-10 pt-4 text-center">
+              {/* Avatar with Glowing Gradient Ring */}
+              <div className="relative group mb-4">
+                <div className="absolute -inset-1 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-500 to-blue-400">
+                  <div className="w-full h-full rounded-full bg-white p-1 overflow-hidden">
+                    <img
+                      src={
+                        user?.profileImage ||
+                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`
+                      }
+                      alt="Profile"
+                      className="w-full h-full object-cover rounded-full bg-gray-50"
+                    />
+                  </div>
                 </div>
               </div>
-              <h3 className="font-bold text-gray-800 text-center truncate w-full">
-                {user?.name || 'User'}
-              </h3>
-              <p className="text-gray-400 text-[10px] text-center truncate w-full">{user?.email}</p>
+
+              <div className="space-y-1 w-full px-2">
+                <h3 className="font-bold text-gray-900 text-lg line-clamp-1 leading-tight">
+                  {user?.name || 'Promtada Pippo'}
+                </h3>
+                <p className="text-gray-400 text-xs truncate font-medium">
+                  {user?.email || 'pippo662006@gmail.com'}
+                </p>
+              </div>
             </div>
 
-            {/* Navigation Links */}
-            <nav className="space-y-1 flex-1">
+            {/* --- Navigation Menu --- */}
+            <nav className="space-y-2 flex-1 py-4">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -85,13 +92,17 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-xl transition-all font-medium text-sm group ${isActive
-                      ? 'bg-primary text-white shadow-md shadow-primary/20'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-primary'
-                      }`}
+                    className={`
+                      flex items-center px-5 py-3.5 transition-all duration-200 font-semibold text-sm group
+                      ${isActive
+                        ? 'bg-[#3b82f6] text-white rounded-[12px] shadow-lg shadow-blue-500/30'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600 rounded-[12px]'
+                      }
+                    `}
                   >
                     <item.icon
-                      className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-primary'}`}
+                      className={`w-5 h-5 mr-4 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-500'
+                        }`}
                     />
                     {item.name}
                   </Link>
@@ -99,18 +110,16 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
               })}
             </nav>
 
-            {/* Logout Button */}
-            <div className="pt-6 border-t border-gray-100">
+            {/* --- Bottom Section (Logout) --- */}
+            <div className="pt-6 mt-6 border-t border-gray-50">
               <button
                 onClick={handleLogout}
-                className="flex items-center px-4 py-3 text-destructive hover:bg-destructive-light rounded-xl w-full transition-colors text-sm font-medium"
+                className="flex items-center px-5 py-3.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-[12px] w-full transition-all duration-200 text-sm font-semibold group"
               >
-                <FiLogOut className="w-5 h-5 mr-3" />
+                <FiLogOut className="w-5 h-5 mr-4 group-hover:scale-110 transition-transform" />
                 ออกจากระบบ
               </button>
             </div>
-
-            {/* Sidebar Banner Removed */}
           </div>
         </aside>
 
