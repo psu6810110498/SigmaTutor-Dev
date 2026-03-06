@@ -48,6 +48,8 @@ export class ScheduleService {
                             chapterTitle: s.chapterTitle || null,
                             videoUrl: s.videoUrl || null,
                             materialUrl: s.materialUrl || null,
+                            gumletVideoId: s.gumletVideoId || null,
+                            videoProvider: s.videoProvider || 'YOUTUBE',
                             // ✅ ใส่ค่า Date พื้นฐาน (ลบ Status ออก เผื่อ Database ไม่มีฟิลด์นี้)
                             date: new Date(),
                             startTime: new Date(),
@@ -55,8 +57,11 @@ export class ScheduleService {
                         }
                     }));
                 }
-                // ✅ หลัง sync เสร็จ: นับจำนวน session ที่มี videoUrl แล้วอัปเดต course.videoCount อัตโนมัติ
-                const videoCount = results.filter(r => r.videoUrl && r.videoUrl.trim() !== '').length;
+                // ✅ หลัง sync เสร็จ: นับจำนวน session ที่มี videoUrl หรือ gumletVideoId แล้วอัปเดต course.videoCount อัตโนมัติ
+                const videoCount = results.filter(r =>
+                    (r.videoUrl && r.videoUrl.trim() !== '') ||
+                    (r.gumletVideoId && r.gumletVideoId.trim() !== '')
+                ).length;
                 await tx.course.update({
                     where: { id: courseId },
                     data: { videoCount },

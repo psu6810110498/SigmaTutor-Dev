@@ -7,9 +7,9 @@ import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
 
-interface ScheduleTabProps { 
-    course: Course; 
-    onUpdate: () => void; 
+interface ScheduleTabProps {
+    course: Course;
+    onUpdate: () => void;
 }
 
 export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
@@ -21,12 +21,14 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
     useEffect(() => {
         if (course.schedules && course.schedules.length > 0) {
             const mapped = course.schedules.map(s => ({
-                id: s.id, 
-                title: s.topic || "", 
+                id: s.id,
+                title: s.topic || "",
                 chapterTitle: (s as any).chapterTitle || "",
-                videoUrl: (s as any).videoUrl || "", 
-                materialUrl: (s as any).materialUrl || "", 
+                videoUrl: (s as any).videoUrl || "",
+                materialUrl: (s as any).materialUrl || "",
                 sessionNumber: (s as any).sessionNumber,
+                videoProvider: (s as any).videoProvider || 'YOUTUBE',
+                gumletVideoId: (s as any).gumletVideoId || '',
             }));
             setSessions(mapped);
         }
@@ -52,19 +54,19 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json'
             };
-            
+
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`; // แทรก Token ตรงนี้ถ้าหาเจอ
             }
 
             // ✅ 3. ส่งข้อมูลไปพร้อมกับ Token และ Credentials
             const res = await fetch(`http://localhost:4000/api/schedules/sync/${course.id}`, {
-                method: 'PUT', 
+                method: 'PUT',
                 headers: headers,
-                credentials: 'include', 
+                credentials: 'include',
                 body: JSON.stringify({ sessions }),
             });
-            
+
             // บางครั้ง Backend อาจส่ง Error กลับมาเป็น Text ไม่ใช่ JSON
             let data;
             try {
@@ -96,11 +98,11 @@ export function ScheduleTab({ course, onUpdate }: ScheduleTabProps) {
                     </h2>
                 </div>
                 <Button onClick={handleSyncSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
-                    {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />} 
+                    {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />}
                     บันทึกเนื้อหาทั้งหมด
                 </Button>
             </div>
-            
+
             <ScheduleInput value={sessions} onChange={setSessions} />
         </div>
     );

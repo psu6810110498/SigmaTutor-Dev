@@ -16,6 +16,8 @@ export const createLessonSchema = z.object({
     type: z.enum(['VIDEO', 'FILE', 'QUIZ']).default('VIDEO'),
     content: z.string().optional().nullable(),
     youtubeUrl: z.string().optional().nullable(),
+    gumletVideoId: z.string().optional().nullable(),
+    videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
     duration: z.number().int().optional(),
     order: z.number().int().optional(),
 });

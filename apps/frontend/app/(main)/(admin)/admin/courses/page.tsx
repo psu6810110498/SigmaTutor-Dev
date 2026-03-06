@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { categoryApi, levelApi } from '@/app/lib/api';
@@ -94,6 +96,7 @@ export default function AdminCoursesPage() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
+        cache: 'no-store', // ✅ ปิดการ Cache (Force dynamic) เพื่อให้ได้ข้อมูลใหม่เสมอ
       });
 
       const res = await response.json();

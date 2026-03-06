@@ -417,7 +417,17 @@ export default function CourseDetailPage() {
                             {expandedLessons.has(lesson.id) && (
                               <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
                                 {lesson.content || 'ไม่มีรายละเอียดเนื้อหา'}
-                                {lesson.youtubeUrl && (
+                                {lesson.videoProvider === 'GUMLET' && lesson.gumletVideoId ? (
+                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                    <iframe
+                                      src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
+                                      className="w-full h-full"
+                                      allow="autoplay; fullscreen; picture-in-picture"
+                                      allowFullScreen
+                                      title={lesson.title}
+                                    />
+                                  </div>
+                                ) : lesson.youtubeUrl && (
                                   <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
                                       src={`https://www.youtube.com/embed/${lesson.youtubeUrl.split('v=')[1] || lesson.youtubeUrl.split('/').pop()}`}

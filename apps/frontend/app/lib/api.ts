@@ -550,6 +550,8 @@ export const lessonApi = {
         type?: 'VIDEO' | 'FILE' | 'QUIZ';
         content?: string | null;
         youtubeUrl?: string | null;
+        gumletVideoId?: string | null;
+        videoProvider?: 'YOUTUBE' | 'GUMLET';
         duration?: number;
         order?: number;
     }) => {

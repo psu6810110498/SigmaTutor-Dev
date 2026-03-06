@@ -6,6 +6,8 @@ export class LessonService {
         type?: 'VIDEO' | 'FILE' | 'QUIZ';
         content?: string | null;
         youtubeUrl?: string | null;
+        gumletVideoId?: string | null;
+        videoProvider?: 'YOUTUBE' | 'GUMLET';
         duration?: number;
         order?: number;
     }) {
@@ -29,6 +31,8 @@ export class LessonService {
         type?: 'VIDEO' | 'FILE' | 'QUIZ';
         content?: string | null;
         youtubeUrl?: string | null;
+        gumletVideoId?: string | null;
+        videoProvider?: 'YOUTUBE' | 'GUMLET';
         duration?: number;
         order?: number;
     }) {

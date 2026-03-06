@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-    Users, Search, Filter, Mail, Phone, MoreVertical,
-    Trash2, Edit, CheckCircle, XCircle, Plus, UserCheck, BookOpen, X, ChevronDown
+    Users, Search, Filter, Mail, Phone,
+    Trash2, Edit, Plus, UserCheck, BookOpen, X, ChevronDown
 } from "lucide-react";
 import { AdminTableLayout } from "@/app/components/layouts/AdminTableLayout";
 import { Button } from "@/app/components/ui/Button";
 import { useToast } from "@/app/components/ui/Toast";
 
 export default function AdminTeachersPage() {
+    const router = useRouter();
     const { toast } = useToast();
     const [teachers, setTeachers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,7 +79,7 @@ export default function AdminTeachersPage() {
                 { label: "นักเรียนทั้งหมด", value: teachers.reduce((sum: number, t: any) => sum + (t._count?.enrollments || 0), 0).toString(), icon: Users, color: "green" },
             ]}
             actions={
-                <Button variant="primary">
+                <Button variant="primary" onClick={() => router.push('/admin/teachers/create')}>
                     <Plus size={18} className="mr-2" /> เพิ่มผู้สอนใหม่
                 </Button>
             }
@@ -182,7 +184,12 @@ export default function AdminTeachersPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                    onClick={() => router.push(`/admin/teachers/${teacher.id}/edit`)}
+                                                >
                                                     <Edit size={14} />
                                                 </Button>
                                                 <Button
@@ -272,10 +279,10 @@ export default function AdminTeachersPage() {
                                                                     </p>
                                                                 </div>
                                                                 <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full border ${enrollment.status === 'COMPLETED'
-                                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                                                        : enrollment.status === 'ACTIVE'
-                                                                            ? 'bg-blue-50 text-blue-600 border-blue-200'
-                                                                            : 'bg-slate-50 text-slate-400 border-slate-200'
+                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                                    : enrollment.status === 'ACTIVE'
+                                                                        ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                                        : 'bg-slate-50 text-slate-400 border-slate-200'
                                                                     }`}>
                                                                     {enrollment.status === 'COMPLETED' ? 'เรียนจบ' : enrollment.status === 'ACTIVE' ? 'กำลังเรียน' : 'ยกเลิก'}
                                                                 </span>

@@ -14,6 +14,8 @@ export interface ScheduleSession {
     videoUrl?: string;     // ลิงก์วิดีโอเนื้อหา
     materialUrl?: string;  // ลิงก์ไฟล์ประกอบ
     sessionNumber?: number; // ลำดับครั้งที่
+    videoProvider?: 'YOUTUBE' | 'GUMLET'; // ตัวเลือก Platform วิดีโอ
+    gumletVideoId?: string; // Video ID ของ Gumlet
 }
 
 interface ScheduleInputProps {
@@ -33,6 +35,8 @@ const emptySession = (nextNumber: number): ScheduleSession => ({
     videoUrl: '',
     materialUrl: '',
     sessionNumber: nextNumber,
+    videoProvider: 'YOUTUBE',
+    gumletVideoId: '',
 });
 
 const inputBase =
@@ -155,16 +159,41 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                             />
                                         </td>
                                         <td className="px-4 py-5 align-top space-y-2">
-                                            <div className="relative">
-                                                <Video size={14} className="absolute left-3 top-3 text-red-500/60" />
-                                                <input
-                                                    type="url"
-                                                    value={s.videoUrl || ''}
-                                                    onChange={(e) => updateSession(s.id, 'videoUrl', e.target.value)}
-                                                    placeholder="ลิงก์วิดีโอ (YouTube/Vimeo)"
-                                                    className={`${inputBase} pl-9`}
-                                                />
+                                            {/* Video Provider Selector */}
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <select
+                                                    value={s.videoProvider || 'YOUTUBE'}
+                                                    onChange={(e) => updateSession(s.id, 'videoProvider', e.target.value as 'YOUTUBE' | 'GUMLET')}
+                                                    className={`${inputBase} w-36`}
+                                                >
+                                                    <option value="YOUTUBE">▶ YouTube</option>
+                                                    <option value="GUMLET">🎬 Gumlet</option>
+                                                </select>
                                             </div>
+                                            {/* Conditional Video Input */}
+                                            {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
+                                                <div className="relative">
+                                                    <Video size={14} className="absolute left-3 top-3 text-purple-500/60" />
+                                                    <input
+                                                        type="text"
+                                                        value={s.gumletVideoId || ''}
+                                                        onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
+                                                        placeholder="Gumlet Video ID"
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="relative">
+                                                    <Video size={14} className="absolute left-3 top-3 text-red-500/60" />
+                                                    <input
+                                                        type="url"
+                                                        value={s.videoUrl || ''}
+                                                        onChange={(e) => updateSession(s.id, 'videoUrl', e.target.value)}
+                                                        placeholder="ลิงก์วิดีโอ (YouTube/Vimeo)"
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                            )}
                                             {/* ✅ เพิ่มปุ่มอัปโหลด PDF สำหรับหน้าจอ Desktop */}
                                             <div className="flex gap-2">
                                                 <div className="relative flex-1">
@@ -258,19 +287,49 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                     </div>
 
                                     <div className="grid grid-cols-1 gap-3 pt-2 border-t border-gray-50">
+                                        {/* Video Provider Selector (Mobile) */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 text-red-500/70">วิดีโอ (Video URL)</label>
-                                            <div className="relative">
-                                                <Video size={14} className="absolute left-3 top-3 text-red-400" />
-                                                <input
-                                                    type="url"
-                                                    value={s.videoUrl || ''}
-                                                    onChange={(e) => updateSession(s.id, 'videoUrl', e.target.value)}
-                                                    placeholder="YouTube Link..."
-                                                    className={`${inputBase} pl-9`}
-                                                />
-                                            </div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">แหล่งวิดีโอ (Video Provider)</label>
+                                            <select
+                                                value={s.videoProvider || 'YOUTUBE'}
+                                                onChange={(e) => updateSession(s.id, 'videoProvider', e.target.value as 'YOUTUBE' | 'GUMLET')}
+                                                className={inputBase}
+                                            >
+                                                <option value="YOUTUBE">▶ YouTube</option>
+                                                <option value="GUMLET">🎬 Gumlet</option>
+                                            </select>
                                         </div>
+
+                                        {/* Conditional Video Input (Mobile) */}
+                                        {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-purple-500/70 uppercase mb-1 ml-1">Gumlet Video ID</label>
+                                                <div className="relative">
+                                                    <Video size={14} className="absolute left-3 top-3 text-purple-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={s.gumletVideoId || ''}
+                                                        onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
+                                                        placeholder="Gumlet Video ID..."
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 text-red-500/70">วิดีโอ (Video URL)</label>
+                                                <div className="relative">
+                                                    <Video size={14} className="absolute left-3 top-3 text-red-400" />
+                                                    <input
+                                                        type="url"
+                                                        value={s.videoUrl || ''}
+                                                        onChange={(e) => updateSession(s.id, 'videoUrl', e.target.value)}
+                                                        placeholder="YouTube Link..."
+                                                        className={`${inputBase} pl-9`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* ✅ เพิ่มปุ่มอัปโหลด PDF สำหรับหน้าจอมือถือ */}
                                         <div>

@@ -35,14 +35,14 @@ export default function RootLayout({
     <html lang="th">
       <body className={`${kanit.variable} ${notoSerif.variable} font-sans bg-background text-gray-900 antialiased`}>
         <Providers>
-          {/* AuthProvider from HEAD, CourseProvider from Main */}
-          <AuthProvider>
-            <CourseProvider>
-              <ToastProvider>
+          <ToastProvider>
+            {/* AuthProvider from HEAD, CourseProvider from Main */}
+            <AuthProvider>
+              <CourseProvider>
                 {children}
-              </ToastProvider>
-            </CourseProvider>
-          </AuthProvider>
+              </CourseProvider>
+            </AuthProvider>
+          </ToastProvider>
         </Providers>
       </body>
     </html>

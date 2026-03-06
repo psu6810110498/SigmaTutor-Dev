@@ -111,6 +111,8 @@ export interface Lesson {
     type: 'VIDEO' | 'FILE' | 'QUIZ';
     content: string | null;
     youtubeUrl: string | null;
+    gumletVideoId: string | null;
+    videoProvider: 'YOUTUBE' | 'GUMLET';
     duration: number | null;
     order: number;
     chapterId: string;
