@@ -648,3 +648,28 @@ export const uploadApi = {
     },
 };
 
+// ============================================================
+// Site Content API (Homepage sections)
+// ============================================================
+
+export const siteContentApi = {
+    /** GET /site-content — All sections (public) */
+    getAll() {
+        return request<Record<string, unknown>>('/site-content');
+    },
+
+    /** GET /site-content/:key — Single section (public) */
+    getSection(key: string) {
+        return request<unknown>(`/site-content/${key}`);
+    },
+
+    /** PUT /site-content/:key — Update section (ADMIN) */
+    updateSection(key: string, data: unknown) {
+        return request<unknown>(`/site-content/${key}`, {
+            method: 'PUT',
+            headers: headers(true),
+            body: JSON.stringify(data),
+        });
+    },
+};
+

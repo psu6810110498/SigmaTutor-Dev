@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaArrowRight, FaBook, FaStar, FaChevronDown } from 'react-icons/fa';
-import { courseApi, categoryApi } from '@/app/lib/api';
+import { FaArrowRight, FaBook, FaChevronDown } from 'react-icons/fa';
+import { courseApi, categoryApi, siteContentApi, uploadApi } from '@/app/lib/api';
 import { Course, Category } from '@/app/lib/types';
 import FeatureSection from '@/app/components/home/FeatureSection';
 import QuickFilters from '../components/marketplace/QuickFilters';
@@ -11,44 +11,12 @@ import CourseCard from '@/app/components/marketplace/CourseCard';
 
 const FILTER_TABS = ['ทั้งหมด', 'ประถม', 'ม.ต้น', 'ม.ปลาย', 'TCAS', 'SAT', 'IELTS'];
 
-const TUTORS = [
-  {
-    name: 'พี่บอส (สรวิธ วิฒนรงค์)',
-    subject: 'วิชา: คอมพิวเตอร์',
-    desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์โอลิมปิกและสอบเข้ามหาวิทยาลัย',
-    initial: 'บ',
-    color: 'from-blue-500 to-primary',
-  },
-  {
-    name: 'พี่พีช (พารีย์ ยาเก)',
-    subject: 'วิชา: คอมพิวเตอร์',
-    desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์ระดับชาติและนานาชาติ',
-    initial: 'พ',
-    color: 'from-purple-500 to-blue-600',
-  },
-  {
-    name: 'พี่บอส (สรวิธ วิฒนรงค์)',
-    subject: 'วิชา: คอมพิวเตอร์',
-    desc: 'ประสบการณ์สอนมากกว่า 20 ปี เชี่ยวชาญการเตรียมสอบคอมพิวเตอร์ระดับชาติและนานาชาติ',
-    initial: 'บ',
-    color: 'from-blue-500 to-primary',
-  },
-];
-
-const FAQS = [
-  {
-    q: 'เรียนผ่าน iPad หรือมือถือได้ไหม?',
-    a: 'ได้เลย! ระบบรองรับทุกอุปกรณ์ ทั้ง iPad, มือถือ, แท็บเล็ต และคอมพิวเตอร์ ไม่ต้องติดตั้งแอปเพิ่มเติม',
-  },
-  {
-    q: 'สมัครเรียนได้เลยไหม?',
-    a: 'สมัครได้เลยทันที หลังสมัครสามารถเข้าเรียนได้ภายใน 24 ชั่วโมง ไม่มีค่าสมัครเพิ่มเติม',
-  },
-  {
-    q: 'มีคอร์สเรียนสดด้วย เรียนที่ไหนบ้างได้บ้าง?',
-    a: 'มีทั้งคอร์สออนไลน์และ Live สด สามารถเรียนได้จากทุกที่ผ่านระบบออนไลน์ของเรา',
-  },
-];
+interface StudentItem { faculty: string; major: string; color: string; image?: string | null }
+interface StatItem { value: string; label: string }
+interface UniversityItem { name: string; abbr: string; bg: string; text: string }
+interface TutorItem { name: string; subject: string; desc: string; initial: string; color: string; image?: string | null }
+interface TestimonialData { quote: string; name: string; faculty: string; image?: string | null }
+interface FaqItem { q: string; a: string }
 
 export default function HomePage() {
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
@@ -56,6 +24,33 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('ทั้งหมด');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // Site content sections
+  const [students, setStudents] = useState<StudentItem[]>([]);
+  const [stats, setStats] = useState<StatItem[]>([]);
+  const [universities, setUniversities] = useState<UniversityItem[]>([]);
+  const [tutors, setTutors] = useState<TutorItem[]>([]);
+  const [testimonial, setTestimonial] = useState<TestimonialData | null>(null);
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+
+  // Fetch site content + categories once
+  useEffect(() => {
+    Promise.all([
+      categoryApi.list(),
+      siteContentApi.getAll(),
+    ]).then(([catRes, contentRes]) => {
+      if (catRes.success && catRes.data) setCategories(catRes.data);
+      if (contentRes.success && contentRes.data) {
+        const c = contentRes.data as Record<string, any>;
+        if (c.students) setStudents(c.students);
+        if (c.stats) setStats(c.stats);
+        if (c.universities) setUniversities(c.universities);
+        if (c.tutors) setTutors(c.tutors);
+        if (c.testimonial) setTestimonial(c.testimonial);
+        if (c.faqs) setFaqs(c.faqs);
+      }
+    });
+  }, []);
 
   // Fetch categories once for name → id mapping
   useEffect(() => {
@@ -195,41 +190,20 @@ export default function HomePage() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
               รวมความสำเร็จลูกศิษย์
             </h2>
-            <p className="text-gray-500">กี่โพวท์ ได้พาน้องๆ ไปถึงคณะในฝัน</p>
+            <p className="text-gray-500">ได้พาน้องๆ ไปถึงคณะในฝัน</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {[
-              {
-                faculty: 'วิศวกรรมศาสตร์',
-                major: 'สาขาคอมพิวเตอร์',
-                color: 'from-blue-400 to-indigo-600',
-              },
-              {
-                faculty: 'วิศวกรรมศาสตร์',
-                major: 'สาขาคอมพิวเตอร์',
-                color: 'from-purple-400 to-blue-600',
-              },
-              {
-                faculty: 'วิศวกรรมศาสตร์',
-                major: 'สาขาคอมพิวเตอร์',
-                color: 'from-cyan-400 to-blue-500',
-              },
-              {
-                faculty: 'วิศวกรรมศาสตร์',
-                major: 'สาขาคอมพิวเตอร์',
-                color: 'from-indigo-400 to-purple-600',
-              },
-            ].map((s, i) => (
+            {students.map((s, i) => (
               <div key={i} className="rounded-2xl overflow-hidden shadow-md bg-white">
-                <div className={`h-44 bg-linear-to-br ${s.color} flex items-center justify-center`}>
-                  <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white text-2xl font-bold">
-                    น
-                  </div>
+                <div className={`h-44 bg-linear-to-br ${s.color} flex items-center justify-center overflow-hidden`}>
+                  {s.image ? (
+                    <img src={s.image} alt={s.faculty} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white text-2xl font-bold">น</div>
+                  )}
                 </div>
                 <div className="p-4 text-center">
-                  <span className="inline-block bg-yellow-400 text-gray-900 text-[11px] font-extrabold px-3 py-1 rounded-full mb-2">
-                    CONGRATS!!
-                  </span>
+                  <span className="inline-block bg-yellow-400 text-gray-900 text-[11px] font-extrabold px-3 py-1 rounded-full mb-2">CONGRATS!!</span>
                   <p className="font-bold text-sm text-gray-900">{s.faculty}</p>
                   <p className="text-xs text-gray-500">{s.major}</p>
                 </div>
@@ -237,11 +211,7 @@ export default function HomePage() {
             ))}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-            {[
-              { value: '10,000+', label: 'นักเรียนที่ไว้วางใจ' },
-              { value: '40+', label: 'คอร์สเรียนคุณภาพ' },
-              { value: '98%', label: 'สอบคณะที่หวัง' },
-            ].map((s, i) => (
+            {stats.map((s, i) => (
               <div key={i} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
                 <h3 className="text-4xl font-extrabold text-primary mb-2">{s.value}</h3>
                 <p className="text-gray-600 font-medium">{s.label}</p>
@@ -258,18 +228,9 @@ export default function HomePage() {
             ศิษย์เก่าของเราสอบติดที่ไหนบ้าง?
           </h2>
           <div className="flex flex-wrap justify-center items-center gap-8 md:gap-14">
-            {[
-              { name: 'จุฬาฯ', bg: 'bg-pink-100', text: 'text-pink-600', abbr: 'จฬ' },
-              { name: 'มหิดล', bg: 'bg-blue-100', text: 'text-blue-600', abbr: 'มห' },
-              { name: 'ธรรมศาสตร์', bg: 'bg-red-100', text: 'text-red-600', abbr: 'ธศ' },
-              { name: 'เกษตรฯ', bg: 'bg-green-100', text: 'text-green-600', abbr: 'กษ' },
-              { name: 'ลาดกระบัง', bg: 'bg-orange-100', text: 'text-orange-600', abbr: 'ลก' },
-              { name: 'มจธ.', bg: 'bg-purple-100', text: 'text-purple-600', abbr: 'มจ' },
-            ].map((u, i) => (
+            {universities.map((u, i) => (
               <div key={i} className="flex flex-col items-center gap-2">
-                <div
-                  className={`w-16 h-16 rounded-full ${u.bg} flex items-center justify-center shadow-sm`}
-                >
+                <div className={`w-16 h-16 rounded-full ${u.bg} flex items-center justify-center shadow-sm`}>
                   <span className={`${u.text} font-extrabold text-sm`}>{u.abbr}</span>
                 </div>
                 <span className="text-xs text-gray-500 font-medium">{u.name}</span>
@@ -291,25 +252,19 @@ export default function HomePage() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {TUTORS.map((t, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow"
-              >
-                <div
-                  className={`w-24 h-24 rounded-full bg-linear-to-br ${t.color} flex items-center justify-center text-white text-3xl font-extrabold mb-4 shadow-lg`}
-                >
-                  {t.initial}
-                </div>
-                <span className="bg-orange-400 text-white text-xs font-bold px-4 py-1 rounded-full mb-3">
-                  {t.subject}
-                </span>
+            {tutors.map((t, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
+                {t.image ? (
+                  <img src={t.image} alt={t.name} className="w-24 h-24 rounded-full object-cover mb-4 shadow-lg" />
+                ) : (
+                  <div className={`w-24 h-24 rounded-full bg-linear-to-br ${t.color} flex items-center justify-center text-white text-3xl font-extrabold mb-4 shadow-lg`}>
+                    {t.initial}
+                  </div>
+                )}
+                <span className="bg-orange-400 text-white text-xs font-bold px-4 py-1 rounded-full mb-3">{t.subject}</span>
                 <h3 className="font-bold text-gray-900 mb-2">{t.name}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed mb-5">{t.desc}</p>
-                <Link
-                  href="/explore"
-                  className="text-primary text-sm font-semibold hover:underline"
-                >
+                <Link href="/explore" className="text-primary text-sm font-semibold hover:underline">
                   ดูคอร์สเรียน &amp; หลักสูตรทั้งหมด →
                 </Link>
               </div>
@@ -319,29 +274,33 @@ export default function HomePage() {
       </section>
 
       {/* ─── 7. TESTIMONIAL ──────────────────────────────────────────── */}
-      <section className="py-16 md:py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
-            เสียงยืนยันจากกรุ๊ปที่... ที่ทำสำเร็จแล้ว
-          </h2>
-          <div className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start">
-            <div className="shrink-0">
-              <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary to-blue-400 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                น
+      {testimonial && (
+        <section className="py-16 md:py-20 bg-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+              เสียงยืนยันจากกรุ๊ปที่... ที่ทำสำเร็จแล้ว
+            </h2>
+            <div className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8 md:p-10 flex flex-col md:flex-row gap-6 items-start">
+              <div className="shrink-0">
+                {testimonial.image ? (
+                  <img src={testimonial.image} alt={testimonial.name} className="w-20 h-20 rounded-full object-cover shadow-lg" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary to-blue-400 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                    {testimonial.name?.charAt(0) || 'น'}
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-gray-800 text-lg leading-relaxed mb-5 italic">
+                  &ldquo;{testimonial.quote}&rdquo;
+                </p>
+                <p className="font-bold text-gray-900">{testimonial.name}</p>
+                <p className="text-primary text-sm font-medium">{testimonial.faculty}</p>
               </div>
             </div>
-            <div>
-              <p className="text-gray-800 text-lg leading-relaxed mb-5 italic">
-                &ldquo;จากที่เกลียดฟิสิกส์ กลายเป็นวิชาทำคะแนน! เทคนิคของพี่บอส
-                ช่วยให้มองงานยากกว่าออก ไม่ต้องท่องสูตร สอบติด วิศวกรรมคอมพิวเตอร์ ม.ดัง มาแล้ว
-                ขอบคุณมากๆ&rdquo;
-              </p>
-              <p className="font-bold text-gray-900">น้องพลอย</p>
-              <p className="text-primary text-sm font-medium">วิศวกรรมศาสตร์ สาขาคอมพิวเตอร์</p>
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ─── 8. FEATURE ──────────────────────────────────────────────── */}
       <FeatureSection />
@@ -353,7 +312,7 @@ export default function HomePage() {
             คำถามที่พบบ่อย (FAQ)
           </h2>
           <div className="space-y-3">
-            {FAQS.map((faq, i) => (
+            {faqs.map((faq, i) => (
               <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
