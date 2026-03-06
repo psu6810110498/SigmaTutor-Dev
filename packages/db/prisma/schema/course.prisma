@@ -53,6 +53,7 @@ model Course {
   schedules   CourseSchedule[] // From HEAD
   enrollments Enrollment[] // From Main
   payments    Payment[] // From Main
+  progress    UserProgress[] // Track student progress in this course
   reviews     Review[]
   promotions  Promotion[]      @relation("CoursePromotions")
   coupons     Coupon[]         @relation("CourseCoupons")
@@ -125,4 +126,26 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+// Track user completion of lessons and schedules
+model UserProgress {
+  id           String   @id @default(cuid())
+  userId       String
+  courseId     String
+  
+  // Track either a Lesson or a CourseSchedule
+  lessonId     String?
+  scheduleId   String?  
+  
+  isCompleted  Boolean  @default(true)
+  completedAt  DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, lessonId])
+  @@unique([userId, scheduleId])
+  @@index([userId, courseId])
+  @@map("user_progress")
 }

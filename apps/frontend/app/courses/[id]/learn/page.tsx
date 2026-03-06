@@ -7,6 +7,7 @@ import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDo
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from "@/app/components/ui/Toast";
 import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
+import { progressApi } from '@/app/lib/api';
 
 export default function LearningPage() {
     const params = useParams();
@@ -32,6 +33,19 @@ export default function LearningPage() {
 
                 if (data.success) {
                     setCourse(data.data);
+
+                    // Fetch user's completed progress
+                    try {
+                        const progressRes = await progressApi.getCourseProgress(courseId);
+                        if (progressRes.success && progressRes.data) {
+                            const completedIds = progressRes.data
+                                .filter((p: any) => p.isCompleted)
+                                .map((p: any) => p.lessonId || p.scheduleId);
+                            setCompletedLessons(new Set(completedIds));
+                        }
+                    } catch (e) {
+                        console.error("Failed to load progress:", e);
+                    }
 
                     // หาบทเรียนแรกมาแสดง
                     const c = data.data;
@@ -69,15 +83,38 @@ export default function LearningPage() {
         setExpandedChapters(newExpanded);
     };
 
-    const toggleCompleted = (lessonId: string) => {
+    const toggleCompleted = async (lessonId: string): Promise<boolean> => {
+        // Optimistic UI updates
         const newCompleted = new Set(completedLessons);
+        let isNowCompleted = false;
+
         if (newCompleted.has(lessonId)) {
             newCompleted.delete(lessonId);
+            isNowCompleted = false;
         } else {
             newCompleted.add(lessonId);
+            isNowCompleted = true;
         }
         setCompletedLessons(newCompleted);
-        // ในระบบจริงควรจะ Request ไป Backend ยืนยันว่าเรียนจบ
+
+        // Sync with backend
+        try {
+            const isSchedule = (!course.chapters || course.chapters.length === 0) && (course.schedules && course.schedules.length > 0);
+            const payload = isSchedule ? { scheduleId: lessonId } : { lessonId: lessonId };
+            await progressApi.toggleProgress(courseId, payload);
+            return true;
+        } catch (error) {
+            console.error("Failed to sync progress:", error);
+            toast.error("ไม่สามารถบันทึกความคืบหน้าได้");
+            // Revert state on failure
+            if (isNowCompleted) {
+                newCompleted.delete(lessonId);
+            } else {
+                newCompleted.add(lessonId);
+            }
+            setCompletedLessons(new Set(newCompleted));
+            return false;
+        }
     };
 
     // รวมบทเรียนทั้งหมดเป็น flat array เพื่อใช้ในการนำทาง prev/next
@@ -412,12 +449,15 @@ export default function LearningPage() {
                             ${currentIndex === allLessons.length - 1 && currentLesson && completedLessons.has(currentLesson.id)
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
-                        onClick={() => {
+                        onClick={async () => {
                             if (!currentLesson) return;
+
+                            let success = true;
                             if (!completedLessons.has(currentLesson.id)) {
-                                toggleCompleted(currentLesson.id);
+                                success = await toggleCompleted(currentLesson.id);
                             }
-                            if (currentIndex < allLessons.length - 1) {
+
+                            if (success && currentIndex < allLessons.length - 1) {
                                 goToNext();
                             }
                         }}
