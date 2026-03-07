@@ -417,9 +417,9 @@ export const categoryApi = {
 // ============================================================
 
 export const userApi = {
-    /** GET /users — List all users (ADMIN) */
+    /** GET /users/instructors — List instructors with stats (ADMIN) */
     list() {
-        return request<any[]>('/users', {
+        return request<any[]>('/users/instructors', {
             headers: headers(true),
         });
     },

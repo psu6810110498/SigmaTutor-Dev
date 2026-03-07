@@ -18,6 +18,7 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   const { user, logout, loading } = useAuth();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -60,15 +61,23 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
               <div className="relative group mb-4">
                 <div className="absolute -inset-1 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                 <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-500 to-blue-400">
-                  <div className="w-full h-full rounded-full bg-white p-1 overflow-hidden">
-                    <img
-                      src={
-                        user?.profileImage ||
-                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`
-                      }
-                      alt="Profile"
-                      className="w-full h-full object-cover rounded-full bg-gray-50"
-                    />
+                  <div className="w-full h-full rounded-full bg-white p-1 overflow-hidden flex items-center justify-center">
+                    {imgError ? (
+                      <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+                        {(user?.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    ) : (
+                      <img
+                        src={
+                          user?.profileImage ||
+                          `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(user?.name || 'User')}`
+                        }
+                        alt="Profile"
+                        className="w-full h-full object-cover rounded-full bg-gray-50"
+                        referrerPolicy="no-referrer"
+                        onError={() => setImgError(true)}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { courseService } from '../services/course.service.js';
 import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
