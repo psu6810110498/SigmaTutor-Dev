@@ -255,32 +255,60 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                             </div>
                                             {/* Conditional Video Input */}
                                             {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
-                                                <div className="flex gap-2">
+                                                <div className="relative">
                                                     <div className="relative flex-1">
-                                                        <Video size={14} className="absolute left-3 top-3 text-purple-500/60" />
+                                                        <Video size={14} className={`absolute left-3 top-2.5 ${s.gumletVideoId && s.gumletVideoId.length > 5 ? 'text-green-500' : 'text-purple-500/60'}`} />
                                                         <input
                                                             type="text"
                                                             value={s.gumletVideoId || ''}
                                                             onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
-                                                            placeholder="Gumlet Video ID"
-                                                            className={`${inputBase} pl-9`}
+                                                            placeholder="กรอก Video ID 16 หลัก..."
+                                                            className={`${inputBase} pl-9 pr-24 ${s.gumletVideoId && s.gumletVideoId.length > 5 ? 'border-green-300 bg-green-50/30 text-green-800' : ''}`}
                                                         />
+                                                        {s.gumletVideoId && !uploadingGumletId && (
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => updateSession(s.id, 'gumletVideoId', '')} 
+                                                                className="absolute right-20 top-2.5 text-red-400 hover:text-red-500"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    <div className="relative">
+                                                    <div className="absolute right-0.5 top-0.5 flex z-10">
                                                         <input
                                                             type="file"
                                                             accept="video/mp4,video/x-m4v,video/*"
                                                             id={`desktop-video-${s.id}`}
-                                                            className="hidden"
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                             onChange={(e) => handleGumletVideoUpload(s.id, e)}
                                                             disabled={uploadingGumletId === s.id}
+                                                            title="อัปโหลดวิดีโอใหม่"
                                                         />
-                                                        <label
-                                                            htmlFor={`desktop-video-${s.id}`}
-                                                            className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingGumletId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        <button
+                                                            type="button"
+                                                            disabled={uploadingGumletId === s.id}
+                                                            className={`h-8 px-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center ${
+                                                                uploadingGumletId === s.id
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                                                            }`}
                                                         >
-                                                            {uploadingGumletId === s.id ? `อัปโหลด ${gumletProgress[s.id] || 0}%` : "เลือกวิดีโอ"}
-                                                        </label>
+                                                            {uploadingGumletId === s.id ? (
+                                                                 <span className="flex items-center gap-1">
+                                                                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                    {gumletProgress[s.id] || 0}%
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-1">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                                                    อัปโหลด
+                                                                </span>
+                                                            )}
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ) : (
@@ -405,32 +433,60 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                         {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
                                             <div>
                                                 <label className="block text-[10px] font-bold text-purple-500/70 uppercase mb-1 ml-1">Gumlet Video ID</label>
-                                                <div className="flex gap-2">
+                                                <div className="relative">
                                                     <div className="relative flex-1">
-                                                        <Video size={14} className="absolute left-3 top-3 text-purple-400" />
+                                                        <Video size={14} className={`absolute left-3 top-2.5 ${s.gumletVideoId && s.gumletVideoId.length > 5 ? 'text-green-500' : 'text-purple-400'}`} />
                                                         <input
                                                             type="text"
                                                             value={s.gumletVideoId || ''}
                                                             onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
-                                                            placeholder="Gumlet Video ID..."
-                                                            className={`${inputBase} pl-9`}
+                                                            placeholder="กรอก Video ID 16 หลัก..."
+                                                            className={`${inputBase} pl-9 pr-24 ${s.gumletVideoId && s.gumletVideoId.length > 5 ? 'border-green-300 bg-green-50/30 text-green-800' : ''}`}
                                                         />
+                                                        {s.gumletVideoId && !uploadingGumletId && (
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => updateSession(s.id, 'gumletVideoId', '')} 
+                                                                className="absolute right-20 top-2.5 text-red-400 hover:text-red-500"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    <div className="relative">
+                                                    <div className="absolute right-0.5 top-0.5 flex z-10">
                                                         <input
                                                             type="file"
                                                             accept="video/mp4,video/x-m4v,video/*"
                                                             id={`mobile-video-${s.id}`}
-                                                            className="hidden"
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                                                             onChange={(e) => handleGumletVideoUpload(s.id, e)}
                                                             disabled={uploadingGumletId === s.id}
+                                                            title="อัปโหลดวิดีโอใหม่"
                                                         />
-                                                        <label
-                                                            htmlFor={`mobile-video-${s.id}`}
-                                                            className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingGumletId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        <button
+                                                            type="button"
+                                                            disabled={uploadingGumletId === s.id}
+                                                            className={`h-8 px-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center ${
+                                                                uploadingGumletId === s.id
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                                                            }`}
                                                         >
-                                                            {uploadingGumletId === s.id ? `อัปโหลด ${gumletProgress[s.id] || 0}%` : "เลือกวิดีโอ"}
-                                                        </label>
+                                                            {uploadingGumletId === s.id ? (
+                                                                <span className="flex items-center gap-1">
+                                                                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                    {gumletProgress[s.id] || 0}%
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-1">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                                                    อัปโหลด
+                                                                </span>
+                                                            )}
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
