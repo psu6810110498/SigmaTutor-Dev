@@ -23,10 +23,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const [instructors, totalUniqueStudents] = await Promise.all([
-        prisma.user.findMany({
-          where: {
-            OR: [{ role: 'INSTRUCTOR' }, { role: 'ADMIN' }]
-          },
+        prisma.teacher.findMany({
           select: {
             id: true,
             email: true,
@@ -34,7 +31,6 @@ router.get(
             nickname: true,
             title: true,
             bio: true,
-            role: true,
             profileImage: true,
             expertise: true,
             education: true,
@@ -77,6 +73,7 @@ router.get(
 
         return {
           ...inst,
+          role: 'INSTRUCTOR', // Maintain frontend compatibility
           totalEarnings,
           _count: {
             courses: inst._count.courses,
@@ -115,7 +112,7 @@ router.get(
           enrollments: {
             select: {
               status: true,
-              course: { select: { title: true, price: true, instructor: { select: { name: true } } } }
+              course: { select: { title: true, price: true, teacher: { select: { name: true } } } }
             }
           },
           payments: {
@@ -145,7 +142,7 @@ router.get(
           status: (diffMinutes >= 0 && diffMinutes <= 5) ? 'Online' : 'Offline',
           enrolledCourses: s.enrollments.map(e => ({
             title: e.course?.title || 'Unknown',
-            instructorName: e.course?.instructor?.name || 'ไม่ระบุผู้สอน'
+            instructorName: (e.course as any)?.teacher?.name || 'ไม่ระบุผู้สอน'
           })),
           totalSpent
         };
@@ -169,20 +166,20 @@ router.post(
     try {
       const { name, email, password, nickname, title, bio, profileImage, expertise, education, experience, socialLink } = req.body;
       const finalEmail = email || `teacher_${Date.now()}@sigma.com`;
-      const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
-      if (existingUser) {
+      const existingTeacher = await prisma.teacher.findUnique({ where: { email: finalEmail } });
+      if (existingTeacher) {
         res.status(400).json({ success: false, error: 'อีเมลนี้มีในระบบแล้ว' });
         return;
       }
-      const hashedPassword = await bcrypt.hash(password || 'Sigma1234!', 12);
-      const newTeacher = await prisma.user.create({
+      
+      const newTeacher = await prisma.teacher.create({
         data: {
-          name, email: finalEmail, password: hashedPassword, role: 'INSTRUCTOR',
+          name, email: finalEmail,
           nickname, title, bio, profileImage, expertise, education, experience, socialLink
         },
-        select: { id: true, name: true, email: true, role: true }
+        select: { id: true, name: true, email: true }
       });
-      res.status(201).json({ success: true, data: newTeacher });
+      res.status(201).json({ success: true, data: { ...newTeacher, role: 'INSTRUCTOR' } });
     } catch (error) {
       res.status(500).json({ success: false, error: 'Failed to create instructor' });
     }
@@ -222,8 +219,6 @@ router.patch(
         where: { id },
         data: {
           name, phone, educationLevel, school, province, address,
-          expertise, education, experience, socialLink,
-          nickname, title, bio, // 🌟 บันทึกข้อมูลคุณครูลง Database
           profileImage: profileImageUrl,
           birthday: birthday ? new Date(birthday) : undefined
         },

@@ -42,9 +42,8 @@ export class TutorService {
       }),
     };
 
-    return prisma.user.findMany({
+    return prisma.teacher.findMany({
       where: {
-        role: 'INSTRUCTOR',
         courses: { some: courseWhere },
       },
       select: {

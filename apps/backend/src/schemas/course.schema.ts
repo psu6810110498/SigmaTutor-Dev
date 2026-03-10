@@ -67,6 +67,7 @@ export const marketplaceQuerySchema = z.object({
     categoryId: z.string().optional(),
     levelId: z.string().optional(),
     tutorId: z.string().optional(),
+    instructorId: z.string().optional(),
     courseType: z.enum(['ONLINE', 'ONLINE_LIVE', 'ONSITE']).optional(),
     minPrice: z.coerce.number().min(0).optional(),
     maxPrice: z.coerce.number().min(0).optional(),

@@ -176,7 +176,7 @@ async function main() {
 
   console.log('👨‍🏫 Seeding Instructors...');
   for (const inst of INSTRUCTORS) {
-    const user = await prisma.user.upsert({
+    const teacher = await prisma.teacher.upsert({
       where: { email: inst.email },
       update: {
         name: inst.name,
@@ -184,20 +184,17 @@ async function main() {
         title: inst.title,
         bio: inst.bio,
         profileImage: inst.profileImage,
-        role: 'INSTRUCTOR', // Ensure role
       },
       create: {
         email: inst.email,
-        password: instructorPassword,
         name: inst.name,
         nickname: inst.nickname,
         title: inst.title,
         bio: inst.bio,
         profileImage: inst.profileImage,
-        role: 'INSTRUCTOR',
       },
     });
-    instructorMap.set(inst.nickname, user.id);
+    instructorMap.set(inst.nickname, teacher.id);
     console.log(`   👤 Seeded instructor: ${inst.name}`);
   }
 
@@ -592,7 +589,7 @@ async function main() {
         promotionalPrice: c.promo || null,
         courseType: c.type as any,
         thumbnail: c.thumb,
-        instructorId: instId,
+        teacherId: instId,
         categoryId: catId,
         status: 'PUBLISHED',
         published: true,
