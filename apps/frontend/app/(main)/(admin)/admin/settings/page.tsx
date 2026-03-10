@@ -21,6 +21,7 @@ interface UniversityItem {
   abbr: string;
   bg: string;
   text: string;
+  image: string | null;
 }
 interface TutorItem {
   name: string;
@@ -576,7 +577,7 @@ function UniversitiesTab({ onDirtyChange, registerSave }: TabBaseProps) {
     });
   }, []);
 
-  const update = (i: number, field: keyof UniversityItem, val: string) => {
+  const update = (i: number, field: keyof UniversityItem, val: string | null) => {
     setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
     onDirtyChange(true);
   };
@@ -601,7 +602,7 @@ function UniversitiesTab({ onDirtyChange, registerSave }: TabBaseProps) {
         <button
           type="button"
           onClick={() => {
-            setItems([...items, { name: '', abbr: '', bg: 'bg-gray-100', text: 'text-gray-600' }]);
+            setItems([...items, { name: '', abbr: '', bg: 'bg-gray-100', text: 'text-gray-600', image: null }]);
             onDirtyChange(true);
           }}
           className="flex items-center gap-1 text-xs text-primary hover:underline"
@@ -657,6 +658,13 @@ function UniversitiesTab({ onDirtyChange, registerSave }: TabBaseProps) {
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg outline-none font-mono"
               />
             </div>
+          </div>
+          <div className="mt-3">
+            <label className="block text-xs text-gray-600 mb-1">โลโก้มหาวิทยาลัย</label>
+            <ImageUploadButton
+              currentUrl={item.image}
+              onUploaded={(url) => update(i, 'image', url || null)}
+            />
           </div>
         </div>
       ))}
