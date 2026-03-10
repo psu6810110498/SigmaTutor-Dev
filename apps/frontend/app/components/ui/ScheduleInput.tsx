@@ -49,6 +49,9 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
 
     // ✅ เพิ่ม State สำหรับเช็กว่าบทเรียนไหนกำลังอัปโหลด PDF อยู่
     const [uploadingId, setUploadingId] = useState<string | null>(null);
+    // ✅ เพิ่ม State สำหรับเช็กว่าบทเรียนไหนกำลังอัปโหลดวิดีโอ Gumlet อยู่
+    const [uploadingGumletId, setUploadingGumletId] = useState<string | null>(null);
+    const [gumletProgress, setGumletProgress] = useState<Record<string, number>>({});
 
     const addSession = () => onChange([...sessions, emptySession(sessions.length + 1)]);
 
@@ -104,6 +107,86 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
         } finally {
             setUploadingId(null);
             e.target.value = ''; // รีเซ็ตค่า input เผื่อผู้ใช้เลือกไฟล์เดิมซ้ำ
+        }
+    };
+
+    // ✅ ฟังก์ชันจัดการอัปโหลดวิดีโอ Gumlet
+    const handleGumletVideoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('video/')) {
+            alert("กรุณาเลือกไฟล์วิดีโอเท่านั้น");
+            return;
+        }
+
+        try {
+            setUploadingGumletId(id);
+            setGumletProgress(prev => ({ ...prev, [id]: 0 }));
+
+            let token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
+            if (!token) {
+                const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
+                if (match) token = match[2];
+            }
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
+                method: 'POST',
+                credentials: 'include',
+                headers
+            });
+            const data = await res.json();
+
+            if (!data.success || !data.upload_url) {
+                alert(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+                setUploadingGumletId(null);
+                return;
+            }
+
+            const { upload_url, asset_id } = data;
+
+            return new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', upload_url, true);
+                xhr.setRequestHeader('Content-Type', file.type);
+
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = Math.round((event.loaded / event.total) * 100);
+                        setGumletProgress(prev => ({ ...prev, [id]: percentComplete }));
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        updateSession(id, 'gumletVideoId', asset_id);
+                        setUploadingGumletId(null);
+                        resolve();
+                    } else {
+                        console.error('Upload failed with status', xhr.status, xhr.responseText);
+                        alert("อัปโหลดไม่สำเร็จ หรือถูกยกเลิก");
+                        setUploadingGumletId(null);
+                        reject(new Error("Upload failed"));
+                    }
+                };
+
+                xhr.onerror = () => {
+                    console.error('XHR Upload Error');
+                    alert("เกิดข้อผิดพลาดในการอัปโหลดวิดีโอ");
+                    setUploadingGumletId(null);
+                    reject(new Error("XHR Error"));
+                };
+
+                xhr.send(file);
+            });
+        } catch (error) {
+            console.error(error);
+            alert("ระบบอัปโหลดมีปัญหา");
+            setUploadingGumletId(null);
+        } finally {
+            e.target.value = '';
         }
     };
 
@@ -172,15 +255,33 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                             </div>
                                             {/* Conditional Video Input */}
                                             {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
-                                                <div className="relative">
-                                                    <Video size={14} className="absolute left-3 top-3 text-purple-500/60" />
-                                                    <input
-                                                        type="text"
-                                                        value={s.gumletVideoId || ''}
-                                                        onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
-                                                        placeholder="Gumlet Video ID"
-                                                        className={`${inputBase} pl-9`}
-                                                    />
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <Video size={14} className="absolute left-3 top-3 text-purple-500/60" />
+                                                        <input
+                                                            type="text"
+                                                            value={s.gumletVideoId || ''}
+                                                            onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
+                                                            placeholder="Gumlet Video ID"
+                                                            className={`${inputBase} pl-9`}
+                                                        />
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="file"
+                                                            accept="video/mp4,video/x-m4v,video/*"
+                                                            id={`desktop-video-${s.id}`}
+                                                            className="hidden"
+                                                            onChange={(e) => handleGumletVideoUpload(s.id, e)}
+                                                            disabled={uploadingGumletId === s.id}
+                                                        />
+                                                        <label
+                                                            htmlFor={`desktop-video-${s.id}`}
+                                                            className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingGumletId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            {uploadingGumletId === s.id ? `อัปโหลด ${gumletProgress[s.id] || 0}%` : "เลือกวิดีโอ"}
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="relative">
@@ -304,15 +405,33 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                         {(s.videoProvider || 'YOUTUBE') === 'GUMLET' ? (
                                             <div>
                                                 <label className="block text-[10px] font-bold text-purple-500/70 uppercase mb-1 ml-1">Gumlet Video ID</label>
-                                                <div className="relative">
-                                                    <Video size={14} className="absolute left-3 top-3 text-purple-400" />
-                                                    <input
-                                                        type="text"
-                                                        value={s.gumletVideoId || ''}
-                                                        onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
-                                                        placeholder="Gumlet Video ID..."
-                                                        className={`${inputBase} pl-9`}
-                                                    />
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <Video size={14} className="absolute left-3 top-3 text-purple-400" />
+                                                        <input
+                                                            type="text"
+                                                            value={s.gumletVideoId || ''}
+                                                            onChange={(e) => updateSession(s.id, 'gumletVideoId', e.target.value)}
+                                                            placeholder="Gumlet Video ID..."
+                                                            className={`${inputBase} pl-9`}
+                                                        />
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="file"
+                                                            accept="video/mp4,video/x-m4v,video/*"
+                                                            id={`mobile-video-${s.id}`}
+                                                            className="hidden"
+                                                            onChange={(e) => handleGumletVideoUpload(s.id, e)}
+                                                            disabled={uploadingGumletId === s.id}
+                                                        />
+                                                        <label
+                                                            htmlFor={`mobile-video-${s.id}`}
+                                                            className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingGumletId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            {uploadingGumletId === s.id ? `อัปโหลด ${gumletProgress[s.id] || 0}%` : "เลือกวิดีโอ"}
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
