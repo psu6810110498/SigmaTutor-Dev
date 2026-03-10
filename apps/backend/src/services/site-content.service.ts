@@ -14,12 +14,12 @@ const DEFAULTS: Record<string, unknown> = {
         { value: '98%', label: 'สอบคณะที่หวัง' },
     ],
     universities: [
-        { name: 'จุฬาฯ', abbr: 'จฬ', bg: 'bg-pink-100', text: 'text-pink-600' },
-        { name: 'มหิดล', abbr: 'มห', bg: 'bg-blue-100', text: 'text-blue-600' },
-        { name: 'ธรรมศาสตร์', abbr: 'ธศ', bg: 'bg-red-100', text: 'text-red-600' },
-        { name: 'เกษตรฯ', abbr: 'กษ', bg: 'bg-green-100', text: 'text-green-600' },
-        { name: 'ลาดกระบัง', abbr: 'ลก', bg: 'bg-orange-100', text: 'text-orange-600' },
-        { name: 'มจธ.', abbr: 'มจ', bg: 'bg-purple-100', text: 'text-purple-600' },
+        { name: 'จุฬาฯ', abbr: 'จฬ', bg: 'bg-pink-100', text: 'text-pink-600', image: null },
+        { name: 'มหิดล', abbr: 'มห', bg: 'bg-blue-100', text: 'text-blue-600', image: null },
+        { name: 'ธรรมศาสตร์', abbr: 'ธศ', bg: 'bg-red-100', text: 'text-red-600', image: null },
+        { name: 'เกษตรฯ', abbr: 'กษ', bg: 'bg-green-100', text: 'text-green-600', image: null },
+        { name: 'ลาดกระบัง', abbr: 'ลก', bg: 'bg-orange-100', text: 'text-orange-600', image: null },
+        { name: 'มจธ.', abbr: 'มจ', bg: 'bg-purple-100', text: 'text-purple-600', image: null },
     ],
     tutors: [
         {

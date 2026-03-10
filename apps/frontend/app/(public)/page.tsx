@@ -415,7 +415,7 @@ export default function HomePage() {
                 className="group flex flex-col items-center gap-2.5 transition-transform hover:-translate-y-1"
               >
                 <div
-                  className={`w-20 h-20 rounded-2xl ${u.bg} flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow overflow-hidden`}
+                  className={`w-20 h-20 rounded-2xl flex items-center justify-center  overflow-hidden`}
                 >
                   {u.image ? (
                     <img src={u.image} alt={u.name} className="w-full h-full object-contain p-2" />
