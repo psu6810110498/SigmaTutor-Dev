@@ -602,7 +602,10 @@ function UniversitiesTab({ onDirtyChange, registerSave }: TabBaseProps) {
         <button
           type="button"
           onClick={() => {
-            setItems([...items, { name: '', abbr: '', bg: 'bg-gray-100', text: 'text-gray-600', image: null }]);
+            setItems([
+              ...items,
+              { name: '', abbr: '', bg: 'bg-gray-100', text: 'text-gray-600', image: null },
+            ]);
             onDirtyChange(true);
           }}
           className="flex items-center gap-1 text-xs text-primary hover:underline"

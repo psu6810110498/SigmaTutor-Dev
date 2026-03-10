@@ -21,4 +21,5 @@ model Banner {
 enum BannerPosition {
   EXPLORE_TOP
   EXPLORE_MIDDLE
+  LANDING_HERO
 }

@@ -255,7 +255,7 @@ export const tutorApi = {
 // ============================================================
 
 export const bannerApi = {
-  getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' = 'EXPLORE_TOP') {
+  getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' | 'LANDING_HERO' = 'EXPLORE_TOP') {
     // Cache banners via Next.js fetch options (Revalidate every 5 minutes if fetched on server)
     return request<Banner[]>(`/banners/active?position=${position}`, {
       next: { revalidate: 300 },
