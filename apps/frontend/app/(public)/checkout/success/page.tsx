@@ -5,10 +5,12 @@ import { CheckCircle, BookOpen, ArrowRight, Loader2, AlertCircle } from 'lucide-
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { useCourse } from '@/app/context/CourseContext';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const { clearCart } = useCourse();
   const [verifyStatus, setVerifyStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -33,6 +35,7 @@ function SuccessContent() {
         const data = await res.json();
         if (data.success && data.data.enrolled) {
           setVerifyStatus('success');
+          clearCart();
         } else if (data.success && !data.data.enrolled) {
           // Payment not yet completed (e.g. PromptPay pending)
           setVerifyStatus('error');

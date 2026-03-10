@@ -63,33 +63,33 @@ export class AuthService {
 
   async login(input: LoginInput) {
     const user = await prisma.user.findUnique({ where: { email: input.email } });
-    
+
     if (!user || !user.password) {
       throw new Error('Invalid email or password');
     }
-    
+
     const isValidPassword = await bcrypt.compare(input.password, user.password);
     if (!isValidPassword) {
       throw new Error('Invalid email or password');
     }
-    
+
     const tokens = await this.generateTokens(user.id, user.email, user.name || '', user.role);
-    return { 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
-        role: user.role, 
-        profileImage: user.profileImage 
-      }, 
-      ...tokens 
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        profileImage: user.profileImage
+      },
+      ...tokens
     };
   }
 
   async getUserById(id: string) {
     return await prisma.user.findUnique({
       where: { id },
-      select: { 
+      select: {
         id: true, email: true, name: true, role: true, profileImage: true,
         phone: true, address: true, school: true, educationLevel: true, province: true, birthday: true
       }
@@ -150,6 +150,15 @@ export class AuthService {
         user = await prisma.user.create({
           data: { email, name, password: '', role: 'USER', profileImage },
         });
+      } else {
+        // Update profile image (and name) from Google on every login
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            profileImage: profileImage || user.profileImage,
+            name: name || user.name,
+          },
+        });
       }
 
       return await this.generateTokens(user.id, user.email, user.name || '', user.role);
@@ -174,20 +183,20 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string, email: string, name: string, role: string) {
-    const payload: TokenPayload = { userId, email, name, role }; 
+    const payload: TokenPayload = { userId, email, name, role };
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
     const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN as any });
-    
+
     // ✅ คำนวณวันหมดอายุสำหรับบันทึกใน Database (Session Table)
     const expiresInMs = this.parseExpiration(JWT_REFRESH_EXPIRES_IN);
     const expiresAt = new Date(Date.now() + expiresInMs);
-    
+
     await prisma.session.create({ data: { userId, refreshToken, expiresAt } });
     return { accessToken, refreshToken };
   }
 
-  verifyAccessToken(token: string): TokenPayload { 
-    return jwt.verify(token, JWT_SECRET) as TokenPayload; 
+  verifyAccessToken(token: string): TokenPayload {
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
   }
 
   private parseExpiration(exp: string): number {

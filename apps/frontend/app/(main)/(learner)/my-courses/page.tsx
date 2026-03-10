@@ -28,7 +28,7 @@ export default function MyCoursesPage() {
     const fetchMyCourses = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-        const res = await fetch(`${apiUrl}/courses/enrolled`, {
+        const res = await fetch(`${apiUrl}/courses/my-courses`, {
           credentials: 'include', // ✅ ต้องส่งคุกกี้ไปเพื่อยืนยันตัวตน
         });
         const data = await res.json();
@@ -88,15 +88,15 @@ export default function MyCoursesPage() {
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 animate-in fade-in duration-500">
-      
+
       {/* --- ส่วนหัว และ ตัวกรอง --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900">คอร์สของฉัน (My Courses)</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">จัดการการเรียนและติดตามความคืบหน้าของคุณ</p>
         </div>
-        
-        <select 
+
+        <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="px-4 py-2.5 bg-white border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-primary cursor-pointer hover:bg-gray-50 transition-colors"
@@ -109,7 +109,7 @@ export default function MyCoursesPage() {
 
       {/* --- Course Grid --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        
+
         {loading ? (
           <div className="col-span-full py-20 text-center text-gray-400 font-bold animate-pulse">
             กำลังโหลดข้อมูลคอร์สเรียนของคุณ...
@@ -117,15 +117,15 @@ export default function MyCoursesPage() {
         ) : filteredCourses.length > 0 ? (
           filteredCourses.map((course) => (
             <div key={course.id} className="bg-white rounded-3xl p-5 shadow-lg shadow-gray-100/50 border border-gray-100 flex flex-col hover:-translate-y-1 transition-transform duration-300">
-              
+
               {/* ภาพหน้าปกคอร์ส */}
               <div className="relative h-44 rounded-2xl overflow-hidden bg-slate-800 mb-5 group">
-                <img 
-                  src={course.thumbnail || `https://placehold.co/600x400/2a303c/ffffff?text=${course.categoryName}`} 
-                  alt={course.title} 
-                  className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                <img
+                  src={course.thumbnail || `https://placehold.co/600x400/2a303c/ffffff?text=${course.categoryName}`}
+                  alt={course.title}
+                  className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                 />
-                
+
                 {/* Badge Category */}
                 <div className="absolute top-3 left-3 bg-white/95 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest text-slate-700 uppercase shadow-sm">
                   {course.categoryName}
@@ -161,7 +161,7 @@ export default function MyCoursesPage() {
             <FiPlus className="w-8 h-8 text-gray-400 group-hover:text-primary" />
           </div>
           <h3 className="text-lg font-black text-gray-700 group-hover:text-primary mb-1">ลงทะเบียนคอร์สใหม่</h3>
-          <p className="text-xs text-gray-400 font-medium text-center leading-relaxed">ค้นหาและลงทะเบียนวิชาที่คุณสนใจ<br/>เพิ่มเติมได้ที่นี่</p>
+          <p className="text-xs text-gray-400 font-medium text-center leading-relaxed">ค้นหาและลงทะเบียนวิชาที่คุณสนใจ<br />เพิ่มเติมได้ที่นี่</p>
         </Link>
 
       </div>

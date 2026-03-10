@@ -148,6 +148,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                                             src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
+                                            referrerPolicy="no-referrer"
                                         />
                                     </div>
                                     <div className="text-left hidden lg:block">
@@ -216,6 +217,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                                                 src={user.profileImage || `https://ui-avatars.com/api/?name=${user.name || 'User'}&background=0D8ABC&color=fff`}
                                                 alt="Profile"
                                                 className="w-full h-full object-cover"
+                                                referrerPolicy="no-referrer"
                                             />
                                         </div>
                                         <span className="font-bold text-gray-800">ไปที่แดชบอร์ด</span>

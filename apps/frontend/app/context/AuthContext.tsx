@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 
 // ✅ แก้ไข: เพิ่มฟิลด์เสริมเข้าไปใน Interface ให้ครบตาม Database
 export interface User {
@@ -32,12 +33,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:4000/api/auth/me', {
         credentials: 'include',
-      }).catch(() => null); 
+      }).catch(() => null);
 
       if (res && res.ok) {
         const json = await res.json();
@@ -50,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('sigma_user');
         localStorage.removeItem('sigma_cart');
         localStorage.removeItem('sigma_wishlist');
+        // Show notification but DO NOT redirect aggressively
+        toast.error('Session expired, please login again');
       }
     } catch (error) {
       console.error("Auth Check Failed");
@@ -84,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('sigma_user');
     localStorage.removeItem('sigma_cart');
     localStorage.removeItem('sigma_wishlist');
-    
+
     // Clear the cart application state by reloading or pushing and letting context trigger
     router.push('/login');
     setTimeout(() => window.location.reload(), 100);

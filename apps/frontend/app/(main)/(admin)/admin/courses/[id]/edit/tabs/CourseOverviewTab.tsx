@@ -52,6 +52,9 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         categoryId: course.categoryId || null,
         levelId: course.levelId || null,
         demoVideoUrl: course.demoVideoUrl || "",
+        gumletVideoId: course.gumletVideoId || "",
+        videoProvider: course.videoProvider || "YOUTUBE",
+        duration: course.duration || null,
         materialUrl: course.materialUrl || "",
         published: course.published ?? false,
         isBestSeller: course.isBestSeller ?? false,
@@ -155,7 +158,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         }
 
         // validate video URL is YouTube if provided
-        if (form.demoVideoUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(form.demoVideoUrl)) {
+        if (form.videoProvider === 'YOUTUBE' && form.demoVideoUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(form.demoVideoUrl)) {
             toast.error("กรุณากรอก URL Youtube ที่ถูกต้อง");
             return;
         }
@@ -206,6 +209,11 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 const fallback = levels.find(l => l.name === 'ทั่วไป' || l.name === 'ไม่ระบุ') || levels[0];
                 payload.levelId = fallback?.id || null;
             }
+
+            // Cleanup empty strings
+            ['demoVideoUrl', 'gumletVideoId', 'materialUrl'].forEach((key) => {
+                if (payload[key as keyof typeof payload] === "") payload[key as keyof typeof payload] = null;
+            });
 
             console.log("FINAL PAYLOAD TO BACKEND:", payload);
             // ✅ ใช้ fetch ยิงตรงไปที่ /api/courses/:id (ตามที่ระบุใน course.routes.ts)
@@ -274,16 +282,43 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                         />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ลิงก์วิดีโอแนะนำคอร์ส (YouTube)</label>
-                                <input
-                                    type="url"
-                                    value={form.demoVideoUrl || ""}
-                                    onChange={(e) => updateForm("demoVideoUrl", e.target.value)}
-                                    placeholder="https://www.youtube.com/watch?v=..."
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ผู้ให้บริการวิดีโอตัวอย่าง</label>
+                                <select
+                                    value={form.videoProvider}
+                                    onChange={(e) => updateForm("videoProvider", e.target.value)}
                                     className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
-                                />
+                                >
+                                    <option value="YOUTUBE">YouTube</option>
+                                    <option value="GUMLET">Gumlet</option>
+                                </select>
                             </div>
-                            <div>
+
+                            {form.videoProvider === 'GUMLET' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Gumlet Video ID</label>
+                                    <input
+                                        type="text"
+                                        value={form.gumletVideoId || ""}
+                                        onChange={(e) => updateForm("gumletVideoId", e.target.value)}
+                                        placeholder="เช่น 65f... (ID จาก Gumlet Dashboard)"
+                                        className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Enter the video ID from your Gumlet dashboard (e.g., 65f...).</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">ลิงก์วิดีโอตัวอย่าง (YouTube / MP4)</label>
+                                    <input
+                                        type="url"
+                                        value={form.demoVideoUrl || ""}
+                                        onChange={(e) => updateForm("demoVideoUrl", e.target.value)}
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">ไฟล์เอกสารประกอบ (PDF)</label>
                                 {/* show existing document link when not overriding with a new file */}
                                 {form.materialUrl && !newPdfFile && (

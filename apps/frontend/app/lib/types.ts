@@ -54,6 +54,8 @@ export interface Course {
     thumbnailSm: string | null;
     thumbnailLg: string | null;
     demoVideoUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
 
     // Relations
     categoryId: string | null;
@@ -111,6 +113,8 @@ export interface Lesson {
     type: 'VIDEO' | 'FILE' | 'QUIZ';
     content: string | null;
     youtubeUrl: string | null;
+    gumletVideoId: string | null;
+    videoProvider: 'YOUTUBE' | 'GUMLET';
     duration: number | null;
     order: number;
     chapterId: string;
@@ -123,6 +127,11 @@ export interface CourseSchedule {
     startTime: string; // ISO String
     endTime: string;   // ISO String
     topic: string;
+    chapterTitle?: string | null;
+    videoUrl?: string | null;
+    materialUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
     location: string | null;
     isOnline: boolean;
     status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED';
@@ -197,6 +206,8 @@ export interface CreateCourseInput {
     tags?: string[]; // Added
     isBestSeller?: boolean; // Added
     isRecommended?: boolean; // Added
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
 }
 
 export interface Banner {
