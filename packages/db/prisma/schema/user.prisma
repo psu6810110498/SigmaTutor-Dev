@@ -29,9 +29,10 @@ model User {
   sessions    Session[]
   // 🌟 เปลี่ยนจาก instructorCourses เป็น courses เพื่อให้แสดงผลสัมพันธ์กับ Backend 
   courses     Course[]     @relation("InstructorCourses") // ✅ ชื่อต้องตรงกับในไฟล์ course.prisma
-  enrollments Enrollment[]
-  payments    Payment[]
-  reviews     Review[]
+  enrollments  Enrollment[]
+  payments     Payment[]
+  progress     UserProgress[]
+  reviews      Review[]
 
   @@index([email])
 }

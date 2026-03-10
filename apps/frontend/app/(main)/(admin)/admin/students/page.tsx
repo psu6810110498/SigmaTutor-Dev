@@ -65,13 +65,6 @@ export default function AdminStudentsPage() {
             description="ดูข้อมูลประวัติ การเข้าเรียน และผลการเรียนของนักเรียนทั้งหมด"
             icon={Users}
             stats={stats}
-            actions={
-                <Link href="/admin/students/create">
-                    <Button variant="primary">
-                        <Plus size={18} className="mr-2" /> เพิ่มนักเรียนใหม่
-                    </Button>
-                </Link>
-            }
         >
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 {/* Search & Filter Bar */}

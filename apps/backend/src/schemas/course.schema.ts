@@ -21,7 +21,9 @@ export const createCourseSchema = z.object({
     zoomLink: z.string().url().optional().nullable(),
     // ✅ เพิ่มฟิลด์วิดีโอแนะนำและ PDF ให้สมบูรณ์
     demoVideoUrl: z.string().optional().nullable(),
-    materialUrl: z.string().optional().nullable(), 
+    gumletVideoId: z.string().optional().nullable(),
+    videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE'),
+    materialUrl: z.string().optional().nullable(),
     published: z.boolean().default(false),
     videoCount: z.number().int().min(0).default(0),
     duration: z.string().trim().optional().nullable(),

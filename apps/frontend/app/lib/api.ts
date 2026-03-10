@@ -571,6 +571,8 @@ export const lessonApi = {
     type?: 'VIDEO' | 'FILE' | 'QUIZ';
     content?: string | null;
     youtubeUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
     duration?: number;
     order?: number;
   }) => {
@@ -700,4 +702,24 @@ export const siteContentApi = {
       body: JSON.stringify(data),
     });
   },
+};
+
+// ============================================================
+// Progress API
+// ============================================================
+
+export const progressApi = {
+  /** GET /progress/:courseId - Fetch all completed items for a user in a specific course */
+  getCourseProgress: (courseId: string) =>
+    request<{ id: string; lessonId?: string; scheduleId?: string; isCompleted: boolean }[]>(
+      `/progress/${courseId}`
+    ),
+
+  /** POST /progress/toggle - Toggle the completion status of a lesson/schedule */
+  toggleProgress: (courseId: string, data: { lessonId?: string; scheduleId?: string }) =>
+    request<any>('/progress/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ courseId, ...data }),
+      headers: headers(true),
+    }),
 };

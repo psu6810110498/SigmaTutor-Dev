@@ -4,15 +4,23 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { FiUser, FiGrid, FiBook, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from "@/app/components/ui/Toast";
 import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
+import { progressApi } from '@/app/lib/api';
 
 export default function LearningPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const { user, loading: authLoading } = useAuth();
+    const { user, logout, loading: authLoading } = useAuth();
+
+    const menuItems = [
+        { name: 'แดชบอร์ด', icon: FiGrid, href: '/dashboard' },
+        { name: 'คอร์สของฉัน', icon: FiBook, href: '/my-courses' },
+        { name: 'ข้อมูลส่วนตัว', icon: FiUser, href: '/profile' },
+    ];
 
     const courseId = params.id as string;
     const [course, setCourse] = useState<any>(null);
@@ -32,6 +40,19 @@ export default function LearningPage() {
 
                 if (data.success) {
                     setCourse(data.data);
+
+                    // Fetch user's completed progress
+                    try {
+                        const progressRes = await progressApi.getCourseProgress(courseId);
+                        if (progressRes.success && progressRes.data) {
+                            const completedIds = progressRes.data
+                                .filter((p: any) => p.isCompleted)
+                                .map((p: any) => p.lessonId || p.scheduleId);
+                            setCompletedLessons(new Set(completedIds));
+                        }
+                    } catch (e) {
+                        console.error("Failed to load progress:", e);
+                    }
 
                     // หาบทเรียนแรกมาแสดง
                     const c = data.data;
@@ -69,15 +90,38 @@ export default function LearningPage() {
         setExpandedChapters(newExpanded);
     };
 
-    const toggleCompleted = (lessonId: string) => {
+    const toggleCompleted = async (lessonId: string): Promise<boolean> => {
+        // Optimistic UI updates
         const newCompleted = new Set(completedLessons);
+        let isNowCompleted = false;
+
         if (newCompleted.has(lessonId)) {
             newCompleted.delete(lessonId);
+            isNowCompleted = false;
         } else {
             newCompleted.add(lessonId);
+            isNowCompleted = true;
         }
         setCompletedLessons(newCompleted);
-        // ในระบบจริงควรจะ Request ไป Backend ยืนยันว่าเรียนจบ
+
+        // Sync with backend
+        try {
+            const isSchedule = (!course.chapters || course.chapters.length === 0) && (course.schedules && course.schedules.length > 0);
+            const payload = isSchedule ? { scheduleId: lessonId } : { lessonId: lessonId };
+            await progressApi.toggleProgress(courseId, payload);
+            return true;
+        } catch (error) {
+            console.error("Failed to sync progress:", error);
+            toast.error("ไม่สามารถบันทึกความคืบหน้าได้");
+            // Revert state on failure
+            if (isNowCompleted) {
+                newCompleted.delete(lessonId);
+            } else {
+                newCompleted.add(lessonId);
+            }
+            setCompletedLessons(new Set(newCompleted));
+            return false;
+        }
     };
 
     // รวมบทเรียนทั้งหมดเป็น flat array เพื่อใช้ในการนำทาง prev/next
@@ -145,27 +189,87 @@ export default function LearningPage() {
     }
     const progressPercent = totalItems === 0 ? 0 : Math.round((completedLessons.size / totalItems) * 100);
 
-    // ดึงรหัสวิดีโอจาก currentLesson
-    let videoId = '';
-    const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl || course.demoVideoUrl;
-    if (rawUrl) {
-        videoId = rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop();
-    }
+    // Note: video rendering logic is now inline in the JSX below,
+    // supporting both YouTube and Gumlet providers.
 
     return (
         <div className="flex h-screen bg-slate-50 text-slate-700 font-sans overflow-hidden">
 
-            {/* --- Sidebar ซ้ายสุด (Navigation เล็กๆ) --- */}
-            <div className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-6 shrink-0 z-10 shadow-sm">
-                <div className="mb-8">
-                    <SigmaLogo size="sm" showText={false} href="/my-courses" />
+            {/* --- Sidebar ซ้ายสุด (Navigation) --- */}
+            <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-40 hidden md:flex font-sans">
+                <div className="h-16 flex items-center px-8 border-b border-gray-50/50 shrink-0">
+                    <SigmaLogo size="lg" showText={true} />
                 </div>
-                <nav className="flex flex-col gap-6">
-                    <Link href="/my-courses" className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="คอร์สของฉัน">
-                        <ArrowLeft size={20} />
-                    </Link>
-                </nav>
-            </div>
+
+                <div className="p-8 h-full flex flex-col overflow-y-auto">
+                    {/* Profile Section */}
+                    <div className="flex flex-col items-center mb-10 text-center">
+                        {/* Avatar with Glowing Gradient Ring */}
+                        <div className="relative group mb-4">
+                            <div className="absolute -inset-1 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-purple-500 to-blue-400">
+                                <div className="w-full h-full rounded-full bg-white p-1 overflow-hidden">
+                                    <img
+                                        src={
+                                            user?.profileImage ||
+                                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'User'}`
+                                        }
+                                        alt="Profile"
+                                        className="w-full h-full object-cover rounded-full bg-gray-50"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1 w-full px-2">
+                            <h3 className="font-bold text-gray-900 text-lg line-clamp-1 leading-tight">
+                                {user?.name || 'Promtada Pippo'}
+                            </h3>
+                            <p className="text-gray-400 text-xs truncate font-medium">
+                                {user?.email || 'pippo662006@gmail.com'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Navigation Menu */}
+                    <nav className="space-y-2 flex-1 pt-4">
+                        {menuItems.map((item) => {
+                            // On the Learning page, we consider "คอร์สของฉัน" as active
+                            const isActive = item.name === 'คอร์สของฉัน';
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`
+                                        flex items-center px-5 py-3.5 transition-all duration-200 font-semibold text-sm group
+                                        ${isActive
+                                            ? 'bg-[#3b82f6] text-white rounded-[12px] shadow-lg shadow-blue-500/30'
+                                            : 'text-gray-500 hover:bg-gray-50 hover:text-blue-600 rounded-[12px]'
+                                        }
+                                    `}
+                                >
+                                    <item.icon
+                                        className={`w-5 h-5 mr-4 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-blue-500'
+                                            }`}
+                                    />
+                                    {item.name}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Logout Section */}
+                    <div className="pt-6 mt-6 border-t border-gray-50">
+                        <button
+                            onClick={() => logout()}
+                            className="flex items-center px-5 py-3.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-[12px] w-full transition-all duration-200 text-sm font-semibold group"
+                        >
+                            <FiLogOut className="w-5 h-5 mr-4 group-hover:scale-110 transition-transform" />
+                            ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+            </aside>
 
             {/* --- พื้นที่เนื้อหาหลัก (ตรงกลาง) --- */}
             <div className="flex-1 flex flex-col overflow-y-auto w-full relative">
@@ -186,12 +290,47 @@ export default function LearningPage() {
                 <div className="p-8 max-w-5xl mx-auto w-full">
                     {/* Video Player */}
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
-                        {videoId ? (
+                        {/* 1. Lesson has Gumlet */}
+                        {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId)) && currentLesson?.gumletVideoId ? (
                             <iframe
-                                src={`https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`}
+                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId}`}
                                 className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
+                                title={currentLesson?.title || 'Gumlet Video'}
                             />
+                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId)) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
+                            (() => {
+                                const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl;
+                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                        className="w-full h-full"
+                                        allowFullScreen
+                                    />
+                                );
+                            })()
+                        ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId)) && course?.gumletVideoId) ? (
+                            <iframe
+                                src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                title="Course Demo Video"
+                            />
+                        ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
+                            (() => {
+                                const rawUrl = course.demoVideoUrl;
+                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                return (
+                                    <iframe
+                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                        className="w-full h-full"
+                                        allowFullScreen
+                                    />
+                                );
+                            })()
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
                                 <PlayCircle size={48} className="opacity-50 text-slate-300" />
@@ -378,12 +517,25 @@ export default function LearningPage() {
                 <div className="p-4 border-t border-slate-100 bg-white">
                     <button
                         className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                            ${currentLesson && completedLessons.has(currentLesson.id)
+                            ${currentIndex === allLessons.length - 1 && currentLesson && completedLessons.has(currentLesson.id)
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
-                        onClick={() => currentLesson && toggleCompleted(currentLesson.id)}
+                        onClick={async () => {
+                            if (!currentLesson) return;
+
+                            let success = true;
+                            if (!completedLessons.has(currentLesson.id)) {
+                                success = await toggleCompleted(currentLesson.id);
+                            }
+
+                            if (success && currentIndex < allLessons.length - 1) {
+                                goToNext();
+                            }
+                        }}
                     >
-                        {currentLesson && completedLessons.has(currentLesson.id) ? (
+                        {currentIndex < allLessons.length - 1 ? (
+                            <>บทเรียนถัดไป <ArrowLeft size={16} className="rotate-180" /></>
+                        ) : currentLesson && completedLessons.has(currentLesson.id) ? (
                             <><CheckCircle size={18} /> เรียนจบแล้ว</>
                         ) : (
                             'ทำเครื่องหมายว่าเรียนจบ'

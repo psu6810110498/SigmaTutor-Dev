@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ import {
   Loader2,
   Lock,
   CheckCircle,
+  Trash2,
 } from 'lucide-react';
 import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
@@ -60,8 +61,9 @@ const typeBadge: Record<CourseType, { label: string; className: string }> = {
 
 export default function CourseDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.id as string;
-  const { addToCart, isInCart } = useCourse();
+  const { addToCart, isInCart, removeFromCart } = useCourse();
   const { user } = useAuth();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -72,7 +74,8 @@ export default function CourseDetailPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
-    if (course?.demoVideoUrl) setActiveMedia('video');
+    if (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) setActiveMedia('video');
+    else if (course?.demoVideoUrl) setActiveMedia('video');
   }, [course]);
 
   // Reviews
@@ -208,14 +211,25 @@ export default function CourseDetailPage() {
           <div className="mb-6">
             {/* Main Viewer */}
             <div className="rounded-2xl overflow-hidden bg-black aspect-video relative shadow-sm border border-gray-100 mb-3">
-              {activeMedia === 'video' && course.demoVideoUrl ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}?autoplay=1`}
-                  className="w-full h-full"
-                  allow="autoplay; fullscreen"
-                  allowFullScreen
-                  title="Promotional Video"
-                />
+              {activeMedia === 'video' && ((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) ? (
+                course.videoProvider === 'GUMLET' && course.gumletVideoId ? (
+                  <iframe
+                    src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
+                    title="Gumlet video player"
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${course.demoVideoUrl!.includes('v=') ? course.demoVideoUrl!.split('v=')[1]?.split('&')[0] : course.demoVideoUrl!.split('/').pop()}?autoplay=1`}
+                    className="w-full h-full"
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                    title="Promotional Video"
+                  />
+                )
               ) : (
                 course.thumbnailLg || course.thumbnail ? (
                   <img
@@ -238,7 +252,7 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Thumbnails Row */}
-            {course.demoVideoUrl && (
+            {((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) && (
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
                 <button
                   onClick={() => setActiveMedia('video')}
@@ -247,7 +261,13 @@ export default function CourseDetailPage() {
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10 hover:bg-black/20 transition-colors">
                     <PlayCircle className="text-white drop-shadow-md" size={32} />
                   </div>
-                  <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                  {course.videoProvider === 'GUMLET' ? (
+                    <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                      <Video className="text-white opacity-50" size={24} />
+                    </div>
+                  ) : course.demoVideoUrl ? (
+                    <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                  ) : null}
                 </button>
 
                 <button
@@ -417,10 +437,20 @@ export default function CourseDetailPage() {
                             {expandedLessons.has(lesson.id) && (
                               <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
                                 {lesson.content || 'ไม่มีรายละเอียดเนื้อหา'}
-                                {lesson.youtubeUrl && (
+                                {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
                                   <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
-                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.split('v=')[1] || lesson.youtubeUrl.split('/').pop()}`}
+                                      src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
+                                      className="w-full h-full"
+                                      allow="autoplay; fullscreen; picture-in-picture"
+                                      allowFullScreen
+                                      title={lesson.title}
+                                    />
+                                  </div>
+                                ) : lesson.youtubeUrl && (
+                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                    <iframe
+                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
                                       className="w-full h-full"
                                       allowFullScreen
                                     />
@@ -473,7 +503,7 @@ export default function CourseDetailPage() {
                                   </span>
                                 ) : (
                                   <>
-                                    {sched.videoUrl && (
+                                    {(sched.videoUrl || sched.gumletVideoId) && (
                                       <span className="text-xs flex items-center gap-1">
                                         <Video size={14} /> วิดีโอ
                                       </span>
@@ -497,10 +527,20 @@ export default function CourseDetailPage() {
                                 {sched.chapterTitle && (
                                   <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
                                 )}
-                                {sched.videoUrl && (
+                                {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
+                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                    <iframe
+                                      src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
+                                      className="w-full h-full"
+                                      allow="autoplay; fullscreen; picture-in-picture"
+                                      allowFullScreen
+                                      title={sched.topic}
+                                    />
+                                  </div>
+                                ) : sched.videoUrl && (
                                   <div className="aspect-video rounded-lg overflow-hidden bg-black">
                                     <iframe
-                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}`}
+                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
                                       className="w-full h-full"
                                       allowFullScreen
                                       title={sched.topic}
@@ -805,41 +845,54 @@ export default function CourseDetailPage() {
 
             {/* CTA Buttons */}
             {isEnrolled ? (
-              <>
-                <div className="w-full py-3 rounded-xl text-sm font-bold text-center bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center gap-2">
-                  <CheckCircle size={18} /> คุณได้ซื้อคอร์สนี้แล้ว
-                </div>
-                <Link
-                  href={`/courses/${course.id}/learn`}
-                  className="block w-full py-3 rounded-xl text-sm font-bold text-center bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                >
-                  ▶ เข้าเรียนเลย
-                </Link>
-              </>
+              <Link
+                href={`/courses/${course.id}/learn`}
+                className="w-full flex items-center justify-center py-3 rounded-xl text-sm font-bold text-center bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all active:scale-[0.98] gap-2"
+              >
+                <PlayCircle size={18} /> เข้าสู่บทเรียน
+              </Link>
             ) : (
               <>
                 <button
-                  onClick={() => addToCart(toCartItem(course))}
-                  disabled={isInCart(course.id)}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${isInCart(course.id)
-                    ? 'bg-green-50 text-green-600 cursor-default'
+                  onClick={() => {
+                    if (isInCart(course.id)) {
+                      removeFromCart(course.id);
+                    } else {
+                      addToCart(toCartItem(course));
+                    }
+                  }}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${isInCart(course.id)
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
                     : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
                     }`}
                 >
                   {isInCart(course.id) ? (
-                    '✓ อยู่ในตะกร้าแล้ว'
+                    <>
+                      <span className="flex items-center justify-center gap-2 group-hover:hidden">
+                        <CheckCircle size={16} /> อยู่ในตะกร้าแล้ว
+                      </span>
+                      <span className="hidden items-center justify-center gap-2 group-hover:flex">
+                        <Trash2 size={16} /> เอาออกจากตะกร้า
+                      </span>
+                    </>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
                       <ShoppingCart size={16} /> เพิ่มลงตะกร้า
                     </span>
                   )}
                 </button>
-                <Link
-                  href="/checkout"
+                <button
+                  onClick={() => {
+                    if (!isInCart(course.id)) {
+                      addToCart(toCartItem(course));
+                    }
+                    // Use setTimeout to ensure context state is flushed slightly before routing
+                    setTimeout(() => router.push('/checkout'), 50);
+                  }}
                   className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
                 >
                   ซื้อเลย
-                </Link>
+                </button>
               </>
             )}
 
