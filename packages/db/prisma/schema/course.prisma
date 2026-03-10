@@ -28,8 +28,8 @@ model Course {
 
   // Relations (Main)
   // ใน Model Course
-  teacherId String // changed from instructorId
-  teacher   Teacher   @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
+  teacherId String? // changed from instructorId
+  teacher   Teacher?   @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
 
   // Head Fields
   courseCode      String? // เพิ่มช่องรหัสคอร์ส
