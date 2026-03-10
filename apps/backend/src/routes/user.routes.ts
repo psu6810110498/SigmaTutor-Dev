@@ -10,7 +10,7 @@ const router: express.Router = express.Router();
 // 🌟 2. ตั้งค่าการเก็บไฟล์ (เบื้องต้นเก็บไว้ใน Memory เพื่อรอจัดการต่อ)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 } // จำกัด 2MB ตามหน้าบ้าน
+  limits: { fileSize: 2 * 1024 * 1024 }, // จำกัด 2MB ตามหน้าบ้าน
 });
 
 /**
@@ -25,7 +25,7 @@ router.get(
       const [instructors, totalUniqueStudents] = await Promise.all([
         prisma.user.findMany({
           where: {
-            OR: [{ role: 'INSTRUCTOR' }, { role: 'ADMIN' }]
+            OR: [{ role: 'INSTRUCTOR' }, { role: 'ADMIN' }],
           },
           select: {
             id: true,
@@ -46,30 +46,39 @@ router.get(
                 id: true,
                 title: true,
                 price: true,
-                enrollments: { select: { userId: true, status: true, createdAt: true, user: { select: { name: true, profileImage: true } } } },
+                enrollments: {
+                  select: {
+                    userId: true,
+                    status: true,
+                    createdAt: true,
+                    user: { select: { name: true, profileImage: true } },
+                  },
+                },
                 payments: {
                   where: { status: 'COMPLETED' },
-                  select: { amount: true }
-                }
-              }
+                  select: { amount: true },
+                },
+              },
             },
             _count: {
-              select: { courses: true }
-            }
+              select: { courses: true },
+            },
           },
           orderBy: { createdAt: 'desc' },
         }),
-        prisma.user.count({ where: { role: 'USER' } })
+        prisma.user.count({ where: { role: 'USER' } }),
       ]);
 
-      const formattedData = instructors.map(inst => {
-        const allStudentIds = inst.courses.flatMap(c => c.enrollments.map(e => e.userId));
+      const formattedData = instructors.map((inst) => {
+        const allStudentIds = inst.courses.flatMap((c) => c.enrollments.map((e) => e.userId));
         const uniqueStudentsCount = new Set(allStudentIds).size;
 
         const totalEarnings = inst.courses.reduce((sum, course) => {
           let courseRevenue = course.payments.reduce((pSum, p) => pSum + Number(p.amount || 0), 0);
           if (courseRevenue === 0 && course.price && course.enrollments.length > 0) {
-            const activeEnrollments = course.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED').length;
+            const activeEnrollments = course.enrollments.filter(
+              (e) => e.status === 'ACTIVE' || e.status === 'COMPLETED'
+            ).length;
             courseRevenue = Number(course.price) * activeEnrollments;
           }
           return sum + courseRevenue;
@@ -80,14 +89,14 @@ router.get(
           totalEarnings,
           _count: {
             courses: inst._count.courses,
-            enrollments: uniqueStudentsCount
-          }
+            enrollments: uniqueStudentsCount,
+          },
         };
       });
 
       res.json({ success: true, data: formattedData, totalUniqueStudents });
     } catch (error) {
-      console.error("Instructors API Error:", error);
+      console.error('Instructors API Error:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch instructors' });
     }
   }
@@ -115,25 +124,31 @@ router.get(
           enrollments: {
             select: {
               status: true,
-              course: { select: { title: true, price: true, instructor: { select: { name: true } } } }
-            }
+              course: {
+                select: { title: true, price: true, instructor: { select: { name: true } } },
+              },
+            },
           },
           payments: {
             where: { status: 'COMPLETED' },
-            select: { amount: true }
-          }
+            select: { amount: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
 
       const now = new Date();
-      const formattedStudents = students.map(s => {
-        const activeTime = s.lastActive ? new Date(s.lastActive).getTime() : new Date(s.updatedAt).getTime();
+      const formattedStudents = students.map((s) => {
+        const activeTime = s.lastActive
+          ? new Date(s.lastActive).getTime()
+          : new Date(s.updatedAt).getTime();
         const diffMinutes = Math.floor((now.getTime() - activeTime) / 60000);
 
         let totalSpent = s.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         if (totalSpent === 0) {
-          const activeEnrollments = s.enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'COMPLETED');
+          const activeEnrollments = s.enrollments.filter(
+            (e) => e.status === 'ACTIVE' || e.status === 'COMPLETED'
+          );
           totalSpent = activeEnrollments.reduce((sum, e) => sum + Number(e.course?.price || 0), 0);
         }
         return {
@@ -142,17 +157,17 @@ router.get(
           email: s.email,
           profileImage: s.profileImage,
           createdAt: s.createdAt,
-          status: (diffMinutes >= 0 && diffMinutes <= 5) ? 'Online' : 'Offline',
-          enrolledCourses: s.enrollments.map(e => ({
+          status: diffMinutes >= 0 && diffMinutes <= 5 ? 'Online' : 'Offline',
+          enrolledCourses: s.enrollments.map((e) => ({
             title: e.course?.title || 'Unknown',
-            instructorName: e.course?.instructor?.name || 'ไม่ระบุผู้สอน'
+            instructorName: e.course?.instructor?.name || 'ไม่ระบุผู้สอน',
           })),
-          totalSpent
+          totalSpent,
         };
       });
       res.json({ success: true, data: formattedStudents });
     } catch (error) {
-      console.error("🔥 Fetch Students Error:", error);
+      console.error('🔥 Fetch Students Error:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch students' });
     }
   }
@@ -167,7 +182,19 @@ router.post(
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, email, password, nickname, title, bio, profileImage, expertise, education, experience, socialLink } = req.body;
+      const {
+        name,
+        email,
+        password,
+        nickname,
+        title,
+        bio,
+        profileImage,
+        expertise,
+        education,
+        experience,
+        socialLink,
+      } = req.body;
       const finalEmail = email || `teacher_${Date.now()}@sigma.com`;
       const existingUser = await prisma.user.findUnique({ where: { email: finalEmail } });
       if (existingUser) {
@@ -177,10 +204,20 @@ router.post(
       const hashedPassword = await bcrypt.hash(password || 'Sigma1234!', 12);
       const newTeacher = await prisma.user.create({
         data: {
-          name, email: finalEmail, password: hashedPassword, role: 'INSTRUCTOR',
-          nickname, title, bio, profileImage, expertise, education, experience, socialLink
+          name,
+          email: finalEmail,
+          password: hashedPassword,
+          role: 'INSTRUCTOR',
+          nickname,
+          title,
+          bio,
+          profileImage,
+          expertise,
+          education,
+          experience,
+          socialLink,
         },
-        select: { id: true, name: true, email: true, role: true }
+        select: { id: true, name: true, email: true, role: true },
       });
       res.status(201).json({ success: true, data: newTeacher });
     } catch (error) {
@@ -202,9 +239,20 @@ router.patch(
 
     try {
       const {
-        name, phone, birthday, educationLevel, school, province, address,
-        expertise, education, experience, socialLink,
-        nickname, title, bio
+        name,
+        phone,
+        birthday,
+        educationLevel,
+        school,
+        province,
+        address,
+        expertise,
+        education,
+        experience,
+        socialLink,
+        nickname,
+        title,
+        bio,
       } = req.body;
 
       if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
@@ -221,13 +269,30 @@ router.patch(
       const user = await prisma.user.update({
         where: { id },
         data: {
-          name, phone, educationLevel, school, province, address,
-          expertise, education, experience, socialLink,
-          nickname, title, bio, // 🌟 บันทึกข้อมูลคุณครูลง Database
+          name,
+          phone,
+          educationLevel,
+          school,
+          province,
+          address,
+          expertise,
+          education,
+          experience,
+          socialLink,
+          nickname,
+          title,
+          bio, // 🌟 บันทึกข้อมูลคุณครูลง Database
           profileImage: profileImageUrl,
-          birthday: birthday ? new Date(birthday) : undefined
+          birthday: birthday ? new Date(birthday) : undefined,
         },
-        select: { id: true, email: true, name: true, role: true, updatedAt: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          profileImage: true,
+          updatedAt: true,
+        },
       });
 
       res.json({ success: true, data: user });
@@ -248,7 +313,9 @@ router.delete(
     try {
       await prisma.user.delete({ where: { id: req.params.id } });
       res.json({ success: true, message: 'User deleted successfully' });
-    } catch (error) { res.status(500).json({ success: false, error: 'Failed to delete user' }); }
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to delete user' });
+    }
   }
 );
 
@@ -274,7 +341,7 @@ router.get(
 
       res.json({ success: true, data: userData });
     } catch (error) {
-      console.error("🔥 Fetch User by ID Error:", error);
+      console.error('🔥 Fetch User by ID Error:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch user data' });
     }
   }
