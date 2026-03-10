@@ -1,7 +1,8 @@
 import express from 'express';
 import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
-import uploadRoutes from './upload.routes';
+import uploadRoutes from './upload.routes.js';
+import gumletRoutes from './gumlet.routes.js';
 import courseRoutes from './course.routes.js';
 import paymentRoutes from './payment.routes.js';
 import categoryRoutes from './category.routes.js';
@@ -23,6 +24,7 @@ const router: express.Router = express.Router();
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/upload', uploadRoutes); // Ensure this matches frontend expectation
+router.use('/gumlet', gumletRoutes);
 // Note: Frontend seems to expect /courses/:id/upload which is in courseRoutes
 router.use('/courses', courseRoutes);
 router.use('/payments', paymentRoutes);

@@ -1,0 +1,24 @@
+// Teacher model
+model Teacher {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  profileImage String?
+  bio          String?
+  title        String?
+  nickname     String?
+
+  phone          String?
+  expertise      String?
+  education      String?
+  experience     String?
+  socialLink     String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  courses      Course[] @relation("TeacherCourses")
+
+  @@index([email])
+}

@@ -28,8 +28,8 @@ model Course {
 
   // Relations (Main)
   // ใน Model Course
-  instructorId String
-  instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "InstructorCourses" และ onDelete
+  teacherId String // changed from instructorId
+  teacher   Teacher   @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
 
   // Head Fields
   courseCode      String? // เพิ่มช่องรหัสคอร์ส
@@ -61,7 +61,7 @@ model Course {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([instructorId])
+  @@index([teacherId])
   @@index([status])
   // Composite indexes for marketplace filter combinations
   @@index([status, categoryId])

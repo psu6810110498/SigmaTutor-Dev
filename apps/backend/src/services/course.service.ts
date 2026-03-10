@@ -41,7 +41,7 @@ export class CourseService {
 
     // ✅ แก้ปัญหาติดชื่อแอดมิน: ถ้ามีการเลือกผู้สอน (instructorId) มา ให้ใช้คนนั้น
     // แต่ถ้าไม่มี (เช่น เป็นค่าว่าง) ให้ใช้ ID ของคนสร้าง (creatorId)
-    const instructorId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
+    const teacherId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
     delete data.instructorId;
 
     // If frontend sent a flat schedules array, convert it to Prisma nested create format
@@ -65,10 +65,13 @@ export class CourseService {
       };
     }
 
-    return this.db.course.create({
-      data: { ...data, slug, instructorId },
-      include: { instructor: { select: { id: true, name: true, email: true } } },
+    const course = await this.db.course.create({
+      data: { ...data, slug, teacherId },
+      include: { teacher: { select: { id: true, name: true, email: true } } },
     });
+
+    const { teacher, teacherId: returnedTeacherId, ...rest } = course as any;
+    return { ...rest, instructorId: returnedTeacherId, instructor: teacher };
   }
 
   /**
@@ -78,7 +81,7 @@ export class CourseService {
     const course = await this.db.course.findUnique({
       where: { id },
       include: {
-        instructor: { select: { id: true, name: true, email: true, profileImage: true } },
+        teacher: { select: { id: true, name: true, email: true, profileImage: true } },
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
@@ -96,7 +99,10 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    return course;
+    
+    // Map teacher back to instructor for the frontend
+    const { teacher, teacherId, ...rest } = course as any;
+    return { ...rest, instructorId: teacherId, instructor: teacher };
   }
 
   /**
@@ -106,7 +112,7 @@ export class CourseService {
     const course = await this.db.course.findFirst({
       where: { slug },
       include: {
-        instructor: { select: { id: true, name: true, email: true, profileImage: true } },
+        teacher: { select: { id: true, name: true, email: true, profileImage: true } },
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
@@ -124,7 +130,10 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    return course;
+    
+    // Map teacher back to instructor for the frontend
+    const { teacher, teacherId, ...rest } = course as any;
+    return { ...rest, instructorId: teacherId, instructor: teacher };
   }
 
   /**
@@ -137,7 +146,7 @@ export class CourseService {
     const sort = query.sort ?? 'newest';
     const categoryId = query.categoryId;
     const levelId = query.levelId;
-    const tutorId = query.tutorId;
+    const tutorId = query.tutorId || query.instructorId;
     const minPrice = query.minPrice;
     const maxPrice = query.maxPrice;
 
@@ -167,7 +176,7 @@ export class CourseService {
         ],
       }),
       ...(levelId && { levelId }),
-      ...(tutorId && { instructorId: tutorId }),
+      ...(tutorId && { teacherId: tutorId }),
       ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
     };
@@ -194,7 +203,8 @@ export class CourseService {
           reviews: { select: { rating: true } },
           level: { select: { name: true } },
           category: { select: { name: true } },
-          instructor: { select: { id: true, name: true, profileImage: true } },
+          teacher: { select: { id: true, name: true, profileImage: true } },
+          teacherId: true,
           _count: { select: { enrollments: true } },
           videoCount: true,
           isBestSeller: true,
@@ -214,8 +224,8 @@ export class CourseService {
         reviewCount > 0
           ? course.reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount
           : 0;
-      const { reviews, ...rest } = course;
-      return { ...rest, rating, reviewCount };
+      const { reviews, teacher, teacherId, ...rest } = course as any;
+      return { ...rest, rating, reviewCount, instructor: teacher, instructorId: teacherId };
     });
 
     return {
@@ -234,12 +244,21 @@ export class CourseService {
             title: true,
             slug: true,
             thumbnail: true,
-            instructor: { select: { name: true } },
+            teacher: { select: { name: true } },
             _count: { select: { chapters: true } },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+    
+    // Map output
+    return enrollments.map((en: any) => {
+      const { teacher, teacherId, ...courseRest } = en.course;
+      return {
+        ...en,
+        course: { ...courseRest, instructor: teacher, instructorId: teacherId }
+      };
     });
   }
 
@@ -249,7 +268,7 @@ export class CourseService {
       include: {
         course: {
           include: {
-            instructor: { select: { name: true } },
+            teacher: { select: { name: true } },
             category: true,
           },
         },
@@ -262,7 +281,7 @@ export class CourseService {
       title: en.course.title,
       thumbnail: en.course.thumbnail,
       categoryName: en.course.category?.name ?? 'ทั่วไป',
-      instructor: en.course.instructor?.name ?? 'ไม่ระบุผู้สอน',
+      instructor: (en.course as any).teacher?.name ?? 'ไม่ระบุผู้สอน',
       courseType: en.course.courseType,
       status: en.status,
       progress: en.status === 'COMPLETED' ? 100 : 0,
@@ -276,17 +295,17 @@ export class CourseService {
 
     const where: any = {
       ...(status && status !== ('all' as any) && { status }),
-      ...(instructorId && { instructorId }),
+      ...(instructorId && { teacherId: instructorId }),
       ...(search && { title: { contains: search, mode: 'insensitive' } }),
     };
 
-    const statsWhere = instructorId ? { instructorId } : {};
+    const statsWhere = instructorId ? { teacherId: instructorId } : {};
 
     const [courses, total, allCount, publishedCount, draftCount] = await Promise.all([
       this.db.course.findMany({
         where,
         include: {
-          instructor: { select: { name: true, email: true } },
+          teacher: { select: { name: true, email: true } },
           category: { select: { id: true, name: true, slug: true } },
           _count: { select: { enrollments: true } },
         },
@@ -300,8 +319,14 @@ export class CourseService {
       this.db.course.count({ where: { ...statsWhere, status: 'DRAFT' } }),
     ]);
 
+    // Map output
+    const mappedCourses = courses.map((course: any) => {
+      const { teacher, teacherId, ...rest } = course;
+      return { ...rest, instructorId: teacherId, instructor: teacher };
+    });
+
     return {
-      courses,
+      courses: mappedCourses,
       total,
       totalPages: Math.ceil(total / limit),
       summary: { all: allCount, published: publishedCount, draft: draftCount },
@@ -316,11 +341,15 @@ export class CourseService {
     // ✅ ปรับแก้ข้อมูล IDs ให้ถูกต้องก่อนอัปเดต (string cuid หรือ null)
     if (updateData.levelId === '' || updateData.levelId === undefined) updateData.levelId = null;
     if (updateData.categoryId === '' || updateData.categoryId === undefined) updateData.categoryId = null;
+    if ('instructorId' in updateData) {
+      updateData.teacherId = updateData.instructorId === '' ? null : updateData.instructorId;
+      delete updateData.instructorId;
+    }
 
     return this.db.course.update({
       where: { id },
       data: updateData,
-      include: { instructor: { select: { id: true, name: true, email: true } } },
+      include: { teacher: { select: { id: true, name: true, email: true } } },
     });
   }
 

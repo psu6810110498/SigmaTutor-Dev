@@ -104,6 +104,8 @@ export default function CreateCoursePage() {
     const [sessions, setSessions] = useState<ScheduleSession[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [uploadingGumlet, setUploadingGumlet] = useState(false);
+    const [gumletProgress, setGumletProgress] = useState(0);
     const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
 
     // ── จัดการข้อมูลแบบร่าง (Draft) ──
@@ -189,6 +191,78 @@ export default function CreateCoursePage() {
             toast.error("เกิดข้อผิดพลาดในการอัปโหลด");
         } finally {
             setUploadingPdf(false);
+        }
+    };
+
+    const handleGumletVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Ensure video
+        if (!file.type.startsWith('video/')) {
+            toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น");
+            return;
+        }
+
+        try {
+            setUploadingGumlet(true);
+            setGumletProgress(0);
+
+            // 1. Get Signed URL and Asset ID from our Backend
+            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
+                method: 'POST',
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (!data.success || !data.upload_url) {
+                toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+                setUploadingGumlet(false);
+                return;
+            }
+
+            const { upload_url, asset_id } = data;
+
+            // 2. Upload raw file directly to Gumlet securely
+            return new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', upload_url, true);
+                xhr.setRequestHeader('Content-Type', file.type);
+
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = Math.round((event.loaded / event.total) * 100);
+                        setGumletProgress(percentComplete);
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        updateForm("gumletVideoId", asset_id);
+                        toast.success("อัปโหลดวิดีโอสำเร็จ");
+                        setUploadingGumlet(false);
+                        resolve();
+                    } else {
+                        console.error('Upload failed with status', xhr.status, xhr.responseText);
+                        toast.error("อัปโหลดไม่สำเร็จ หรือถูกยกเลิก");
+                        setUploadingGumlet(false);
+                        reject(new Error("Upload failed"));
+                    }
+                };
+
+                xhr.onerror = () => {
+                    console.error('XHR Upload Error');
+                    toast.error("เกิดข้อผิดพลาดในการอัปโหลดวิดีโอ");
+                    setUploadingGumlet(false);
+                    reject(new Error("XHR Error"));
+                };
+
+                xhr.send(file);
+            });
+        } catch (error) {
+            console.error(error);
+            toast.error("ระบบอัปโหลดมีปัญหา");
+            setUploadingGumlet(false);
         }
     };
 
@@ -332,9 +406,59 @@ export default function CreateCoursePage() {
 
                                 {form.videoProvider === 'GUMLET' ? (
                                     <div>
-                                        <label className={labelClass}>Gumlet Video ID</label>
-                                        <input type="text" value={form.gumletVideoId || ""} onChange={(e) => updateForm("gumletVideoId", e.target.value)} className={inputClass} placeholder="เช่น 65f... (ID จาก Gumlet Dashboard)" />
-                                        <p className="text-xs text-gray-500 mt-1">Enter the video ID from your Gumlet dashboard (e.g., 65f...).</p>
+                                        <label className={labelClass}>วิดีโอตัวอย่าง (Gumlet Video ID)</label>
+                                        <div className="relative flex items-center gap-2">
+                                            <div className="relative flex-1">
+                                                <Video className={`absolute left-3 top-1/2 -translate-y-1/2 ${form.gumletVideoId ? 'text-green-500' : 'text-gray-400'}`} size={16} />
+                                                <input
+                                                    type="text"
+                                                    value={form.gumletVideoId || ""}
+                                                    onChange={(e) => updateForm("gumletVideoId", e.target.value)}
+                                                    className={`w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm pl-10 pr-20 ${form.gumletVideoId && form.gumletVideoId.length > 5 ? 'border-green-300 bg-green-50/30 text-green-800' : 'bg-white'}`}
+                                                    placeholder="กรอก Video ID หรืออัปโหลดไฟล์..."
+                                                    disabled={uploadingGumlet}
+                                                />
+                                                {form.gumletVideoId && !uploadingGumlet && (
+                                                    <button type="button" onClick={() => updateForm("gumletVideoId", "")} className="absolute right-12 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-500">
+                                                        ✗
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex">
+                                                <input
+                                                    type="file"
+                                                    accept="video/mp4,video/x-m4v,video/*"
+                                                    onChange={handleGumletVideoUpload}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    disabled={uploadingGumlet}
+                                                    title="อัปโหลดวิดีโอใหม่"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    disabled={uploadingGumlet}
+                                                    className={`h-8 px-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center ${
+                                                        uploadingGumlet
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                    }`}
+                                                >
+                                                    {uploadingGumlet ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            {gumletProgress}%
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                                            อัปโหลด
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div>
