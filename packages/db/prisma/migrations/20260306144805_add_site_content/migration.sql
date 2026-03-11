@@ -4,8 +4,8 @@
   - You are about to drop the column `updatedAt` on the `Payment` table. All the data in the column will be lost.
 
 */
--- AlterTable
-ALTER TABLE "Payment" DROP COLUMN "updatedAt";
+-- AlterTable (idempotent: column may have already been removed by a prior migration)
+ALTER TABLE "Payment" DROP COLUMN IF EXISTS "updatedAt";
 
 -- CreateTable
 CREATE TABLE "site_content" (
