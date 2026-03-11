@@ -12,6 +12,7 @@ import cookieParser from 'cookie-parser';
 import scheduleRoutes from './routes/schedule.routes.js';
 import { getRedisClient, closeRedisClient } from './lib/redis.client.js';
 import { prisma } from '@sigma/db';
+import { seatReservationService } from './services/seat-reservation.service.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -99,11 +100,50 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // 8. Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`📚 API: http://localhost:${PORT}/api`);
+
+  // sync Redis seat counters สำหรับทุกคอร์ส ONSITE/ONLINE_LIVE
+  // ป้องกัน false FULL หลัง Redis restart
+  syncSeatCounters().catch((err) =>
+    console.error('seat counter sync failed on startup:', err)
+  );
 });
+
+/**
+ * sync Redis counter สำหรับทุกคอร์สที่มี maxSeats
+ * รันหนึ่งครั้งตอน server start และทุกครั้งที่ Redis reconnect
+ * ข้ามคอร์สที่ counter มีอยู่แล้ว (ensureCounter จะ no-op)
+ */
+async function syncSeatCounters(): Promise<void> {
+  const limitedCourses = await prisma.course.findMany({
+    where: {
+      status: 'PUBLISHED',
+      courseType: { in: ['ONSITE', 'ONLINE_LIVE'] },
+      maxSeats: { not: null },
+    },
+    select: { id: true, maxSeats: true },
+  });
+
+  if (limitedCourses.length === 0) return;
+
+  console.log(`syncing seat counters for ${limitedCourses.length} course(s)...`);
+
+  await Promise.all(
+    limitedCourses.map((course) =>
+      seatReservationService.ensureCounter(course.id, async () => {
+        const enrolledCount = await prisma.enrollment.count({
+          where: { courseId: course.id, status: 'ACTIVE' },
+        });
+        return { maxSeats: course.maxSeats!, enrolledCount };
+      })
+    )
+  );
+
+  console.log('seat counters ready');
+}
 
 // 9. Graceful shutdown — close Redis + DB connections cleanly
 async function shutdown(signal: string): Promise<void> {

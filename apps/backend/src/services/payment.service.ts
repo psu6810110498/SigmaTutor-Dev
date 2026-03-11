@@ -156,6 +156,15 @@ export class PaymentService {
       const isLimited = course?.courseType !== 'ONLINE' && course?.maxSeats != null;
       if (!isLimited) continue;
 
+      // ตรวจสอบและ init Redis counter ก่อนเสมอ
+      // ป้องกัน false FULL เมื่อ Redis restart หรือ counter ยังไม่เคย init
+      await seatReservationService.ensureCounter(item.courseId, async () => {
+        const enrolled = await prisma.enrollment.count({
+          where: { courseId: item.courseId, status: 'ACTIVE' },
+        });
+        return { maxSeats: course!.maxSeats!, enrolledCount: enrolled };
+      });
+
       const result = await seatReservationService.reserve(item.courseId, userId);
 
       if (result === 'OK') {

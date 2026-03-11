@@ -186,6 +186,9 @@ export class SeatReservationService {
   /**
    * Initialise or reset the available counter from DB values.
    * Call on: first access, Redis restart, admin updates maxSeats.
+   *
+   * ไม่ตั้ง TTL เพราะ counter นี้ต้องอยู่ตลอดชีวิตคอร์ส
+   * ไม่ใช่ cache — ถ้าหมดอายุจะทำให้คอร์สดูเต็มผิดพลาด
    */
   async syncCounter(
     courseId: string,
@@ -197,7 +200,31 @@ export class SeatReservationService {
     if (!redis) return;
 
     const available = Math.max(0, maxSeats - activeEnrollments - activeReservations);
-    await redis.set(KEYS.availableCounter(courseId), String(available), 'EX', 3600);
+    // ไม่ใส่ EX (no expiry) — counter ต้องอยู่ถาวรจนกว่าจะถูก sync ใหม่
+    await redis.set(KEYS.availableCounter(courseId), String(available));
+  }
+
+  /**
+   * ตรวจสอบว่า counter มีใน Redis แล้วหรือยัง
+   * ถ้ายังไม่มี ให้ sync จาก DB ก่อน (ป้องกัน false FULL หลัง Redis restart)
+   *
+   * รับ callback สำหรับดึงข้อมูลจาก DB (เพื่อไม่ให้ service นี้ import Prisma โดยตรง)
+   */
+  async ensureCounter(
+    courseId: string,
+    fetchFromDb: () => Promise<{ maxSeats: number; enrolledCount: number }>,
+  ): Promise<void> {
+    const redis = getRedisClient();
+    if (!redis) return;
+
+    // ถ้า key มีอยู่แล้ว ไม่ต้องทำอะไร
+    const exists = await redis.exists(KEYS.availableCounter(courseId));
+    if (exists) return;
+
+    // Cache miss → sync จาก DB
+    const { maxSeats, enrolledCount } = await fetchFromDb();
+    const reservedCount = await this.countReservations(courseId);
+    await this.syncCounter(courseId, maxSeats, enrolledCount, reservedCount);
   }
 
   /**
