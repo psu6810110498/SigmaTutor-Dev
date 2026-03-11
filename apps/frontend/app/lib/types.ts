@@ -6,6 +6,27 @@
 // ── Enums ─────────────────────────────────────────────────
 
 export type CourseType = 'ONLINE' | 'ONLINE_LIVE' | 'ONSITE';
+
+// ── Seat Availability ─────────────────────────────────────
+
+export interface CourseAvailability {
+  courseId: string;
+  courseType: CourseType;
+  /** false for ONLINE courses (no seat limit) */
+  isLimited: boolean;
+  maxSeats: number | null;
+  enrolledCount: number;
+  reservedCount: number;
+  /** null means unlimited */
+  remaining: number | null;
+  isFull: boolean;
+  /** true when full only due to active reservations, not confirmed enrollments */
+  isReservedOnly: boolean;
+  /** 0–100, null for ONLINE */
+  percentage: number | null;
+  /** Seconds until earliest reservation expires (for countdown UI) */
+  earliestExpiryInSeconds: number | null;
+}
 export type CourseStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 // ── Models ────────────────────────────────────────────────

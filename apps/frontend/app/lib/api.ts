@@ -7,6 +7,7 @@ import type {
   ApiResponse,
   Course,
   CourseListResponse,
+  CourseAvailability,
   CreateCourseInput,
   CourseQueryParams,
   Category,
@@ -721,5 +722,26 @@ export const progressApi = {
       method: 'POST',
       body: JSON.stringify({ courseId, ...data }),
       headers: headers(true),
+    }),
+};
+
+// ============================================================
+// Seat Availability API
+// ============================================================
+
+export const availabilityApi = {
+  /** GET /courses/:id/availability — real-time seat data */
+  get: (courseId: string) =>
+    request<CourseAvailability>(`/courses/${courseId}/availability`),
+
+  /** Fetch availability for multiple courses in parallel */
+  getMany: (courseIds: string[]) =>
+    Promise.all(courseIds.map((id) => availabilityApi.get(id))),
+
+  /** POST /courses/notify-seat — subscribe to seat-available notification */
+  notifyWhenAvailable: (courseId: string, email: string) =>
+    request<{ message: string }>('/courses/notify-seat', {
+      method: 'POST',
+      body: JSON.stringify({ courseId, email }),
     }),
 };
