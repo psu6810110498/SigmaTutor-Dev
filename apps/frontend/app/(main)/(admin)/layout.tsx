@@ -1,21 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, GraduationCap, Users, ShoppingCart, Settings, Menu, X, LogOut, Megaphone } from "lucide-react";
-import { SigmaLogo } from "@/app/components/icons/SigmaLogo";
-import { ToastProvider } from "@/app/components/ui/Toast";
-import { useAuth } from "@/app/context/AuthContext";
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  BookOpen,
+  GraduationCap,
+  Users,
+  ShoppingCart,
+  Settings,
+  Menu,
+  X,
+  LogOut,
+  Megaphone,
+  Star,
+} from 'lucide-react';
+import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
+import { ToastProvider } from '@/app/components/ui/Toast';
+import { useAuth } from '@/app/context/AuthContext';
 
 const sidebarLinks = [
-    { href: "/admin", label: "แดชบอร์ด", icon: LayoutDashboard },
-    { href: "/admin/courses", label: "จัดการคอร์ส", icon: BookOpen },
-    { href: "/admin/teachers", label: "คุณครู", icon: GraduationCap },
-    { href: "/admin/students", label: "นักเรียน", icon: Users },
-    { href: "/admin/orders", label: "คำสั่งซื้อ", icon: ShoppingCart },
-    { href: "/admin/marketing", label: "การตลาด", icon: Megaphone },
-    { href: "/admin/settings", label: "ตั้งค่า", icon: Settings },
+  { href: '/admin', label: 'แดชบอร์ด', icon: LayoutDashboard },
+  { href: '/admin/courses', label: 'จัดการคอร์ส', icon: BookOpen },
+  { href: '/admin/teachers', label: 'คุณครู', icon: GraduationCap },
+  { href: '/admin/students', label: 'นักเรียน', icon: Users },
+  { href: '/admin/orders', label: 'คำสั่งซื้อ', icon: ShoppingCart },
+  { href: '/admin/marketing', label: 'การตลาด', icon: Megaphone },
+  { href: '/admin/reviews', label: 'รีวิว', icon: Star },
+  { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings },
 ];
 
 export default function AdminLayout({

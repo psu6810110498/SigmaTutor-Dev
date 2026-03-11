@@ -40,13 +40,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 
         // Build where clause
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const where: Record<string, any> = { courseId };
+        const where: Record<string, any> = { courseId, isHidden: { not: true } };
         if (rating) where.rating = rating;
+        
+        console.log('--- DBG Fetching Reviews ---', { courseId, where });
 
         const [reviews, total] = await Promise.all([
             prisma.review.findMany({
                 where,
-                include: { user: { select: { id: true, name: true } } },
+                include: { user: { select: { id: true, name: true, profileImage: true } } },
                 orderBy: { [sort]: order },
                 skip: (page - 1) * limit,
                 take: limit,
@@ -119,6 +121,21 @@ router.post(
                 return;
             }
 
+            // Check if user is enrolled in the course
+            const enrollment = await prisma.enrollment.findUnique({
+                where: { userId_courseId: { userId, courseId } },
+            });
+
+            if (!enrollment || (enrollment.status !== 'ACTIVE' && enrollment.status !== 'COMPLETED')) {
+                res.status(403).json({ success: false, error: 'คุณต้องลงทะเบียนเรียนคอร์สนี้ก่อนจึงจะสามารถรีวิวได้' });
+                return;
+            }
+
+            if (existing) {
+                res.status(409).json({ success: false, error: 'คุณรีวิวคอร์สนี้ไปแล้ว' });
+                return;
+            }
+
             const review = await prisma.review.create({
                 data: { userId, courseId, rating, comment },
                 include: { user: { select: { id: true, name: true } } },
@@ -176,6 +193,98 @@ router.delete(
             res.json({ success: true, message: 'Review deleted' });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to delete review';
+            res.status(400).json({ success: false, error: message });
+        }
+    }
+);
+
+// ── ADMIN: GET all reviews (including hidden) ─────────────
+
+const adminReviewQuerySchema = z.object({
+    courseId: z.string().cuid().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+router.get(
+    '/admin',
+    authenticate,
+    async (req: AuthRequest, res: Response): Promise<void> => {
+        try {
+            if (req.user!.role !== 'ADMIN') {
+                res.status(403).json({ success: false, error: 'Unauthorized route' });
+                return;
+            }
+
+            const query = adminReviewQuerySchema.parse(req.query);
+            const { courseId, page, limit } = query;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const where: Record<string, any> = {};
+            if (courseId) where.courseId = courseId;
+
+            const [reviews, total] = await Promise.all([
+                prisma.review.findMany({
+                    where,
+                    include: { user: { select: { id: true, name: true, email: true } }, course: { select: { id: true, title: true } } },
+                    orderBy: { createdAt: 'desc' },
+                    skip: (page - 1) * limit,
+                    take: limit,
+                }),
+                prisma.review.count({ where }),
+            ]);
+
+            const totalPages = Math.ceil(total / limit);
+
+            res.json({
+                success: true,
+                data: {
+                    reviews,
+                    pagination: {
+                        page,
+                        limit,
+                        total,
+                        totalPages,
+                        hasNext: page < totalPages,
+                        hasPrev: page > 1,
+                    },
+                },
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to fetch reviews (Admin)';
+            res.status(400).json({ success: false, error: message });
+        }
+    }
+);
+
+// ── ADMIN: Toggle isHidden Status ─────────────────────────
+
+router.patch(
+    '/admin/:id/toggle-visibility',
+    authenticate,
+    async (req: AuthRequest, res: Response): Promise<void> => {
+        try {
+            if (req.user!.role !== 'ADMIN') {
+                res.status(403).json({ success: false, error: 'Unauthorized route' });
+                return;
+            }
+
+            const reviewId = req.params.id;
+            const review = await prisma.review.findUnique({ where: { id: reviewId } });
+
+            if (!review) {
+                res.status(404).json({ success: false, error: 'Review not found' });
+                return;
+            }
+
+            const updatedReview = await prisma.review.update({
+                where: { id: reviewId },
+                data: { isHidden: !review.isHidden },
+            });
+
+            res.json({ success: true, data: updatedReview });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update review visibility';
             res.status(400).json({ success: false, error: message });
         }
     }

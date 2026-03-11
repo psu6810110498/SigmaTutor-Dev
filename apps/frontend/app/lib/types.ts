@@ -139,14 +139,15 @@ export interface CourseSchedule {
 }
 
 export interface Review {
-    id: string;
-    rating: number;
-    comment: string | null;
-    helpful: number;
-    userId: string;
-    user: { id: string; name: string };
-    courseId: string;
-    createdAt: string;
+  id: string;
+  rating: number;
+  comment: string | null;
+  helpful: number;
+  isHidden: boolean;
+  userId: string;
+  user: { id: string; name: string; profileImage?: string | null };
+  courseId: string;
+  createdAt: string;
 }
 
 // ── API Response Shapes ───────────────────────────────────

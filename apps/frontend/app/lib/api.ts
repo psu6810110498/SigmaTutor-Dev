@@ -380,10 +380,10 @@ export const couponApi = {
 // ============================================================
 
 export const categoryApi = {
-    /** GET /categories — List all (for dropdowns) */
-    list() {
-        return request<Category[]>('/categories', {}, true, 10 * 60 * 1000); // Cache 10 minutes
-    },
+  /** GET /categories — List all (for dropdowns) */
+  list() {
+    return request<Category[]>('/categories', { next: { revalidate: 600 } }); // Cache 10 minutes
+  },
 
     /** POST /categories — Create (ADMIN) */
     create(data: { name: string; slug: string }) {
@@ -430,10 +430,10 @@ export const userApi = {
 // ============================================================
 
 export const levelApi = {
-    /** GET /levels — List all (ordered) */
-    list() {
-        return request<Level[]>('/levels', {}, true, 10 * 60 * 1000); // Cache 10 minutes
-    },
+  /** GET /levels — List all (ordered) */
+  list() {
+    return request<Level[]>('/levels', { next: { revalidate: 600 } }); // Cache 10 minutes
+  },
 
     /** POST /levels — Create (ADMIN) */
     create(data: { name: string; slug: string; order?: number }) {
@@ -494,13 +494,36 @@ export const reviewApi = {
         });
     },
 
-    /** DELETE /reviews/:id — Delete own review */
-    delete(id: string) {
-        return request<void>(`/reviews/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /reviews/:id — Delete own review */
+  delete(id: string) {
+    return request<void>(`/reviews/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
+
+  /** GET /reviews/admin — Admin: Get all reviews */
+  adminList(params: { page?: number; limit?: number; courseId?: string }) {
+    const query =
+      '?' +
+      new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      ).toString();
+
+    return request<{ reviews: Review[]; pagination: any }>(`/reviews/admin${query}`, {
+      headers: headers(true),
+    });
+  },
+
+  /** PATCH /reviews/admin/:id/toggle-visibility */
+  toggleVisibility(id: string) {
+    return request<Review>(`/reviews/admin/${id}/toggle-visibility`, {
+      method: 'PATCH',
+      headers: headers(true),
+    });
+  },
 };
 
 // Re-export for convenience

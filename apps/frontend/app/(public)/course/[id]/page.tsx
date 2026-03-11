@@ -81,6 +81,10 @@ export default function CourseDetailPage() {
   // Reviews
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewListResponse['stats'] | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [newRating, setNewRating] = useState(0); // 0 = no rating selected
+  const [newComment, setNewComment] = useState('');
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   // ── Fetch Course ──────────────────────────────────────
   useEffect(() => {
@@ -131,9 +135,55 @@ export default function CourseDetailPage() {
       if (res.success && res.data) {
         setReviews(res.data.reviews);
         setReviewStats(res.data.stats);
+        if (user) {
+           const didReview = res.data.reviews.some((r) => r.user.id === user.id);
+           setHasReviewed(didReview);
+        }
       }
     });
-  }, [course]);
+  }, [course, user]);
+
+  // ── Submit Review ─────────────────────────────────────
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!course || !user || hasReviewed || submittingReview) return;
+    
+    if (newRating === 0) {
+      alert('กรุณาเลือกคะแนนให้คอร์สนี้ก่อนส่งรีวิว');
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const res = await reviewApi.create({
+        courseId: course.id,
+        rating: newRating,
+        comment: newComment.trim() || undefined,
+      });
+
+      if (res.success && res.data) {
+        // Optimistically add the new review
+        setReviews([res.data, ...reviews]);
+        setHasReviewed(true);
+        setNewComment('');
+        setNewRating(0);
+        // Refresh stats by re-fetching (lazy approach)
+        reviewApi.list({ courseId: course.id, limit: 5 }).then((listRes) => {
+           if (listRes.success && listRes.data) {
+               setReviewStats(listRes.data.stats);
+           }
+        });
+        alert('ขอบคุณสำหรับรีวิวของคุณ!');
+      } else {
+        alert(res.error || 'เกิดข้อผิดพลาดในการส่งรีวิว');
+      }
+    } catch (error) {
+       console.error(error);
+       alert('เกิดข้อผิดพลาด');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // ── Format ────────────────────────────────────────────
   const formatPrice = (n: number) =>
@@ -708,6 +758,75 @@ export default function CourseDetailPage() {
                   </div>
                 )}
 
+                {/* Write Review Form (Enrolled users only) */}
+                {isEnrolled && user && !hasReviewed && (
+                  <div className="bg-gradient-to-br from-primary/5 to-blue-50 rounded-xl border border-primary/10 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      {user.profileImage ? (
+                        <img 
+                          src={user.profileImage} 
+                          alt={user.name} 
+                          className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold shadow-sm">
+                          {user.name?.charAt(0) || 'U'}
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-bold text-gray-900 flex items-center gap-1">
+                          <Star size={16} className="text-yellow-500 fill-yellow-500" /> เขียนรีวิวของคุณ
+                        </h4>
+                        <p className="text-xs text-gray-500">โพสต์ในชื่อ {user.name}</p>
+                      </div>
+                    </div>
+                    
+                    <form onSubmit={submitReview}>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">ให้คะแนน</label>
+                        <div className="flex gap-2">
+                           {[1, 2, 3, 4, 5].map((star) => (
+                             <button
+                               type="button"
+                               key={star}
+                               onClick={() => setNewRating(star)}
+                               className={`transition-colors p-1 rounded-full hover:bg-yellow-50 ${newRating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
+                             >
+                               <Star size={24} className={newRating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} />
+                             </button>
+                           ))}
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                         <label className="block text-sm font-medium text-gray-700 mb-2">ความคิดเห็น (ไม่บังคับ)</label>
+                         <textarea
+                           value={newComment}
+                           onChange={(e) => setNewComment(e.target.value)}
+                           placeholder="เล่าประสบการณ์การเรียนของคุณ..."
+                           className="w-full h-24 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none text-sm"
+                           maxLength={1000}
+                         />
+                      </div>
+                      <div className="flex justify-end">
+                         <button
+                           type="submit"
+                           disabled={submittingReview}
+                           className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                         >
+                           {submittingReview && <Loader2 size={16} className="animate-spin" />}
+                           ส่งรีวิว
+                         </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+                
+                {isEnrolled && user && hasReviewed && (
+                   <div className="bg-green-50 text-green-700 border border-green-200 p-4 rounded-xl text-sm flex items-center gap-2 font-medium">
+                       <CheckCircle size={18} /> คุณได้รีวิวคอร์สนี้แล้ว ขอบคุณสำหรับความคิดเห็น!
+                   </div>
+                )}
+
                 {/* Review List */}
                 {reviews.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีรีวิว</p>
@@ -720,9 +839,18 @@ export default function CourseDetailPage() {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm">
-                              {review.user.name.charAt(0)}
-                            </div>
+                            {/* @ts-ignore - Assuming user payload has profileImage included from API currently or soon */}
+                            {review.user.profileImage ? (
+                              <img 
+                                src={review.user.profileImage} 
+                                alt={review.user.name} 
+                                className="w-9 h-9 rounded-full object-cover border border-gray-100"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm">
+                                {review.user.name.charAt(0)}
+                              </div>
+                            )}
                             <div>
                               <p className="font-medium text-gray-900 text-sm">
                                 {review.user.name}
@@ -746,12 +874,14 @@ export default function CourseDetailPage() {
                         </div>
                       </div>
                     ))}
-                    <Link
-                      href={`/explore/${slug}/reviews`}
-                      className="block text-center text-sm text-primary font-bold hover:underline py-3"
-                    >
-                      ดูรีวิวทั้งหมด →
-                    </Link>
+                    {reviewStats && reviewStats.total > 5 && (
+                      <Link
+                        href={`/course/${slug}/reviews`}
+                        className="block text-center text-sm text-primary font-bold hover:underline py-3 mt-4 border-t border-gray-100"
+                      >
+                        ดูรีวิวทั้งหมด ({reviewStats.total}) →
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

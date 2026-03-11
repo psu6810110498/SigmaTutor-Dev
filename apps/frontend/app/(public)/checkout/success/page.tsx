@@ -112,7 +112,7 @@ function SuccessContent() {
             ไปที่คอร์สเรียนของฉัน
           </Button>
         </Link>
-        <Link href="/courses">
+        <Link href="/my-courses">
           <Button variant="outline" size="lg">
             เลือกคอร์สเพิ่มเติม
             <ArrowRight size={18} className="ml-2" />
