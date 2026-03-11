@@ -65,6 +65,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string | null;
+  shortDescription: string | null;
   price: number;
   originalPrice: number | null;
   status: CourseStatus;
