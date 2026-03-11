@@ -25,6 +25,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve any previously failed migrations
+        working-directory: packages/db
+        run: |
+          npx prisma migrate resolve --rolled-back 20260306144805_add_site_content || true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run Prisma Migrations
         run: pnpm --filter @sigma/db db:migrate:deploy
         env:
