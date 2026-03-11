@@ -198,12 +198,60 @@ router.delete(
     }
 );
 
+// ── ADMIN: GET courses with review stats ──────────────────
+
+router.get(
+    '/admin/courses',
+    authenticate,
+    async (req: AuthRequest, res: Response): Promise<void> => {
+        try {
+            if (req.user!.role !== 'ADMIN') {
+                res.status(403).json({ success: false, error: 'Unauthorized route' });
+                return;
+            }
+
+            // Get stats per course
+            const reviewStats = await prisma.review.groupBy({
+                by: ['courseId'],
+                _count: { _all: true },
+                _avg: { rating: true },
+            });
+
+            const courseIds = reviewStats.map(s => s.courseId);
+
+            const courses = await prisma.course.findMany({
+                where: { id: { in: courseIds } },
+                select: { id: true, title: true, slug: true, thumbnail: true },
+            });
+
+            // Map stats to courses sorted by total reviews descending
+            const data = courses.map(course => {
+                const stat = reviewStats.find(s => s.courseId === course.id);
+                return {
+                    id: course.id,
+                    title: course.title,
+                    slug: course.slug,
+                    thumbnail: course.thumbnail,
+                    totalReviews: stat?._count._all || 0,
+                    averageRating: stat?._avg.rating || 0,
+                };
+            }).sort((a, b) => b.totalReviews - a.totalReviews);
+
+            res.json({ success: true, data });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to fetch course review stats';
+            res.status(400).json({ success: false, error: message });
+        }
+    }
+);
+
 // ── ADMIN: GET all reviews (including hidden) ─────────────
 
 const adminReviewQuerySchema = z.object({
     courseId: z.string().cuid().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(10),
+    sort: z.enum(['latest', 'oldest', 'highest', 'lowest']).default('latest'),
 });
 
 router.get(
@@ -217,17 +265,36 @@ router.get(
             }
 
             const query = adminReviewQuerySchema.parse(req.query);
-            const { courseId, page, limit } = query;
+            const { courseId, page, limit, sort } = query;
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const where: Record<string, any> = {};
             if (courseId) where.courseId = courseId;
 
+            // Handle sorting
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let orderBy: any = { createdAt: 'desc' };
+            switch (sort) {
+                case 'oldest':
+                    orderBy = { createdAt: 'asc' };
+                    break;
+                case 'highest':
+                    orderBy = { rating: 'desc' };
+                    break;
+                case 'lowest':
+                    orderBy = { rating: 'asc' };
+                    break;
+                case 'latest':
+                default:
+                    orderBy = { createdAt: 'desc' };
+                    break;
+            }
+
             const [reviews, total] = await Promise.all([
                 prisma.review.findMany({
                     where,
                     include: { user: { select: { id: true, name: true, email: true } }, course: { select: { id: true, title: true } } },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy,
                     skip: (page - 1) * limit,
                     take: limit,
                 }),

@@ -502,8 +502,16 @@ export const reviewApi = {
     });
   },
 
+  /** GET /reviews/admin/courses — Admin: Get courses with review aggregate stats */
+  adminCourseList() {
+    return request<{ id: string; title: string; slug: string; thumbnail?: string | null; totalReviews: number; averageRating: number }[]>(
+      '/reviews/admin/courses',
+      { headers: headers(true) }
+    );
+  },
+
   /** GET /reviews/admin — Admin: Get all reviews */
-  adminList(params: { page?: number; limit?: number; courseId?: string }) {
+  adminList(params: { page?: number; limit?: number; courseId?: string; sort?: 'latest' | 'oldest' | 'highest' | 'lowest' }) {
     const query =
       '?' +
       new URLSearchParams(

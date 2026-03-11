@@ -147,6 +147,7 @@ export interface Review {
   userId: string;
   user: { id: string; name: string; profileImage?: string | null };
   courseId: string;
+  course?: { id: string; title: string };
   createdAt: string;
 }
 
