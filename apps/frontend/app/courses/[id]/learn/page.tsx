@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { ArrowLeft, PlayCircle, CheckCircle, Lock, BookOpen, Download, ChevronDown, ChevronUp, FileText, Star, X, Loader2 } from 'lucide-react';
 import { FiUser, FiGrid, FiBook, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '@/app/context/AuthContext';
 import { useToast } from "@/app/components/ui/Toast";
 import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
-import { progressApi } from '@/app/lib/api';
+import { progressApi, reviewApi } from '@/app/lib/api';
+import type { Review } from '@/app/lib/types';
 
 export default function LearningPage() {
     const params = useParams();
@@ -30,6 +31,13 @@ export default function LearningPage() {
     const [currentLesson, setCurrentLesson] = useState<any>(null);
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+
+    // State สำหรับการรีวิว
+    const [userReview, setUserReview] = useState<Review | null>(null);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [reviewRating, setReviewRating] = useState(0);
+    const [reviewComment, setReviewComment] = useState('');
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     useEffect(() => {
         const fetchCourse = async () => {
@@ -79,6 +87,24 @@ export default function LearningPage() {
 
         if (courseId) fetchCourse();
     }, [courseId, router, toast]);
+
+    useEffect(() => {
+        if (!course?.id || !user?.id) return;
+        const fetchReview = async () => {
+            try {
+                const res = await reviewApi.list({ courseId: course.id, limit: 50 });
+                if (res.success && res.data) {
+                    const existing = res.data.reviews.find((r: any) => r.userId === user.id || r.user?.id === user.id);
+                    if (existing) {
+                        setUserReview(existing);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch user review:", error);
+            }
+        };
+        fetchReview();
+    }, [course?.id, user?.id]);
 
     const toggleChapter = (chapterId: string) => {
         const newExpanded = new Set(expandedChapters);
@@ -137,6 +163,60 @@ export default function LearningPage() {
     }, [course]);
 
     const currentIndex = allLessons.findIndex((l: any) => l.id === currentLesson?.id);
+
+    const handleOpenReviewModal = () => {
+        if (userReview) {
+            setReviewRating(userReview.rating);
+            setReviewComment(userReview.comment || '');
+        } else {
+            setReviewRating(0);
+            setReviewComment('');
+        }
+        setIsReviewOpen(true);
+    };
+
+    const submitReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (reviewRating === 0) {
+            toast.error('กรุณาเลือกคะแนนให้คอร์สนี้ก่อนส่งรีวิว');
+            return;
+        }
+
+        setIsSubmittingReview(true);
+        try {
+            if (userReview) {
+                const res = await reviewApi.update(userReview.id, {
+                    rating: reviewRating,
+                    comment: reviewComment.trim() || undefined,
+                });
+                if (res.success && res.data) {
+                    setUserReview(res.data);
+                    toast.success('แก้ไขรีวิวสำเร็จ!');
+                    setIsReviewOpen(false);
+                } else {
+                    toast.error(res.error || 'เกิดข้อผิดพลาดในการแก้ไขรีวิว');
+                }
+            } else {
+                const res = await reviewApi.create({
+                    courseId,
+                    rating: reviewRating,
+                    comment: reviewComment.trim() || undefined,
+                });
+                if (res.success && res.data) {
+                    setUserReview(res.data);
+                    toast.success('ขอบคุณสำหรับรีวิวของคุณ!');
+                    setIsReviewOpen(false);
+                } else {
+                    toast.error(res.error || 'เกิดข้อผิดพลาดในการส่งรีวิว');
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
 
     const goToPrev = () => {
         if (currentIndex > 0) {
@@ -352,6 +432,19 @@ export default function LearningPage() {
                         </div>
                         <div className="flex gap-3 shrink-0">
                             <button
+                                onClick={handleOpenReviewModal}
+                                className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
+                                    ${userReview 
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                            >
+                                {userReview ? (
+                                    <>แก้ไขรีวิว</>
+                                ) : (
+                                    <>เขียนรีวิวคอร์ส</>
+                                )}
+                            </button>
+                            <button
                                 onClick={async () => {
                                     if (!currentLesson) return;
                                     await toggleCompleted(currentLesson.id);
@@ -536,6 +629,79 @@ export default function LearningPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Review Modal */}
+            {isReviewOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                                {userReview ? 'แก้ไขรีวิว' : 'เขียนรีวิวคอร์ส'}
+                            </h3>
+                            <button
+                                onClick={() => setIsReviewOpen(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors bg-gray-50 hover:bg-gray-100 p-2 rounded-full"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={submitReview} className="p-6">
+                            <div className="mb-6 flex flex-col items-center">
+                                <label className="block text-sm font-bold text-gray-700 mb-3">คุณให้คะแนนคอร์สนี้เท่าไหร่?</label>
+                                <div className="flex gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            type="button"
+                                            key={star}
+                                            onClick={() => setReviewRating(star)}
+                                            className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"
+                                        >
+                                            <Star
+                                                size={40}
+                                                className={`transition-colors ${reviewRating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200 fill-gray-50'}`}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">ความคิดเห็น (ไม่บังคับ)</label>
+                                <textarea
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                    placeholder="เล่าประสบการณ์การเรียนของคุณ ประทับใจส่วนไหนบ้าง..."
+                                    className="w-full h-32 p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-sm bg-gray-50 focus:bg-white"
+                                    maxLength={1000}
+                                />
+                                <div className="text-right text-xs text-gray-400 mt-2">
+                                    {reviewComment.length}/1000
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-50">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsReviewOpen(false)}
+                                    className="px-5 py-2.5 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-100 transition-colors"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingReview}
+                                    className="px-6 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isSubmittingReview && <Loader2 size={16} className="animate-spin" />}
+                                    {userReview ? 'บันทึกการแก้ไข' : 'ส่งรีวิว'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
