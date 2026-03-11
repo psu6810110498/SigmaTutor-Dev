@@ -486,12 +486,40 @@ export class CourseService {
   }
 
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
-    await this.findById(id);
+    const course = await this.db.course.findUnique({
+      where: { id },
+      select: { courseType: true, maxSeats: true },
+    });
+    if (!course) throw new Error('Course not found');
+
     const isPublished = input.status === 'PUBLISHED';
-    return this.db.course.update({
+
+    const updated = await this.db.course.update({
       where: { id },
       data: { status: input.status, published: isPublished },
     });
+
+    // เมื่อ publish คอร์สที่มีจำกัดที่นั่ง → init Redis counter ทันที
+    // ป้องกัน false FULL เมื่อ user พยายามซื้อก่อนที่ counter จะถูก init
+    const isLimited =
+      isPublished &&
+      course.courseType !== 'ONLINE' &&
+      course.maxSeats != null &&
+      course.maxSeats > 0;
+
+    if (isLimited) {
+      const enrolledCount = await this.db.enrollment.count({
+        where: { courseId: id, status: 'ACTIVE' },
+      });
+      await seatReservationService.syncCounter(
+        id,
+        course.maxSeats!,
+        enrolledCount,
+        0, // ยังไม่มี active reservation ตอน publish
+      );
+    }
+
+    return updated;
   }
 
   async delete(id: string) {

@@ -73,11 +73,10 @@ function calcEnrolledPct(enrolled: number, max: number): number {
 
 /** แถบแสดงที่นั่งที่เหลือ — ใช้ข้อมูล static จาก list API */
 function SeatBar({ enrolled, max }: { enrolled: number; max: number }) {
-  const remaining = max - enrolled;
-  const pct = calcEnrolledPct(enrolled, max);
+  const remaining = Math.max(0, max - enrolled);
   const isFull = remaining <= 0;
+  const pct = isFull ? 100 : calcEnrolledPct(enrolled, max);
 
-  // สีแถบเปลี่ยนตามความใกล้เต็ม
   const barColor =
     isFull ? 'bg-red-500' :
     pct >= 75 ? 'bg-orange-500' :
@@ -89,7 +88,7 @@ function SeatBar({ enrolled, max }: { enrolled: number; max: number }) {
       <div className="flex justify-between items-center mb-1">
         <span className="text-[10px] text-gray-500">ที่นั่ง</span>
         <span className={`text-[10px] font-semibold ${isFull ? 'text-red-600' : 'text-gray-700'}`}>
-          {isFull ? 'เต็มแล้ว' : `เหลือ ${remaining}/${max} ที่`}
+          {isFull ? 'ปิดรับสมัครแล้ว' : `เหลือ ${remaining}/${max} ที่`}
         </span>
       </div>
       <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -270,7 +269,7 @@ export default function CourseCard({ course }: CourseCardProps) {
   const isFull = showSeatBar && enrolledCount >= maxSeats!;
   const alreadyInCart = isInCart(course.id);
   const ctaLabel =
-    isFull ? 'เต็มแล้ว' :
+    isFull ? 'ปิดรับสมัครแล้ว' :
     isLimitedCourse ? 'จองที่นั่ง' :
     'ซื้อคอร์สนี้';
 
@@ -316,7 +315,11 @@ export default function CourseCard({ course }: CourseCardProps) {
   return (
     <Link
       href={`/course/${course.slug}`}
-      className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col h-full group w-[280px] md:w-full flex-shrink-0 relative"
+      className={`block bg-white rounded-2xl border shadow-sm transition-all duration-300 overflow-hidden flex flex-col h-full group w-[280px] md:w-full flex-shrink-0 relative ${
+        isFull
+          ? 'border-gray-200 opacity-80'
+          : 'border-gray-100 hover:shadow-lg hover:-translate-y-0.5'
+      }`}
     >
       {/* ── Thumbnail ── */}
       <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
@@ -325,7 +328,9 @@ export default function CourseCard({ course }: CourseCardProps) {
             src={encodeURI(course.thumbnail)}
             alt={course.title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className={`object-cover transition-transform duration-500 ${
+              isFull ? 'grayscale-[30%]' : 'group-hover:scale-105'
+            }`}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-sm">
@@ -333,8 +338,17 @@ export default function CourseCard({ course }: CourseCardProps) {
           </div>
         )}
 
-        {/* Badges มุมบนซ้าย — สูงสุด 2 อัน */}
-        {(visibleBadges.length > 0 || showLowSeatBadge) && (
+        {/* Overlay เมื่อเต็ม */}
+        {isFull && (
+          <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
+            <span className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg tracking-wide">
+              ปิดรับสมัครแล้ว
+            </span>
+          </div>
+        )}
+
+        {/* Badges มุมบนซ้าย — สูงสุด 2 อัน (ซ่อนเมื่อเต็ม เพื่อไม่รก) */}
+        {!isFull && (visibleBadges.length > 0 || showLowSeatBadge) && (
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {visibleBadges.map((b) => (
               <span
