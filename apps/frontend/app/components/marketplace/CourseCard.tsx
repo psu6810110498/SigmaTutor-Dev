@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Course } from '@/app/lib/types';
+import { Course, CourseInstructor, Instructor } from '@/app/lib/types';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
 import { useMarketplaceFilters } from '@/app/hooks/useMarketplaceFilters';
 
@@ -114,6 +114,96 @@ function CourseTypeBadge({ type }: { type: Course['courseType'] }) {
   );
 }
 
+// ─── Avatar Stack: แสดงผู้สอนหลายคนซ้อนกัน ───────────────────
+
+interface AvatarProps {
+  person: Instructor | CourseInstructor;
+  size?: number;
+  className?: string;
+}
+
+function Avatar({ person, size = 24, className = '' }: AvatarProps) {
+  const initial = person.name?.charAt(0) ?? 'T';
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className={`relative rounded-full border-2 border-white overflow-hidden flex-shrink-0 ${className}`}
+    >
+      {person.profileImage ? (
+        <Image src={person.profileImage} alt={person.name ?? ''} fill className="object-cover" />
+      ) : (
+        <div className="w-full h-full bg-primary text-white flex items-center justify-center text-[8px] font-bold">
+          {initial}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** แสดง avatar ซ้อนกัน พร้อมชื่อผู้สอนหลัก + "และอีก N คน" */
+interface InstructorStackProps {
+  instructors: (Instructor | CourseInstructor)[];
+  onClickLead?: (e: React.MouseEvent) => void;
+  isLeadActive?: boolean;
+}
+
+function InstructorStack({ instructors, onClickLead, isLeadActive }: InstructorStackProps) {
+  if (instructors.length === 0) return null;
+
+  const lead = instructors[0];
+  const extras = instructors.slice(1);
+  const MAX_VISIBLE = 3;
+  const visibleExtra = extras.slice(0, MAX_VISIBLE - 1);
+  const hiddenCount = extras.length - visibleExtra.length;
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Avatar ของ LEAD — คลิกได้เพื่อกรอง */}
+      <button
+        onClick={onClickLead}
+        className={`relative flex-shrink-0 rounded-full border-2 overflow-hidden shadow-sm transition-all hover:scale-110 ${
+          isLeadActive ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200'
+        }`}
+        style={{ width: 24, height: 24 }}
+        title={`กรองตาม ${lead.name}`}
+      >
+        {lead.profileImage ? (
+          <Image src={lead.profileImage} alt={lead.name ?? ''} fill className="object-cover" />
+        ) : (
+          <div className="w-full h-full bg-primary text-white flex items-center justify-center text-[8px] font-bold">
+            {lead.name?.charAt(0) ?? 'T'}
+          </div>
+        )}
+        {isLeadActive && (
+          <div className="absolute inset-0 bg-green-500/40 flex items-center justify-center">
+            <CheckCircle2 size={10} className="text-white" />
+          </div>
+        )}
+      </button>
+
+      {/* Avatars ของผู้สอนคนอื่น (overlap กัน) */}
+      {visibleExtra.length > 0 && (
+        <div className="flex -space-x-1.5">
+          {visibleExtra.map((inst, idx) => (
+            <Avatar key={inst.id ?? idx} person={inst} size={20} className="shadow-sm" />
+          ))}
+          {hiddenCount > 0 && (
+            <div className="w-5 h-5 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[8px] text-gray-500 font-bold shadow-sm">
+              +{hiddenCount}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ชื่อผู้สอน */}
+      <span className="text-[11px] text-gray-400 truncate">
+        โดย {lead.name}
+        {extras.length > 0 && ` และอีก ${extras.length} คน`}
+      </span>
+    </div>
+  );
+}
+
 // ─── Component หลัก ──────────────────────────────────────────
 
 interface CourseCardProps {
@@ -151,7 +241,15 @@ export default function CourseCard({ course }: CourseCardProps) {
   const displayRating = course.rating ?? 0;
 
   // ── ข้อมูล tutor filter ──────────────────────────────────────
-  const isTutorActive = tutorId === course.instructor?.id;
+  // รวม instructors[] กับ instructor เดี่ยว (backward compat)
+  const allInstructors: (Instructor | CourseInstructor)[] =
+    course.instructors && course.instructors.length > 0
+      ? course.instructors
+      : course.instructor
+      ? [course.instructor]
+      : [];
+  const leadInstructor = allInstructors[0] ?? null;
+  const isTutorActive = tutorId === leadInstructor?.id;
 
   // ── ข้อมูลที่นั่ง (Progress Bar) ─────────────────────────────
   const isLimitedCourse =
@@ -180,11 +278,11 @@ export default function CourseCard({ course }: CourseCardProps) {
   const handleTutorClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!course.instructor) return;
+    if (!leadInstructor) return;
     if (pathname === '/explore') {
-      toggleTutor(course.instructor.id);
+      toggleTutor(leadInstructor.id);
     } else {
-      router.push(`/explore?tutorId=${course.instructor.id}`);
+      router.push(`/explore?tutorId=${leadInstructor.id}`);
     }
   };
 
@@ -336,39 +434,14 @@ export default function CourseCard({ course }: CourseCardProps) {
           <SeatBar enrolled={enrolledCount} max={maxSeats!} />
         )}
 
-        {/* Tutor row */}
-        {course.instructor && (
-          <div className="flex items-center gap-2 mt-2.5">
-            <button
-              onClick={handleTutorClick}
-              className={`relative w-6 h-6 rounded-full border overflow-hidden shadow-sm flex-shrink-0 transition-all hover:scale-110 ${
-                isTutorActive
-                  ? 'border-green-500 ring-1 ring-green-500'
-                  : 'border-gray-200'
-              }`}
-              title={`กรองตาม ${course.instructor.name}`}
-            >
-              {course.instructor.profileImage ? (
-                <Image
-                  src={course.instructor.profileImage}
-                  alt={course.instructor.name ?? ''}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-primary text-white flex items-center justify-center text-[8px] font-bold">
-                  {course.instructor.name?.charAt(0) ?? 'T'}
-                </div>
-              )}
-              {isTutorActive && (
-                <div className="absolute inset-0 bg-green-500/40 flex items-center justify-center">
-                  <CheckCircle2 size={10} className="text-white" />
-                </div>
-              )}
-            </button>
-            <span className="text-[11px] text-gray-400 truncate">
-              โดย {course.instructor.name}
-            </span>
+        {/* Tutor row — รองรับผู้สอนหลายคน */}
+        {allInstructors.length > 0 && (
+          <div className="mt-2.5">
+            <InstructorStack
+              instructors={allInstructors}
+              onClickLead={handleTutorClick}
+              isLeadActive={isTutorActive}
+            />
           </div>
         )}
 

@@ -10,10 +10,11 @@ import { RichTextarea } from "@/app/components/ui/RichTextarea";
 import { ImageUpload } from "@/app/components/ui/ImageUpload";
 import { Button } from "@/app/components/ui/Button";
 import { useRouter } from "next/navigation";
+import { InstructorMultiSelect, type SelectedInstructor, type InstructorOption } from "@/app/components/ui/InstructorMultiSelect";
 
 interface CourseOverviewTabProps {
     course: any;
-    instructors: any[];
+    instructors: InstructorOption[];
     onUpdate: () => void;
 }
 
@@ -33,6 +34,22 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     const [uploadingGumlet, setUploadingGumlet] = useState(false);
     const [gumletProgress, setGumletProgress] = useState(0);
     const [saving, setSaving] = useState(false);
+
+    // โหลด instructors ที่มีอยู่แล้วของคอร์ส (instructors[] จาก API หรือ fallback จาก instructorId)
+    const [selectedInstructors, setSelectedInstructors] = useState<SelectedInstructor[]>(() => {
+        if (Array.isArray(course.instructors) && course.instructors.length > 0) {
+            return course.instructors.map((inst: any, idx: number) => ({
+                id: inst.id,
+                role: inst.role ?? (idx === 0 ? 'LEAD' : 'ASSISTANT'),
+                order: inst.order ?? idx,
+            }));
+        }
+        // backward compat: ถ้ายังไม่มี instructors[] ให้ใช้ instructorId เดิม
+        if (course.instructorId) {
+            return [{ id: course.instructorId, role: 'LEAD' as const, order: 0 }];
+        }
+        return [];
+    });
 
     // ── ข้อมูลอ้างอิงจาก API ──
     const [categories, setCategories] = useState<any[]>([]);
@@ -247,7 +264,12 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         try {
 
             // prepare and possibly upload new PDF if selected
-            const payload = { ...form };
+            const payload: any = { ...form };
+            // ส่ง instructorIds array ไปกับ payload
+            payload.instructorIds = selectedInstructors
+                .sort((a, b) => a.order - b.order)
+                .map((s) => s.id);
+            delete payload.instructorId;
             if (newPdfFile) {
                 setUploadingPdf(true);
                 try {
@@ -546,23 +568,13 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                     )}
                 </SectionCard>
 
-                {/* 4. ผู้สอน (เชื่อมกับฐานข้อมูลครู) */}
+                {/* 4. ผู้สอน (รองรับหลายคน) */}
                 <SectionCard title="ผู้สอน" icon={User}>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้สอน</label>
-                        <select
-                            value={form.instructorId || ""}
-                            onChange={(e) => updateForm("instructorId", e.target.value)}
-                            className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-                        >
-                            <option value="">-- เลือกผู้สอน --</option>
-                            {instructors.map((inst) => (
-                                <option key={inst.id} value={inst.id}>
-                                    {inst.name} {inst.nickname ? `(${inst.nickname})` : ''} - {inst.title || 'ครูผู้สอน'}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <InstructorMultiSelect
+                        options={instructors}
+                        value={selectedInstructors}
+                        onChange={setSelectedInstructors}
+                    />
                 </SectionCard>
             </div>
 

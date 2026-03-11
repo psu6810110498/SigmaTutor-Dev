@@ -17,6 +17,7 @@ import { RichTextarea } from "@/app/components/ui/RichTextarea";
 import { ImageUpload } from "@/app/components/ui/ImageUpload";
 import { Button } from "@/app/components/ui/Button";
 import { ScheduleInput, type ScheduleSession } from "@/app/components/ui/ScheduleInput";
+import { InstructorMultiSelect, type SelectedInstructor, type InstructorOption } from "@/app/components/ui/InstructorMultiSelect";
 
 const DRAFT_KEY = "draft_course_create";
 const QUICK_FILTERS = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"];
@@ -33,7 +34,9 @@ export default function CreateCoursePage() {
     // ── ข้อมูลอ้างอิงจาก API ──
     const [categories, setCategories] = useState<Category[]>([]);
     const [levels, setLevels] = useState<Level[]>([]);
-    const [instructors, setInstructors] = useState<any[]>([]);
+    const [instructors, setInstructors] = useState<InstructorOption[]>([]);
+    // ผู้สอนที่เลือกแล้ว (รองรับหลายคน)
+    const [selectedInstructors, setSelectedInstructors] = useState<SelectedInstructor[]>([]);
 
     useEffect(() => {
         categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
@@ -43,7 +46,7 @@ export default function CreateCoursePage() {
             try {
                 const res = await fetch('http://localhost:4000/api/users/instructors', { credentials: 'include' });
                 const data = await res.json();
-                if (data.success) setInstructors(data.data);
+                if (data.success) setInstructors(data.data as InstructorOption[]);
             } catch (error) { console.error("Failed to fetch instructors:", error); }
         };
         fetchInstructors();
@@ -288,8 +291,8 @@ export default function CreateCoursePage() {
 
     const handleSubmit = async () => {
         setSaving(true);
-        if (!form.title.trim() || !form.instructorId) {
-            toast.error("กรุณากรอกชื่อคอร์สและเลือกผู้สอน");
+        if (!form.title.trim() || selectedInstructors.length === 0) {
+            toast.error("กรุณากรอกชื่อคอร์สและเลือกผู้สอนอย่างน้อย 1 คน");
             setSaving(false); return;
         }
         if ((form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (!form.maxSeats || form.maxSeats < 1)) {
@@ -301,6 +304,12 @@ export default function CreateCoursePage() {
         }
 
         const payload: any = { ...form };
+        // ส่ง instructorIds array ไปพร้อม payload (backend จัดการ CourseTeacher)
+        payload.instructorIds = selectedInstructors
+            .sort((a, b) => a.order - b.order)
+            .map((s) => s.id);
+        // ลบ instructorId เดิมออก ใช้ instructorIds แทน
+        delete payload.instructorId;
 
         ['enrollStartDate', 'enrollEndDate'].forEach(key => {
             if (payload[key]) {
@@ -362,10 +371,10 @@ export default function CreateCoursePage() {
         if (form.title.trim()) filled++;
         if (form.description) filled++;
         if (form.price > 0) filled++;
-        if (form.instructorId) filled++;
+        if (selectedInstructors.length > 0) filled++;
         if (thumbnailFile) filled++;
         return Math.round((filled / 5) * 100);
-    }, [form, thumbnailFile]);
+    }, [form, selectedInstructors, thumbnailFile]);
 
     const inputClass = "w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:ring-2 focus:ring-primary/30 outline-none transition-all";
     const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
@@ -593,17 +602,12 @@ export default function CreateCoursePage() {
                     </SectionCard>
 
                     <SectionCard title="ผู้สอน" icon={User}>
-                        <div>
-                            <label className={labelClass}>เลือกผู้สอน <span className="text-red-500">*</span></label>
-                            <select value={form.instructorId || ""} onChange={(e) => updateForm("instructorId", e.target.value || undefined)} className={inputClass}>
-                                <option value="" disabled>-- เลือกผู้สอน --</option>
-                                {instructors.map((inst) => (
-                                    <option key={inst.id} value={inst.id}>
-                                        {inst.name} {inst.nickname ? `(${inst.nickname})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <InstructorMultiSelect
+                            options={instructors}
+                            value={selectedInstructors}
+                            onChange={setSelectedInstructors}
+                            required
+                        />
                     </SectionCard>
 
                     <SectionCard title="ตารางเรียน" icon={CalendarDays}>

@@ -14,6 +14,8 @@ const baseCourseSchema = z.object({
     categoryId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
     levelId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
     instructorId: z.string().optional().nullable(),
+    // รองรับผู้สอนหลายคน: array ของ teacher IDs (ตัวแรกคือ LEAD)
+    instructorIds: z.array(z.string()).optional(),
     maxSeats: z.number().int().min(0).optional().nullable(),
     enrollStartDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
     enrollEndDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),

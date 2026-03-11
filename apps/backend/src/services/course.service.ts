@@ -12,6 +12,53 @@ import { seatReservationService } from './seat-reservation.service.js';
 // Use Prisma's own type from our DB package (avoids @prisma/client direct import)
 type DbClient = typeof prisma;
 
+// ── Prisma select fragments ──────────────────────────────────────────────────
+
+/** Select fragment สำหรับดึงข้อมูลผู้สอนใน join table (ใช้ซ้ำทุก query) */
+const TEACHERS_SELECT = {
+  select: {
+    role: true,
+    order: true,
+    teacher: { select: { id: true, name: true, profileImage: true } },
+  },
+  orderBy: { order: 'asc' as const },
+};
+
+// ── Helper functions ─────────────────────────────────────────────────────────
+
+/**
+ * แปลง course record จาก Prisma → รูปแบบที่ frontend ต้องการ
+ * - teacher/teacherId → instructor/instructorId (backward compat)
+ * - teachers (join table) → instructors[] (รายชื่อผู้สอนทั้งหมด)
+ */
+function mapCourseToApiShape(course: any) {
+  const { teacher, teacherId, teachers, reviews, ...rest } = course;
+
+  // คำนวณ rating จาก reviews (ถ้ามีอยู่ใน record)
+  let ratingFields = {};
+  if (Array.isArray(reviews)) {
+    const reviewCount = reviews.length;
+    const rating =
+      reviewCount > 0
+        ? reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / reviewCount
+        : 0;
+    ratingFields = { rating, reviewCount };
+  }
+
+  // แปลง join table records → array ของ instructor objects
+  const instructors = Array.isArray(teachers)
+    ? teachers.map((ct: any) => ({ ...ct.teacher, role: ct.role, order: ct.order }))
+    : [];
+
+  return {
+    ...rest,
+    ...ratingFields,
+    instructorId: teacherId ?? null,
+    instructor: teacher ?? null,
+    instructors,
+  };
+}
+
 export class CourseService {
   /**
    * Dependency Injection: Accept database via constructor.
@@ -55,10 +102,15 @@ export class CourseService {
       }
     }
 
-    // ✅ แก้ปัญหาติดชื่อแอดมิน: ถ้ามีการเลือกผู้สอน (instructorId) มา ให้ใช้คนนั้น
-    // แต่ถ้าไม่มี (เช่น เป็นค่าว่าง) ให้ใช้ ID ของคนสร้าง (creatorId)
-    const teacherId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
+    // ── กำหนด teacherId (ผู้สอนหลัก) ──────────────────────────────────────────
+    // ถ้ามี instructorIds[] ให้ใช้ตัวแรกเป็น LEAD, ถ้าไม่มีให้ fallback ไปที่ instructorId หรือ creatorId
+    const instructorIds: string[] = Array.isArray(data.instructorIds) && data.instructorIds.length > 0
+      ? data.instructorIds
+      : [];
+    const primaryInstructorId = instructorIds[0] ?? data.instructorId ?? creatorId;
+    const teacherId = (primaryInstructorId && primaryInstructorId !== "") ? primaryInstructorId : creatorId;
     delete data.instructorId;
+    delete data.instructorIds;
 
     // If frontend sent a flat schedules array, convert it to Prisma nested create format
     if (Array.isArray(data.schedules)) {
@@ -72,7 +124,6 @@ export class CourseService {
           gumletVideoId: s.gumletVideoId ?? null,
           videoProvider: s.videoProvider ?? 'YOUTUBE',
           materialUrl: s.materialUrl ?? null,
-          // provide minimal required defaults for schedule model
           date: new Date(),
           startTime: new Date(),
           endTime: new Date(),
@@ -81,13 +132,40 @@ export class CourseService {
       };
     }
 
-    const course = await this.db.course.create({
-      data: { ...data, slug, teacherId },
-      include: { teacher: { select: { id: true, name: true, email: true } } },
+    // สร้างคอร์สก่อน แล้วค่อย upsert CourseTeacher records ใน transaction เดียวกัน
+    const course = await this.db.$transaction(async (tx) => {
+      const created = await tx.course.create({
+        data: { ...data, slug, teacherId },
+        include: {
+          teacher: { select: { id: true, name: true, email: true, profileImage: true } },
+          teachers: TEACHERS_SELECT,
+        },
+      });
+
+      // สร้าง CourseTeacher records ถ้ามี instructorIds ส่งมา
+      if (instructorIds.length > 0) {
+        await tx.courseTeacher.createMany({
+          data: instructorIds.map((tid, idx) => ({
+            courseId: created.id,
+            teacherId: tid,
+            role: idx === 0 ? 'LEAD' : 'ASSISTANT',
+            order: idx,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      // ดึงข้อมูลใหม่พร้อม teachers ที่เพิ่งสร้าง
+      return tx.course.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          teacher: { select: { id: true, name: true, email: true, profileImage: true } },
+          teachers: TEACHERS_SELECT,
+        },
+      });
     });
 
-    const { teacher, teacherId: returnedTeacherId, ...rest } = course as any;
-    return { ...rest, instructorId: returnedTeacherId, instructor: teacher };
+    return mapCourseToApiShape(course);
   }
 
   /**
@@ -98,6 +176,7 @@ export class CourseService {
       where: { id },
       include: {
         teacher: { select: { id: true, name: true, email: true, profileImage: true } },
+        teachers: TEACHERS_SELECT,
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
@@ -115,10 +194,7 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    
-    // Map teacher back to instructor for the frontend
-    const { teacher, teacherId, ...rest } = course as any;
-    return { ...rest, instructorId: teacherId, instructor: teacher };
+    return mapCourseToApiShape(course);
   }
 
   /**
@@ -129,6 +205,7 @@ export class CourseService {
       where: { slug },
       include: {
         teacher: { select: { id: true, name: true, email: true, profileImage: true } },
+        teachers: TEACHERS_SELECT,
         category: { select: { id: true, name: true, slug: true } },
         level: { select: { id: true, name: true, slug: true, order: true } },
         chapters: {
@@ -146,10 +223,7 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    
-    // Map teacher back to instructor for the frontend
-    const { teacher, teacherId, ...rest } = course as any;
-    return { ...rest, instructorId: teacherId, instructor: teacher };
+    return mapCourseToApiShape(course);
   }
 
   /**
@@ -230,6 +304,7 @@ export class CourseService {
           level: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
           teacher: { select: { id: true, name: true, profileImage: true } },
+          teachers: TEACHERS_SELECT,
           teacherId: true,
           // enrollments count สำหรับ Progress Bar บน Card (ไม่ต้อง fetch แยก)
           _count: { select: { enrollments: true } },
@@ -241,15 +316,7 @@ export class CourseService {
       this.db.course.count({ where }),
     ]);
 
-    const mappedCourses = courses.map((course) => {
-      const reviewCount = course.reviews.length;
-      const rating =
-        reviewCount > 0
-          ? course.reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviewCount
-          : 0;
-      const { reviews, teacher, teacherId, ...rest } = course as any;
-      return { ...rest, rating, reviewCount, instructor: teacher, instructorId: teacherId };
-    });
+    const mappedCourses = courses.map((course) => mapCourseToApiShape(course));
 
     return {
       courses: mappedCourses,
@@ -362,6 +429,12 @@ export class CourseService {
 
     const updateData: any = { ...input };
 
+    // ── แยก instructorIds ออกก่อน (ไม่ใช่ field บน Course model) ──────────────
+    const instructorIds: string[] | null = Array.isArray(updateData.instructorIds)
+      ? updateData.instructorIds
+      : null;
+    delete updateData.instructorIds;
+
     // ✅ ปรับแก้ข้อมูล IDs ให้ถูกต้องก่อนอัปเดต (string cuid หรือ null)
     if (updateData.levelId === '' || updateData.levelId === undefined) updateData.levelId = null;
     if (updateData.categoryId === '' || updateData.categoryId === undefined) updateData.categoryId = null;
@@ -380,10 +453,35 @@ export class CourseService {
       if (!lvl) throw new Error('ระดับชั้นที่เลือกไม่ถูกต้อง กรุณาเลือกระดับชั้นใหม่อีกครั้ง');
     }
 
-    return this.db.course.update({
-      where: { id },
-      data: updateData,
-      include: { teacher: { select: { id: true, name: true, email: true } } },
+    return this.db.$transaction(async (tx) => {
+      // อัพเดท Course fields ปกติ
+      await tx.course.update({ where: { id }, data: updateData });
+
+      // ถ้ามี instructorIds ส่งมา → แทนที่รายชื่อผู้สอนทั้งหมด (replace strategy)
+      if (instructorIds !== null) {
+        await tx.courseTeacher.deleteMany({ where: { courseId: id } });
+        if (instructorIds.length > 0) {
+          // teacherId บน Course ต้องตรงกับผู้สอน LEAD คนแรก
+          const leadId = instructorIds[0];
+          await tx.course.update({ where: { id }, data: { teacherId: leadId } });
+          await tx.courseTeacher.createMany({
+            data: instructorIds.map((tid, idx) => ({
+              courseId: id,
+              teacherId: tid,
+              role: idx === 0 ? 'LEAD' : 'ASSISTANT',
+              order: idx,
+            })),
+          });
+        }
+      }
+
+      return tx.course.findUniqueOrThrow({
+        where: { id },
+        include: {
+          teacher: { select: { id: true, name: true, email: true, profileImage: true } },
+          teachers: TEACHERS_SELECT,
+        },
+      });
     });
   }
 

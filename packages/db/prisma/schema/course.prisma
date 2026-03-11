@@ -57,6 +57,8 @@ model Course {
   reviews     Review[]
   promotions  Promotion[]      @relation("CoursePromotions")
   coupons     Coupon[]         @relation("CourseCoupons")
+  // ผู้สอนหลายคนต่อคอร์ส (many-to-many ผ่าน join table)
+  teachers    CourseTeacher[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -101,6 +103,30 @@ model Payment {
   @@index([userId])
   @@index([courseId])
   @@index([stripeId])
+}
+
+// Join table: ผู้สอนหลายคนต่อคอร์ส
+model CourseTeacher {
+  id        String            @id @default(cuid())
+  courseId  String
+  teacherId String
+  // บทบาทของผู้สอนในคอร์สนั้น
+  role      CourseTeacherRole @default(LEAD)
+  // ลำดับการแสดงผล (0 = ขึ้นก่อน)
+  order     Int               @default(0)
+
+  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher   Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, teacherId])
+  @@index([courseId])
+  @@map("course_teachers")
+}
+
+enum CourseTeacherRole {
+  LEAD       // ผู้สอนหลัก
+  ASSISTANT  // ผู้ช่วยสอน
+  GUEST      // ผู้สอนรับเชิญ
 }
 
 enum CourseStatus {

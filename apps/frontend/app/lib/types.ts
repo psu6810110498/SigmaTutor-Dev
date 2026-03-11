@@ -49,6 +49,8 @@ export interface Level {
   _count?: { courses: number };
 }
 
+export type CourseTeacherRole = 'LEAD' | 'ASSISTANT' | 'GUEST';
+
 export interface Instructor {
   id: string;
   name: string;
@@ -58,6 +60,12 @@ export interface Instructor {
   title?: string | null;
   nickname?: string | null;
   profileImage?: string | null;
+}
+
+/** Instructor พร้อม role และ order (ใช้ใน instructors[] array) */
+export interface CourseInstructor extends Instructor {
+  role: CourseTeacherRole;
+  order: number;
 }
 
 export interface Course {
@@ -84,8 +92,11 @@ export interface Course {
   category: Category | null;
   levelId: string | null;
   level: Level | null;
-  instructorId: string;
-  instructor: Instructor;
+  // ผู้สอนหลัก (backward compat — ใช้สำหรับ fallback เมื่อ instructors[] ว่าง)
+  instructorId: string | null;
+  instructor: Instructor | null;
+  // ผู้สอนทั้งหมด (รวม LEAD + ASSISTANT + GUEST)
+  instructors?: CourseInstructor[];
 
   // Details
   duration: string | null;
@@ -216,6 +227,8 @@ export interface CreateCourseInput {
   categoryId?: string | null;
   levelId?: string | null;
   instructorId?: string;
+  /** ผู้สอนหลายคน: array ของ teacher IDs เรียงตาม order (ตัวแรกคือ LEAD) */
+  instructorIds?: string[];
   duration?: string | null;
   videoCount?: number;
   maxSeats?: number | null;

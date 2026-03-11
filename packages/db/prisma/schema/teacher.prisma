@@ -18,7 +18,9 @@ model Teacher {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  courses      Course[] @relation("TeacherCourses")
+  courses        Course[]        @relation("TeacherCourses")
+  // ผู้สอนสามารถอยู่ในหลายคอร์สพร้อมกัน (ผ่าน join table)
+  courseTeachers CourseTeacher[]
 
   @@index([email])
 }
