@@ -129,6 +129,26 @@ export default function CreateCoursePage() {
         return () => clearTimeout(timer);
     }, [form, sessions, rootCategoryId, activeQuickFilter]);
 
+    // ✅ เคลียร์ categoryId/levelId ที่ไม่ถูกต้องจาก draft (เช่น หลัง seed ใหม่ ID เปลี่ยน)
+    useEffect(() => {
+        if (categories.length === 0 && levels.length === 0) return;
+        let changed = false;
+        const updates: any = {};
+        if (form.categoryId && !categories.some((c) => c.id === form.categoryId)) {
+            updates.categoryId = null;
+            changed = true;
+        }
+        if (form.levelId && !levels.some((l) => l.id === form.levelId)) {
+            updates.levelId = null;
+            changed = true;
+        }
+        if (rootCategoryId && !categories.some((c) => c.id === rootCategoryId)) {
+            setRootCategoryId("");
+            changed = true;
+        }
+        if (changed) setForm((prev: any) => ({ ...prev, ...updates }));
+    }, [categories, levels]);
+
     const updateForm = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }));
 
     const parseDuration = (dStr: string | null) => {

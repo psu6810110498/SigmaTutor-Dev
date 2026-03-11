@@ -39,6 +39,20 @@ export class CourseService {
     if (data.levelId === '' || data.levelId === undefined) data.levelId = null;
     if (data.categoryId === '' || data.categoryId === undefined) data.categoryId = null;
 
+    // ✅ ตรวจสอบ categoryId และ levelId ว่ามีอยู่ใน DB จริง (ป้องกัน stale draft / invalid ID)
+    if (data.categoryId) {
+      const cat = await this.db.category.findUnique({ where: { id: data.categoryId } });
+      if (!cat) {
+        throw new Error('หมวดหมู่ที่เลือกไม่ถูกต้อง กรุณาเลือกหมวดหมู่ใหม่อีกครั้ง (อาจเกิดจากข้อมูลเก่าในแบบร่าง)');
+      }
+    }
+    if (data.levelId) {
+      const lvl = await this.db.level.findUnique({ where: { id: data.levelId } });
+      if (!lvl) {
+        throw new Error('ระดับชั้นที่เลือกไม่ถูกต้อง กรุณาเลือกระดับชั้นใหม่อีกครั้ง');
+      }
+    }
+
     // ✅ แก้ปัญหาติดชื่อแอดมิน: ถ้ามีการเลือกผู้สอน (instructorId) มา ให้ใช้คนนั้น
     // แต่ถ้าไม่มี (เช่น เป็นค่าว่าง) ให้ใช้ ID ของคนสร้าง (creatorId)
     const teacherId = (data.instructorId && data.instructorId !== "") ? data.instructorId : creatorId;
@@ -345,6 +359,16 @@ export class CourseService {
     if ('instructorId' in updateData) {
       updateData.teacherId = updateData.instructorId === '' ? null : updateData.instructorId;
       delete updateData.instructorId;
+    }
+
+    // ✅ ตรวจสอบ categoryId และ levelId ว่ามีอยู่ใน DB จริง
+    if (updateData.categoryId) {
+      const cat = await this.db.category.findUnique({ where: { id: updateData.categoryId } });
+      if (!cat) throw new Error('หมวดหมู่ที่เลือกไม่ถูกต้อง กรุณาเลือกหมวดหมู่ใหม่อีกครั้ง');
+    }
+    if (updateData.levelId) {
+      const lvl = await this.db.level.findUnique({ where: { id: updateData.levelId } });
+      if (!lvl) throw new Error('ระดับชั้นที่เลือกไม่ถูกต้อง กรุณาเลือกระดับชั้นใหม่อีกครั้ง');
     }
 
     return this.db.course.update({
