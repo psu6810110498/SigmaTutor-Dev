@@ -52,29 +52,6 @@ router.post(
 );
 
 /**
- * POST /api/payments/verify-session
- * Manually verify a checkout session after redirect
- */
-router.post(
-  '/verify-session',
-  authenticate,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const { sessionId } = req.body;
-      if (!sessionId) {
-        res.status(400).json({ success: false, error: 'sessionId is required' });
-        return;
-      }
-      await paymentService.verifyAndEnroll(sessionId);
-      res.status(200).json({ success: true });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to verify session';
-      res.status(400).json({ success: false, error: message });
-    }
-  }
-);
-
-/**
  * POST /api/payments/webhook
  * Stripe webhook endpoint — verifies signature and processes events
  * NOTE: This route uses express.raw() middleware, set up in index.ts
