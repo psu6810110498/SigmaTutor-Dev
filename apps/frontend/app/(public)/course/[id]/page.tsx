@@ -31,6 +31,7 @@ import {
   Lock,
   CheckCircle,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
@@ -85,6 +86,7 @@ export default function CourseDetailPage() {
   const [newRating, setNewRating] = useState(0); // 0 = no rating selected
   const [newComment, setNewComment] = useState('');
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
 
   // ── Fetch Course ──────────────────────────────────────
   useEffect(() => {
@@ -146,7 +148,8 @@ export default function CourseDetailPage() {
   // ── Submit Review ─────────────────────────────────────
   const submitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!course || !user || hasReviewed || submittingReview) return;
+    if (!course || !user || submittingReview) return;
+    if (!editingReviewId && hasReviewed) return;
     
     if (newRating === 0) {
       alert('กรุณาเลือกคะแนนให้คอร์สนี้ก่อนส่งรีวิว');
@@ -155,27 +158,52 @@ export default function CourseDetailPage() {
 
     setSubmittingReview(true);
     try {
-      const res = await reviewApi.create({
-        courseId: course.id,
-        rating: newRating,
-        comment: newComment.trim() || undefined,
-      });
-
-      if (res.success && res.data) {
-        // Optimistically add the new review
-        setReviews([res.data, ...reviews]);
-        setHasReviewed(true);
-        setNewComment('');
-        setNewRating(0);
-        // Refresh stats by re-fetching (lazy approach)
-        reviewApi.list({ courseId: course.id, limit: 5 }).then((listRes) => {
-           if (listRes.success && listRes.data) {
-               setReviewStats(listRes.data.stats);
-           }
+      if (editingReviewId) {
+        // Update existing review
+        const res = await reviewApi.update(editingReviewId, {
+          rating: newRating,
+          comment: newComment.trim() || undefined,
         });
-        alert('ขอบคุณสำหรับรีวิวของคุณ!');
+
+        if (res.success && res.data) {
+          // Update the review in the list
+          setReviews(reviews.map((r) => (r.id === editingReviewId ? res.data! : r)));
+          setEditingReviewId(null);
+          
+          // Refresh stats
+          reviewApi.list({ courseId: course.id, limit: 5 }).then((listRes) => {
+             if (listRes.success && listRes.data) {
+                 setReviewStats(listRes.data.stats);
+             }
+          });
+          alert('แก้ไขรีวิวสำเร็จ!');
+        } else {
+          alert(res.error || 'เกิดข้อผิดพลาดในการแก้ไขรีวิว');
+        }
       } else {
-        alert(res.error || 'เกิดข้อผิดพลาดในการส่งรีวิว');
+        // Create new review
+        const res = await reviewApi.create({
+          courseId: course.id,
+          rating: newRating,
+          comment: newComment.trim() || undefined,
+        });
+
+        if (res.success && res.data) {
+          // Optimistically add the new review
+          setReviews([res.data, ...reviews]);
+          setHasReviewed(true);
+          setNewComment('');
+          setNewRating(0);
+          // Refresh stats
+          reviewApi.list({ courseId: course.id, limit: 5 }).then((listRes) => {
+             if (listRes.success && listRes.data) {
+                 setReviewStats(listRes.data.stats);
+             }
+          });
+          alert('ขอบคุณสำหรับรีวิวของคุณ!');
+        } else {
+          alert(res.error || 'เกิดข้อผิดพลาดในการส่งรีวิว');
+        }
       }
     } catch (error) {
        console.error(error);
@@ -183,6 +211,22 @@ export default function CourseDetailPage() {
     } finally {
       setSubmittingReview(false);
     }
+  };
+
+  const startEditing = (review: Review) => {
+    setEditingReviewId(review.id);
+    setNewRating(review.rating);
+    setNewComment(review.comment || '');
+    // Scroll to form smoothly
+    setTimeout(() => {
+      document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const cancelEditing = () => {
+    setEditingReviewId(null);
+    setNewRating(0);
+    setNewComment('');
   };
 
   // ── Format ────────────────────────────────────────────
@@ -759,8 +803,8 @@ export default function CourseDetailPage() {
                 )}
 
                 {/* Write Review Form (Enrolled users only) */}
-                {isEnrolled && user && !hasReviewed && (
-                  <div className="bg-gradient-to-br from-primary/5 to-blue-50 rounded-xl border border-primary/10 p-6">
+                {isEnrolled && user && (!hasReviewed || editingReviewId) && (
+                  <div id="review-form-section" className="bg-gradient-to-br from-primary/5 to-blue-50 rounded-xl border border-primary/10 p-6">
                     <div className="flex items-center gap-3 mb-4">
                       {user.profileImage ? (
                         <img 
@@ -775,7 +819,7 @@ export default function CourseDetailPage() {
                       )}
                       <div>
                         <h4 className="font-bold text-gray-900 flex items-center gap-1">
-                          <Star size={16} className="text-yellow-500 fill-yellow-500" /> เขียนรีวิวของคุณ
+                          <Star size={16} className="text-yellow-500 fill-yellow-500" /> {editingReviewId ? 'แก้ไขรีวิว' : 'เขียนรีวิวของคุณ'}
                         </h4>
                         <p className="text-xs text-gray-500">โพสต์ในชื่อ {user.name}</p>
                       </div>
@@ -807,21 +851,30 @@ export default function CourseDetailPage() {
                            maxLength={1000}
                          />
                       </div>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                         {editingReviewId && (
+                           <button
+                             type="button"
+                             onClick={cancelEditing}
+                             className="px-4 py-2 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-100 transition-colors mr-2"
+                           >
+                             ยกเลิก
+                           </button>
+                         )}
                          <button
                            type="submit"
                            disabled={submittingReview}
                            className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                          >
                            {submittingReview && <Loader2 size={16} className="animate-spin" />}
-                           ส่งรีวิว
+                           {editingReviewId ? 'บันทึกการแก้ไข' : 'ส่งรีวิว'}
                          </button>
                       </div>
                     </form>
                   </div>
                 )}
                 
-                {isEnrolled && user && hasReviewed && (
+                {isEnrolled && user && hasReviewed && !editingReviewId && (
                    <div className="bg-green-50 text-green-700 border border-green-200 p-4 rounded-xl text-sm flex items-center gap-2 font-medium">
                        <CheckCircle size={18} /> คุณได้รีวิวคอร์สนี้แล้ว ขอบคุณสำหรับความคิดเห็น!
                    </div>
@@ -867,10 +920,20 @@ export default function CourseDetailPage() {
                             {review.comment}
                           </p>
                         )}
-                        <div className="mt-3 flex items-center gap-4">
+                        <div className="mt-3 flex items-center justify-between">
                           <button className="text-xs text-gray-400 hover:text-primary flex items-center gap-1 transition-colors">
                             <ThumbsUp size={12} /> มีประโยชน์ ({review.helpful})
                           </button>
+                          
+                          {/* Show Edit button if user owns review */}
+                          {user?.id === review.userId && !editingReviewId && (
+                            <button
+                              onClick={() => startEditing(review)}
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg"
+                            >
+                              <Edit2 size={12} /> แก้ไขรีวิว
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

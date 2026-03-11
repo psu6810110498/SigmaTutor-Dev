@@ -145,7 +145,7 @@ export interface Review {
   helpful: number;
   isHidden: boolean;
   userId: string;
-  user: { id: string; name: string; profileImage?: string | null };
+  user: { id: string; name: string; profileImage?: string | null; email?: string | null; };
   courseId: string;
   course?: { id: string; title: string };
   createdAt: string;

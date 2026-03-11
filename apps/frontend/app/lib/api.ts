@@ -506,6 +506,15 @@ export const reviewApi = {
     });
   },
 
+  /** PUT /reviews/:id — Update own review */
+  update(id: string, data: { rating: number; comment?: string }) {
+    return request<Review>(`/reviews/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
+
   /** PATCH /reviews/:id/helpful — Mark helpful (+1) */
   markHelpful(id: string) {
     return request<Review>(`/reviews/${id}/helpful`, {

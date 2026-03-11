@@ -22,6 +22,11 @@ const createReviewSchema = z.object({
     comment: z.string().max(1000).optional(),
 });
 
+const updateReviewSchema = z.object({
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().max(1000).optional(),
+});
+
 const reviewQuerySchema = z.object({
     courseId: z.string().cuid(),
     rating: z.coerce.number().int().min(1).max(5).optional(), // Filter by star
@@ -144,6 +149,48 @@ router.post(
             res.status(201).json({ success: true, data: review });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to create review';
+            res.status(400).json({ success: false, error: message });
+        }
+    }
+);
+
+// ── PUT review (Update own review) ────────────────────────
+router.put(
+    '/:id',
+    authenticate,
+    validate(updateReviewSchema),
+    async (req: AuthRequest, res: Response): Promise<void> => {
+        try {
+            const reviewId = req.params.id;
+            const userId = req.user!.userId;
+            const { rating, comment } = req.body;
+
+            // Check if review exists
+            const existing = await prisma.review.findUnique({
+                where: { id: reviewId },
+            });
+
+            if (!existing) {
+                res.status(404).json({ success: false, error: 'Review not found' });
+                return;
+            }
+
+            // Verify ownership
+            if (existing.userId !== userId) {
+                res.status(403).json({ success: false, error: 'You can only edit your own review' });
+                return;
+            }
+
+            // Update
+            const updatedReview = await prisma.review.update({
+                where: { id: reviewId },
+                data: { rating, comment: comment?.trim() || null },
+                include: { user: { select: { id: true, name: true, profileImage: true } } },
+            });
+
+            res.json({ success: true, data: updatedReview });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update review';
             res.status(400).json({ success: false, error: message });
         }
     }
