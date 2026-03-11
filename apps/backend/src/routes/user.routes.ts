@@ -19,7 +19,7 @@ const upload = multer({
 router.get(
   '/instructors',
   authenticate as express.RequestHandler,
-  requireRole('ADMIN', 'INSTRUCTOR') as express.RequestHandler,
+  requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const [instructors, totalUniqueStudents] = await Promise.all([
@@ -82,7 +82,6 @@ router.get(
 
         return {
           ...inst,
-          role: 'INSTRUCTOR', // Maintain frontend compatibility
           totalEarnings,
           _count: {
             courses: inst._count.courses,
@@ -121,8 +120,8 @@ router.get(
           enrollments: {
             select: {
               status: true,
-              course: { select: { title: true, price: true, teacher: { select: { name: true } } } }
-            }
+              course: { select: { title: true, price: true, teacher: { select: { name: true } } } },
+            },
           },
           payments: {
             where: { status: 'COMPLETED' },
@@ -155,7 +154,7 @@ router.get(
           status: diffMinutes >= 0 && diffMinutes <= 5 ? 'Online' : 'Offline',
           enrolledCourses: s.enrollments.map((e) => ({
             title: e.course?.title || 'Unknown',
-            instructorName: (e.course as any)?.teacher?.name || 'ไม่ระบุผู้สอน'
+            instructorName: (e.course as any)?.teacher?.name || 'ไม่ระบุผู้สอน',
           })),
           totalSpent,
         };
@@ -196,15 +195,23 @@ router.post(
         res.status(400).json({ success: false, error: 'อีเมลนี้มีในระบบแล้ว' });
         return;
       }
-      
+
       const newTeacher = await prisma.teacher.create({
         data: {
-          name, email: finalEmail,
-          nickname, title, bio, profileImage, expertise, education, experience, socialLink
+          name,
+          email: finalEmail,
+          nickname,
+          title,
+          bio,
+          profileImage,
+          expertise,
+          education,
+          experience,
+          socialLink,
         },
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true, email: true },
       });
-      res.status(201).json({ success: true, data: { ...newTeacher, role: 'INSTRUCTOR' } });
+      res.status(201).json({ success: true, data: newTeacher });
     } catch (error) {
       res.status(500).json({ success: false, error: 'Failed to create instructor' });
     }
@@ -254,7 +261,12 @@ router.patch(
       const user = await prisma.user.update({
         where: { id },
         data: {
-          name, phone, educationLevel, school, province, address,
+          name,
+          phone,
+          educationLevel,
+          school,
+          province,
+          address,
           profileImage: profileImageUrl,
           birthday: birthday ? new Date(birthday) : undefined,
         },

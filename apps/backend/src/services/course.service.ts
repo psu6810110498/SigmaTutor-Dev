@@ -235,7 +235,7 @@ export class CourseService {
   }
 
   async getUserEnrolledCourses(userId: string) {
-    return this.db.enrollment.findMany({
+    const enrollments = await this.db.enrollment.findMany({
       where: { userId, status: 'ACTIVE' },
       include: {
         course: {
@@ -245,14 +245,15 @@ export class CourseService {
             slug: true,
             thumbnail: true,
             teacher: { select: { name: true } },
+            teacherId: true,
             _count: { select: { chapters: true } },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
-    
-    // Map output
+
+    // Map teacher → instructor for frontend compatibility
     return enrollments.map((en: any) => {
       const { teacher, teacherId, ...courseRest } = en.course;
       return {
