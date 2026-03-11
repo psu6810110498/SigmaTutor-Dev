@@ -252,7 +252,8 @@ export class PaymentService {
       mode: 'payment',
       success_url: `${frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/checkout/cancel`,
-      expires_at: Math.floor(Date.now() / 1000) + 900,
+      // Stripe ต้องการ expires_at อย่างน้อย 30 นาที นับจากตอนสร้าง session
+      expires_at: Math.floor(Date.now() / 1000) + 1800,
       metadata: {
         userId,
         courseIds: items.map((i) => i.courseId).join(','),

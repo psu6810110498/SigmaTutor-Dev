@@ -25,7 +25,8 @@ const KEYS = {
   availabilityCache: (courseId: string) => `AVAILABILITY:${courseId}`,
 };
 
-const DEFAULT_TTL = 900; // 15 minutes (matches Stripe session timeout)
+// Stripe กำหนดขั้นต่ำ 30 นาที ต้องตั้ง TTL ให้ตรงหรือมากกว่า
+const DEFAULT_TTL = 1800; // 30 minutes (Stripe minimum for expires_at)
 
 // ── Lua Scripts ───────────────────────────────────────────
 
