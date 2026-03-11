@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { useCourse } from '@/app/context/CourseContext';
 import { useAuth } from '@/app/context/AuthContext';
-import { couponApi } from '@/app/lib/api';
+import { couponApi, availabilityApi } from '@/app/lib/api';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
@@ -94,6 +94,23 @@ export function useCheckout() {
         setError(null);
 
         try {
+            // Pre-flight: check availability for limited courses before hitting Stripe
+            const limitedItems = cartItems.filter(
+                (item) => item.courseType === 'ONLINE_LIVE' || item.courseType === 'ONSITE'
+            );
+            if (limitedItems.length > 0) {
+                const results = await availabilityApi.getMany(limitedItems.map((i) => i.id));
+                const fullCourses = results
+                    .filter((r) => r.success && r.data?.isFull)
+                    .map((r) => r.data!);
+                if (fullCourses.length > 0) {
+                    const names = fullCourses.map((c) => c.courseId).join(', ');
+                    setError(`คอร์สต่อไปนี้เต็มแล้ว กรุณาลบออกจากตะกร้า: ${names}`);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
             const response = await fetch(`${apiUrl}/payments/create-checkout-session`, {

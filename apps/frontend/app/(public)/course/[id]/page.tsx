@@ -36,6 +36,10 @@ import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
 import { useAuth } from '@/app/context/AuthContext';
 import type { Course, Review, ReviewListResponse, CourseType } from '@/app/lib/types';
+import { useCourseAvailability } from '@/app/hooks/useCourseAvailability';
+import { SeatProgressBar } from '@/app/components/ui/SeatProgressBar';
+import { ReservationCountdown } from '@/app/components/ui/ReservationCountdown';
+import { NotifyWhenAvailable } from '@/app/components/ui/NotifyWhenAvailable';
 
 // ── Tab Config per CourseType ─────────────────────────────
 const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
@@ -72,6 +76,11 @@ export default function CourseDetailPage() {
   const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [activeMedia, setActiveMedia] = useState<'video' | 'image'>('image');
   const [isEnrolled, setIsEnrolled] = useState(false);
+
+  const { availability, refetch: refetchAvailability } = useCourseAvailability(
+    course?.id ?? '',
+    { disabled: !course || course.courseType === 'ONLINE' },
+  );
 
   useEffect(() => {
     if (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) setActiveMedia('video');
@@ -816,16 +825,24 @@ export default function CourseDetailPage() {
               )}
             </div>
 
+            {/* Seat Availability */}
+            {availability && availability.isLimited && (
+              <div className="space-y-2">
+                <SeatProgressBar availability={availability} size="md" showCount />
+                {availability.isReservedOnly && availability.earliestExpiryInSeconds != null && (
+                  <ReservationCountdown
+                    expiresInSeconds={availability.earliestExpiryInSeconds}
+                    onExpired={refetchAvailability}
+                  />
+                )}
+                {availability.isReservedOnly && (
+                  <NotifyWhenAvailable courseId={course.id} courseTitle={course.title} />
+                )}
+              </div>
+            )}
+
             {/* Info */}
             <div className="space-y-3 text-sm">
-              {course.maxSeats && (
-                <div className="flex items-center justify-between text-gray-600">
-                  <span>จำนวนรับ</span>
-                  <span className="font-medium">
-                    {course._count?.enrollments || 0}/{course.maxSeats}
-                  </span>
-                </div>
-              )}
               {course.duration && (
                 <div className="flex items-center justify-between text-gray-600">
                   <span>ระยะเวลา</span>
@@ -851,9 +868,14 @@ export default function CourseDetailPage() {
               >
                 <PlayCircle size={18} /> เข้าสู่บทเรียน
               </Link>
+            ) : availability?.isFull && !availability.isReservedOnly ? (
+              <div className="text-center py-3 px-4 rounded-xl bg-gray-100 text-gray-500 text-sm font-medium">
+                คอร์สนี้ปิดรับสมัครแล้ว
+              </div>
             ) : (
               <>
                 <button
+                  disabled={availability?.isFull}
                   onClick={() => {
                     if (isInCart(course.id)) {
                       removeFromCart(course.id);
@@ -861,7 +883,7 @@ export default function CourseDetailPage() {
                       addToCart(toCartItem(course));
                     }
                   }}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${isInCart(course.id)
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${isInCart(course.id)
                     ? 'bg-red-50 text-red-600 hover:bg-red-100'
                     : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
                     }`}
@@ -882,14 +904,14 @@ export default function CourseDetailPage() {
                   )}
                 </button>
                 <button
+                  disabled={availability?.isFull}
                   onClick={() => {
                     if (!isInCart(course.id)) {
                       addToCart(toCartItem(course));
                     }
-                    // Use setTimeout to ensure context state is flushed slightly before routing
                     setTimeout(() => router.push('/checkout'), 50);
                   }}
-                  className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
+                  className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ซื้อเลย
                 </button>

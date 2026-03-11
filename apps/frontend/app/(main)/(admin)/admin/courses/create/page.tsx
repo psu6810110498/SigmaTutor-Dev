@@ -292,6 +292,13 @@ export default function CreateCoursePage() {
             toast.error("กรุณากรอกชื่อคอร์สและเลือกผู้สอน");
             setSaving(false); return;
         }
+        if ((form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (!form.maxSeats || form.maxSeats < 1)) {
+            toast.error("กรุณาระบุจำนวนที่นั่งสำหรับคอร์สประเภทนี้");
+            setSaving(false); return;
+        }
+        if (form.courseType === "ONLINE") {
+            form.maxSeats = null;
+        }
 
         const payload: any = { ...form };
 
@@ -661,6 +668,23 @@ export default function CreateCoursePage() {
                                 );
                             })}
                         </div>
+
+                        {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <label className={labelClass}>
+                                    จำนวนที่นั่งสูงสุด <span className="text-red-500">*</span>
+                                    <span className="text-xs text-gray-400 font-normal ml-1">(จำเป็นสำหรับคอร์สประเภทนี้)</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={form.maxSeats || ""}
+                                    onChange={(e) => updateForm("maxSeats", e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="เช่น 30"
+                                    className={inputClass}
+                                />
+                            </div>
+                        )}
 
                         {form.courseType === "ONLINE_LIVE" && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
