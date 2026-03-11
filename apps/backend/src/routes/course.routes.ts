@@ -280,4 +280,23 @@ router.post(
   }
 );
 
+/**
+ * GET /api/courses/:id/availability
+ * Get real-time seat availability for a course (public).
+ */
+router.get(
+  '/:id/availability',
+  publicApiLimiter,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const availability = await courseService.getAvailability(req.params.id);
+      res.json({ success: true, data: availability });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch availability';
+      const status = message === 'Course not found' ? 404 : 500;
+      res.status(status).json({ success: false, error: message });
+    }
+  }
+);
+
 export default router;

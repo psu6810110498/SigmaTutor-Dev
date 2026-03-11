@@ -6,6 +6,8 @@ import type {
   CourseQueryInput,
   MarketplaceQueryInput,
 } from '../schemas/course.schema.js';
+import type { CourseAvailability } from '../schemas/seat-availability.schema.js';
+import { seatReservationService } from './seat-reservation.service.js';
 
 // Use Prisma's own type from our DB package (avoids @prisma/client direct import)
 type DbClient = typeof prisma;
@@ -397,6 +399,74 @@ export class CourseService {
       where: { id },
       data: { thumbnail: thumbnailUrl },
     });
+  }
+
+  /**
+   * Get real-time seat availability for a course.
+   * ONLINE courses are always unlimited.
+   * ONLINE_LIVE / ONSITE courses are limited by maxSeats.
+   */
+  async getAvailability(courseId: string): Promise<CourseAvailability> {
+    const course = await this.db.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, courseType: true, maxSeats: true },
+    });
+
+    if (!course) throw new Error('Course not found');
+
+    if (course.courseType === 'ONLINE') {
+      return {
+        courseId,
+        courseType: 'ONLINE',
+        isLimited: false,
+        maxSeats: null,
+        enrolledCount: 0,
+        reservedCount: 0,
+        remaining: null,
+        isFull: false,
+        isReservedOnly: false,
+        percentage: null,
+        earliestExpiryInSeconds: null,
+      };
+    }
+
+    const maxSeats = course.maxSeats ?? 0;
+
+    const enrolledCount = await this.db.enrollment.count({
+      where: { courseId, status: 'ACTIVE' },
+    });
+
+    let availableFromRedis = await seatReservationService.getAvailableCount(courseId);
+
+    if (availableFromRedis === null) {
+      const reservedCount = await seatReservationService.countReservations(courseId);
+      await seatReservationService.syncCounter(courseId, maxSeats, enrolledCount, reservedCount);
+      availableFromRedis = Math.max(0, maxSeats - enrolledCount - reservedCount);
+    }
+
+    const reservedCount = await seatReservationService.countReservations(courseId);
+    const takenCount = enrolledCount + reservedCount;
+    const remaining = Math.max(0, maxSeats - takenCount);
+    const isFull = remaining <= 0;
+    const isReservedOnly = isFull && enrolledCount < maxSeats;
+    const percentage = maxSeats > 0 ? Math.round((takenCount / maxSeats) * 100) : 100;
+    const earliestExpiryInSeconds = isReservedOnly
+      ? await seatReservationService.getEarliestExpiry(courseId)
+      : null;
+
+    return {
+      courseId,
+      courseType: course.courseType as 'ONLINE_LIVE' | 'ONSITE',
+      isLimited: true,
+      maxSeats,
+      enrolledCount,
+      reservedCount,
+      remaining,
+      isFull,
+      isReservedOnly,
+      percentage,
+      earliestExpiryInSeconds,
+    };
   }
 }
 

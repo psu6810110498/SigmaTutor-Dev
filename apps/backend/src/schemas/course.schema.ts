@@ -38,6 +38,26 @@ export const createCourseSchema = z.object({
     }).passthrough()).optional().default([]),
     isBestSeller: z.boolean().optional().default(false),
     isRecommended: z.boolean().optional().default(false),
+    courseCode: z.string().trim().optional().nullable(),
+    shortDescription: z.string().trim().optional().nullable(),
+    priceRange: z.string().trim().optional().nullable(),
+    meetingId: z.string().trim().optional().nullable(),
+}).superRefine((data, ctx) => {
+    if (data.courseType === 'ONLINE') {
+        // ONLINE courses must not have maxSeats
+        if (data.maxSeats != null) {
+            (data as any).maxSeats = null;
+        }
+        return;
+    }
+    // ONLINE_LIVE / ONSITE require maxSeats >= 1
+    if (!data.maxSeats || data.maxSeats < 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['maxSeats'],
+            message: 'กรุณาระบุจำนวนที่นั่ง (อย่างน้อย 1) สำหรับคอร์สประเภทนี้',
+        });
+    }
 });
 
 // updateCourseSchema จะใช้ค่าจากด้านบนโดยอัตโนมัติ
