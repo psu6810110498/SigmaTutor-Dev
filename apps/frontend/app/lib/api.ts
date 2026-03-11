@@ -4,17 +4,17 @@
 // ============================================================
 
 import type {
-    ApiResponse,
-    Course,
-    CourseListResponse,
-    CreateCourseInput,
-    CourseQueryParams,
-    Category,
-    Level,
-    ReviewListResponse,
-    ReviewQueryParams,
-    Banner,
-    BannerPosition,
+  ApiResponse,
+  Course,
+  CourseListResponse,
+  CreateCourseInput,
+  CourseQueryParams,
+  Category,
+  Level,
+  ReviewListResponse,
+  ReviewQueryParams,
+  Banner,
+  BannerPosition,
 } from './types';
 
 // ── Config ────────────────────────────────────────────────
@@ -25,48 +25,45 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 /** Build headers */
 function headers(_auth?: boolean): HeadersInit {
-    return { 'Content-Type': 'application/json' };
+  return { 'Content-Type': 'application/json' };
 }
 
 /** Generic fetch wrapper with error handling */
-async function request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-): Promise<ApiResponse<T>> {
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      credentials: 'include', // ✅ Send cookies with every request
+    });
+
+    let json;
     try {
-        const res = await fetch(`${API_BASE}${endpoint}`, {
-            ...options,
-            credentials: 'include', // ✅ Send cookies with every request
-        });
-
-        let json;
-        try {
-            json = await res.json();
-        } catch {
-            json = {}; // Handle empty responses (like 204)
-        }
-
-        if (!res.ok) {
-            // ✅ Handle 401 Unauthorized (Cookie expired/missing)
-            if (res.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/me')) {
-                // Optional: Trigger global logout or redirect
-                // window.location.href = '/login'; 
-            }
-
-            return {
-                success: false,
-                error: json.error || `HTTP ${res.status}`,
-                details: json.details,
-            };
-        }
-
-        return json;
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Network error',
-        };
+      json = await res.json();
+    } catch {
+      json = {}; // Handle empty responses (like 204)
     }
+
+    if (!res.ok) {
+      // ✅ Handle 401 Unauthorized (Cookie expired/missing)
+      if (res.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/me')) {
+        // Optional: Trigger global logout or redirect
+        // window.location.href = '/login';
+      }
+
+      return {
+        success: false,
+        error: json.error || `HTTP ${res.status}`,
+        details: json.details,
+      };
+    }
+
+    return json;
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
 }
 
 // ============================================================
@@ -75,138 +72,144 @@ async function request<T>(
 
 // Categories
 export const fetchCategories = async () => {
-    return request<Category[]>('/categories');
+  return request<Category[]>('/categories');
 };
 
 // Levels
 export const fetchLevels = async () => {
-    return request<Level[]>('/levels');
+  return request<Level[]>('/levels');
 };
 
 export const fetchCourses = async () => {
-    return request<CourseListResponse>('/courses');
+  return request<CourseListResponse>('/courses');
 };
 
 export const courseApi = {
-    /** 
-     * GET /courses/marketplace — Public listing for Explore page
-     * Supports: search, category, level, price, rating, sort 
-     */
-    getMarketplace(params?: CourseQueryParams, options?: RequestInit) {
-        const query = params ? '?' + new URLSearchParams(
-            Object.entries(params)
-                .filter(([, v]) => v !== undefined && v !== null && v !== '')
-                .map(([k, v]) => [k, String(v)])
-        ).toString() : '';
+  /**
+   * GET /courses/marketplace — Public listing for Explore page
+   * Supports: search, category, level, price, rating, sort
+   */
+  getMarketplace(params?: CourseQueryParams, options?: RequestInit) {
+    const query = params
+      ? '?' +
+        new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined && v !== null && v !== '')
+            .map(([k, v]) => [k, String(v)])
+        ).toString()
+      : '';
 
-        return request<CourseListResponse>(`/courses/marketplace${query}`, options);
-    },
+    return request<CourseListResponse>(`/courses/marketplace${query}`, options);
+  },
 
-    /** GET /courses/enrolled — User's enrolled courses */
-    getEnrolled() {
-        return request<Course[]>(`/courses/enrolled`);
-    },
+  /** GET /courses/enrolled — User's enrolled courses */
+  getEnrolled() {
+    return request<Course[]>(`/courses/enrolled`);
+  },
 
-    /** GET /courses/admin — Admin/Instructor dashboard listing */
-    getAdmin(params?: any) {
-        const query = params ? '?' + new URLSearchParams(
-            Object.entries(params)
-                .filter(([, v]) => v !== undefined && v !== '')
-                .map(([k, v]) => [k, String(v)])
-        ).toString() : '';
-        return request<any>(`/courses/admin${query}`);
-    },
+  /** GET /courses/admin — Admin/Instructor dashboard listing */
+  getAdmin(params?: any) {
+    const query = params
+      ? '?' +
+        new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined && v !== '')
+            .map(([k, v]) => [k, String(v)])
+        ).toString()
+      : '';
+    return request<any>(`/courses/admin${query}`);
+  },
 
-    /** Legacy List (mapped to marketplace or general query if needed) */
-    list(params?: CourseQueryParams) {
-        return this.getMarketplace(params);
-    },
+  /** Legacy List (mapped to marketplace or general query if needed) */
+  list(params?: CourseQueryParams) {
+    return this.getMarketplace(params);
+  },
 
-    /** GET /courses/:id — Single course detail */
-    getById(id: string) {
-        return request<Course>(`/courses/${id}`);
-    },
+  /** GET /courses/:id — Single course detail */
+  getById(id: string) {
+    return request<Course>(`/courses/${id}`);
+  },
 
-    /** GET /courses/slug/:slug — By SEO-friendly slug */
-    getBySlug(slug: string) {
-        return request<Course>(`/courses/slug/${slug}`);
-    },
+  /** GET /courses/slug/:slug — By SEO-friendly slug */
+  getBySlug(slug: string) {
+    return request<Course>(`/courses/slug/${slug}`);
+  },
 
-    /** POST /courses — Create (ADMIN) */
-    create(data: CreateCourseInput) {
-        // Sanitize data: Convert empty strings to null for optional fields
-        const sanitizedData = { ...data };
-        (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach(key => {
-            if (sanitizedData[key] === '') {
-                // @ts-ignore
-                sanitizedData[key] = null;
-            }
-        });
+  /** POST /courses — Create (ADMIN) */
+  create(data: CreateCourseInput) {
+    // Sanitize data: Convert empty strings to null for optional fields
+    const sanitizedData = { ...data };
+    (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach((key) => {
+      if (sanitizedData[key] === '') {
+        // @ts-ignore
+        sanitizedData[key] = null;
+      }
+    });
 
-        return request<Course>('/courses', {
-            method: 'POST',
-            headers: headers(true),
-            body: JSON.stringify(sanitizedData),
-        });
-    },
+    return request<Course>('/courses', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(sanitizedData),
+    });
+  },
 
-    /** PUT /courses/:id — Update (ADMIN) */
-    update(id: string, data: Partial<CreateCourseInput>) {
-        // Sanitize data
-        const sanitizedData = { ...data };
-        (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach(key => {
-            if (sanitizedData[key] === '') {
-                // @ts-ignore
-                sanitizedData[key] = null;
-            }
-        });
+  /** PUT /courses/:id — Update (ADMIN) */
+  update(id: string, data: Partial<CreateCourseInput>) {
+    // Sanitize data
+    const sanitizedData = { ...data };
+    (Object.keys(sanitizedData) as (keyof CreateCourseInput)[]).forEach((key) => {
+      if (sanitizedData[key] === '') {
+        // @ts-ignore
+        sanitizedData[key] = null;
+      }
+    });
 
-        return request<Course>(`/courses/${id}`, {
-            method: 'PUT',
-            headers: headers(true),
-            body: JSON.stringify(sanitizedData),
-        });
-    },
+    return request<Course>(`/courses/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(sanitizedData),
+    });
+  },
 
-    /** PATCH /courses/:id/status — Update status (ADMIN) */
-    updateStatus(id: string, status: string) {
-        return request<Course>(`/courses/${id}/status`, {
-            method: 'PATCH',
-            headers: headers(true),
-            body: JSON.stringify({ status }),
-        });
-    },
+  /** PATCH /courses/:id/status — Update status (ADMIN) */
+  updateStatus(id: string, status: string) {
+    return request<Course>(`/courses/${id}/status`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify({ status }),
+    });
+  },
 
-    /** PATCH /courses/:id/publish — Toggle published (ADMIN) */
-    togglePublish(id: string, published: boolean) {
-        return request<Course>(`/courses/${id}/publish`, {
-            method: 'PATCH',
-            headers: headers(true),
-            body: JSON.stringify({ published }),
-        });
-    },
+  /** PATCH /courses/:id/publish — Toggle published (ADMIN) */
+  togglePublish(id: string, published: boolean) {
+    return request<Course>(`/courses/${id}/publish`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify({ published }),
+    });
+  },
 
-    /** DELETE /courses/:id — Soft delete (ADMIN) */
-    delete(id: string) {
-        return request<void>(`/courses/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /courses/:id — Soft delete (ADMIN) */
+  delete(id: string) {
+    return request<void>(`/courses/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    /** POST /courses/:id/upload — Upload thumbnail (ADMIN) */
-    async uploadThumbnail(id: string, file: File) {
-        const formData = new FormData();
-        formData.append('thumbnail', file);
+  /** POST /courses/:id/upload — Upload thumbnail (ADMIN) */
+  async uploadThumbnail(id: string, file: File) {
+    const formData = new FormData();
+    formData.append('thumbnail', file);
 
-        const res = await fetch(`${API_BASE}/courses/${id}/upload`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-        });
+    const res = await fetch(`${API_BASE}/courses/${id}/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
 
-        return res.json();
-    },
+    return res.json();
+  },
 };
 
 // ============================================================
@@ -214,35 +217,37 @@ export const courseApi = {
 // ============================================================
 
 export type TutorFilterParams = {
-    categoryId?: string | null;
-    levelId?: string | null;
-    courseType?: string | null;
-    minPrice?: string | number | null;
-    maxPrice?: string | number | null;
-    search?: string;
+  categoryId?: string | null;
+  levelId?: string | null;
+  courseType?: string | null;
+  minPrice?: string | number | null;
+  maxPrice?: string | number | null;
+  search?: string;
 };
 
 export type TutorProfile = {
-    id: string;
-    name: string;
-    nickname?: string | null;
-    profileImage?: string | null;
-    title?: string | null;
+  id: string;
+  name: string;
+  nickname?: string | null;
+  profileImage?: string | null;
+  title?: string | null;
 };
 
 export const tutorApi = {
-    /**
-     * GET /tutors — Returns instructors filtered by active course filters.
-     * All params are optional; omitting all returns every instructor with a published course.
-     */
-    getFiltered(params?: TutorFilterParams): Promise<ApiResponse<TutorProfile[]>> {
-        const entries = Object.entries(params ?? {})
-            .filter(([, v]) => v !== undefined && v !== null && v !== '');
-        const query = entries.length > 0
-            ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
-            : '';
-        return request<TutorProfile[]>(`/tutors${query}`);
-    },
+  /**
+   * GET /tutors — Returns instructors filtered by active course filters.
+   * All params are optional; omitting all returns every instructor with a published course.
+   */
+  getFiltered(params?: TutorFilterParams): Promise<ApiResponse<TutorProfile[]>> {
+    const entries = Object.entries(params ?? {}).filter(
+      ([, v]) => v !== undefined && v !== null && v !== ''
+    );
+    const query =
+      entries.length > 0
+        ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
+        : '';
+    return request<TutorProfile[]>(`/tutors${query}`);
+  },
 };
 
 // ============================================================
@@ -250,62 +255,64 @@ export const tutorApi = {
 // ============================================================
 
 export const bannerApi = {
-    getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' = 'EXPLORE_TOP') {
-        // Cache banners via Next.js fetch options (Revalidate every 5 minutes if fetched on server)
-        return request<Banner[]>(`/banners/active?position=${position}`, { next: { revalidate: 300 } } as RequestInit);
-    },
+  getActive(position: 'EXPLORE_TOP' | 'EXPLORE_MIDDLE' | 'LANDING_HERO' = 'EXPLORE_TOP') {
+    // Cache banners via Next.js fetch options (Revalidate every 5 minutes if fetched on server)
+    return request<Banner[]>(`/banners/active?position=${position}`, {
+      next: { revalidate: 300 },
+    } as RequestInit);
+  },
 
-    /** GET /banners — Admin List */
-    getAll() {
-        return request<Banner[]>('/banners');
-    },
+  /** GET /banners — Admin List */
+  getAll() {
+    return request<Banner[]>('/banners');
+  },
 
-    /** GET /banners/trash — Admin List Trashed */
-    getTrash() {
-        return request<Banner[]>('/banners/trash', { headers: headers(true) });
-    },
+  /** GET /banners/trash — Admin List Trashed */
+  getTrash() {
+    return request<Banner[]>('/banners/trash', { headers: headers(true) });
+  },
 
-    /** POST /banners — Create */
-    create(data: Partial<Banner>) {
-        return request<Banner>('/banners', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  /** POST /banners — Create */
+  create(data: Partial<Banner>) {
+    return request<Banner>('/banners', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    /** PUT /banners/:id — Update */
-    update(id: string, data: Partial<Banner>) {
-        return request<Banner>(`/banners/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  /** PUT /banners/:id — Update */
+  update(id: string, data: Partial<Banner>) {
+    return request<Banner>(`/banners/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    /** DELETE /banners/:id — Soft Delete */
-    delete(id: string) {
-        return request<void>(`/banners/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /banners/:id — Soft Delete */
+  delete(id: string) {
+    return request<void>(`/banners/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    /** PUT /banners/:id/restore — Restore */
-    restore(id: string) {
-        return request<void>(`/banners/${id}/restore`, {
-            method: 'PUT',
-            headers: headers(true),
-        });
-    },
+  /** PUT /banners/:id/restore — Restore */
+  restore(id: string) {
+    return request<void>(`/banners/${id}/restore`, {
+      method: 'PUT',
+      headers: headers(true),
+    });
+  },
 
-    /** DELETE /banners/:id/force — Force Delete */
-    forceDelete(id: string) {
-        return request<void>(`/banners/${id}/force`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /banners/:id/force — Force Delete */
+  forceDelete(id: string) {
+    return request<void>(`/banners/${id}/force`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 };
 
 // ============================================================
@@ -313,66 +320,66 @@ export const bannerApi = {
 // ============================================================
 
 export const couponApi = {
-    /** GET /coupons — Admin List */
-    list() {
-        return request<any>('/coupons', { headers: headers(true) });
-    },
+  /** GET /coupons — Admin List */
+  list() {
+    return request<any>('/coupons', { headers: headers(true) });
+  },
 
-    /** GET /coupons/trash — Admin List Trashed */
-    getTrash() {
-        return request<any>('/coupons/trash', { headers: headers(true) });
-    },
+  /** GET /coupons/trash — Admin List Trashed */
+  getTrash() {
+    return request<any>('/coupons/trash', { headers: headers(true) });
+  },
 
-    /** POST /coupons — Create */
-    create(data: any) {
-        return request<any>('/coupons', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  /** POST /coupons — Create */
+  create(data: any) {
+    return request<any>('/coupons', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    /** PUT /coupons/:id — Update */
-    update(id: string, data: any) {
-        return request<any>(`/coupons/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  /** PUT /coupons/:id — Update */
+  update(id: string, data: any) {
+    return request<any>(`/coupons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    /** DELETE /coupons/:id — Soft Delete */
-    delete(id: string) {
-        return request<any>(`/coupons/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /coupons/:id — Soft Delete */
+  delete(id: string) {
+    return request<any>(`/coupons/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    /** PUT /coupons/:id/restore — Restore */
-    restore(id: string) {
-        return request<any>(`/coupons/${id}/restore`, {
-            method: 'PUT',
-            headers: headers(true),
-        });
-    },
+  /** PUT /coupons/:id/restore — Restore */
+  restore(id: string) {
+    return request<any>(`/coupons/${id}/restore`, {
+      method: 'PUT',
+      headers: headers(true),
+    });
+  },
 
-    /** DELETE /coupons/:id/force — Force Delete */
-    forceDelete(id: string) {
-        return request<any>(`/coupons/${id}/force`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /coupons/:id/force — Force Delete */
+  forceDelete(id: string) {
+    return request<any>(`/coupons/${id}/force`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    /** POST /coupons/validate — Public */
-    validate(code: string, courseIds: string[]) {
-        return request<any>('/coupons/validate', {
-            method: 'POST',
-            body: JSON.stringify({ code, courseIds }),
-            headers: headers(),
-        });
-    }
+  /** POST /coupons/validate — Public */
+  validate(code: string, courseIds: string[]) {
+    return request<any>('/coupons/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, courseIds }),
+      headers: headers(),
+    });
+  },
 };
 
 // ============================================================
@@ -380,36 +387,36 @@ export const couponApi = {
 // ============================================================
 
 export const categoryApi = {
-    /** GET /categories — List all (for dropdowns) */
-    list() {
-        return request<Category[]>('/categories', {}, true, 10 * 60 * 1000); // Cache 10 minutes
-    },
+  /** GET /categories — List all (for dropdowns) */
+  list() {
+    return request<Category[]>('/categories', {}, true, 10 * 60 * 1000); // Cache 10 minutes
+  },
 
-    /** POST /categories — Create (ADMIN) */
-    create(data: { name: string; slug: string }) {
-        return request<Category>('/categories', {
-            method: 'POST',
-            headers: headers(true),
-            body: JSON.stringify(data),
-        });
-    },
+  /** POST /categories — Create (ADMIN) */
+  create(data: { name: string; slug: string }) {
+    return request<Category>('/categories', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 
-    /** PUT /categories/:id — Update (ADMIN) */
-    update(id: string, data: { name: string; slug: string }) {
-        return request<Category>(`/categories/${id}`, {
-            method: 'PUT',
-            headers: headers(true),
-            body: JSON.stringify(data),
-        });
-    },
+  /** PUT /categories/:id — Update (ADMIN) */
+  update(id: string, data: { name: string; slug: string }) {
+    return request<Category>(`/categories/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 
-    /** DELETE /categories/:id — Delete (ADMIN) */
-    delete(id: string) {
-        return request<void>(`/categories/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /categories/:id — Delete (ADMIN) */
+  delete(id: string) {
+    return request<void>(`/categories/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 };
 
 // ============================================================
@@ -417,12 +424,24 @@ export const categoryApi = {
 // ============================================================
 
 export const userApi = {
-    /** GET /users/instructors — List instructors with stats (ADMIN) */
-    list() {
-        return request<any[]>('/users/instructors', {
-            headers: headers(true),
-        });
-    },
+  /** GET /users/instructors — List instructors with stats (ADMIN) */
+  list() {
+    return request<any[]>('/users/instructors', {
+      headers: headers(true),
+    });
+  },
+
+  /** PATCH /users/:id — Update user profile (name, profileImage) */
+  update(id: string, data: { name?: string; profileImage?: string }) {
+    return request<{ id: string; name: string; email: string; profileImage?: string }>(
+      `/users/${id}`,
+      {
+        method: 'PATCH',
+        headers: headers(true),
+        body: JSON.stringify(data),
+      }
+    );
+  },
 };
 
 // ============================================================
@@ -430,36 +449,36 @@ export const userApi = {
 // ============================================================
 
 export const levelApi = {
-    /** GET /levels — List all (ordered) */
-    list() {
-        return request<Level[]>('/levels', {}, true, 10 * 60 * 1000); // Cache 10 minutes
-    },
+  /** GET /levels — List all (ordered) */
+  list() {
+    return request<Level[]>('/levels', {}, true, 10 * 60 * 1000); // Cache 10 minutes
+  },
 
-    /** POST /levels — Create (ADMIN) */
-    create(data: { name: string; slug: string; order?: number }) {
-        return request<Level>('/levels', {
-            method: 'POST',
-            headers: headers(true),
-            body: JSON.stringify(data),
-        });
-    },
+  /** POST /levels — Create (ADMIN) */
+  create(data: { name: string; slug: string; order?: number }) {
+    return request<Level>('/levels', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 
-    /** PUT /levels/:id — Update (ADMIN) */
-    update(id: string, data: { name: string; slug: string; order?: number }) {
-        return request<Level>(`/levels/${id}`, {
-            method: 'PUT',
-            headers: headers(true),
-            body: JSON.stringify(data),
-        });
-    },
+  /** PUT /levels/:id — Update (ADMIN) */
+  update(id: string, data: { name: string; slug: string; order?: number }) {
+    return request<Level>(`/levels/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 
-    /** DELETE /levels/:id — Delete (ADMIN) */
-    delete(id: string) {
-        return request<void>(`/levels/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /levels/:id — Delete (ADMIN) */
+  delete(id: string) {
+    return request<void>(`/levels/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 };
 
 // ============================================================
@@ -467,40 +486,42 @@ export const levelApi = {
 // ============================================================
 
 export const reviewApi = {
-    /** GET /reviews?courseId=xxx — Paginated with stats */
-    list(params: ReviewQueryParams) {
-        const query = '?' + new URLSearchParams(
-            Object.entries(params)
-                .filter(([, v]) => v !== undefined)
-                .map(([k, v]) => [k, String(v)])
-        ).toString();
+  /** GET /reviews?courseId=xxx — Paginated with stats */
+  list(params: ReviewQueryParams) {
+    const query =
+      '?' +
+      new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      ).toString();
 
-        return request<ReviewListResponse>(`/reviews${query}`);
-    },
+    return request<ReviewListResponse>(`/reviews${query}`);
+  },
 
-    /** POST /reviews — Create review (authenticated) */
-    create(data: { courseId: string; rating: number; comment?: string }) {
-        return request<Review>('/reviews', {
-            method: 'POST',
-            headers: headers(true),
-            body: JSON.stringify(data),
-        });
-    },
+  /** POST /reviews — Create review (authenticated) */
+  create(data: { courseId: string; rating: number; comment?: string }) {
+    return request<Review>('/reviews', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 
-    /** PATCH /reviews/:id/helpful — Mark helpful (+1) */
-    markHelpful(id: string) {
-        return request<Review>(`/reviews/${id}/helpful`, {
-            method: 'PATCH',
-        });
-    },
+  /** PATCH /reviews/:id/helpful — Mark helpful (+1) */
+  markHelpful(id: string) {
+    return request<Review>(`/reviews/${id}/helpful`, {
+      method: 'PATCH',
+    });
+  },
 
-    /** DELETE /reviews/:id — Delete own review */
-    delete(id: string) {
-        return request<void>(`/reviews/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  /** DELETE /reviews/:id — Delete own review */
+  delete(id: string) {
+    return request<void>(`/reviews/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 };
 
 // Re-export for convenience
@@ -509,81 +530,81 @@ import type { Review, Chapter, Lesson, CourseSchedule } from './types';
 // ── Chapter API ──────────────────────────────────────────
 
 export const chapterApi = {
-    create: async (data: { courseId: string; title: string; order?: number }) => {
-        return request<ApiResponse<Chapter>>('/chapters', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  create: async (data: { courseId: string; title: string; order?: number }) => {
+    return request<ApiResponse<Chapter>>('/chapters', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    update: async (id: string, data: Partial<Chapter>) => {
-        return request<ApiResponse<Chapter>>(`/chapters/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  update: async (id: string, data: Partial<Chapter>) => {
+    return request<ApiResponse<Chapter>>(`/chapters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    delete: async (id: string) => {
-        return request<void>(`/chapters/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  delete: async (id: string) => {
+    return request<void>(`/chapters/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    reorder: async (orders: { id: string; order: number }[]) => {
-        return request<void>('/chapters/reorder', {
-            method: 'PUT',
-            body: JSON.stringify({ orders }),
-            headers: headers(true),
-        });
-    },
+  reorder: async (orders: { id: string; order: number }[]) => {
+    return request<void>('/chapters/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ orders }),
+      headers: headers(true),
+    });
+  },
 };
 
 // ── Lesson API ───────────────────────────────────────────
 
 export const lessonApi = {
-    create: async (data: {
-        chapterId: string;
-        title: string;
-        type?: 'VIDEO' | 'FILE' | 'QUIZ';
-        content?: string | null;
-        youtubeUrl?: string | null;
-        gumletVideoId?: string | null;
-        videoProvider?: 'YOUTUBE' | 'GUMLET';
-        duration?: number;
-        order?: number;
-    }) => {
-        return request<ApiResponse<Lesson>>('/lessons', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  create: async (data: {
+    chapterId: string;
+    title: string;
+    type?: 'VIDEO' | 'FILE' | 'QUIZ';
+    content?: string | null;
+    youtubeUrl?: string | null;
+    gumletVideoId?: string | null;
+    videoProvider?: 'YOUTUBE' | 'GUMLET';
+    duration?: number;
+    order?: number;
+  }) => {
+    return request<ApiResponse<Lesson>>('/lessons', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    update: async (id: string, data: Partial<Lesson>) => {
-        return request<ApiResponse<Lesson>>(`/lessons/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  update: async (id: string, data: Partial<Lesson>) => {
+    return request<ApiResponse<Lesson>>(`/lessons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    delete: async (id: string) => {
-        return request<void>(`/lessons/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  delete: async (id: string) => {
+    return request<void>(`/lessons/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 
-    reorder: async (orders: { id: string; order: number }[]) => {
-        return request<void>('/lessons/reorder', {
-            method: 'PUT',
-            body: JSON.stringify({ orders }),
-            headers: headers(true),
-        });
-    },
+  reorder: async (orders: { id: string; order: number }[]) => {
+    return request<void>('/lessons/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ orders }),
+      headers: headers(true),
+    });
+  },
 };
 
 // ── Schedule API ─────────────────────────────────────────
@@ -591,37 +612,45 @@ export const lessonApi = {
 // ── Schedule API ─────────────────────────────────────────
 
 export const scheduleApi = {
-    create: async (data: Partial<CourseSchedule> & { courseId: string; startTime: string; endTime: string; date: string; topic: string }) => {
-        return request<ApiResponse<CourseSchedule>>('/schedules', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  create: async (
+    data: Partial<CourseSchedule> & {
+      courseId: string;
+      startTime: string;
+      endTime: string;
+      date: string;
+      topic: string;
+    }
+  ) => {
+    return request<ApiResponse<CourseSchedule>>('/schedules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    // Sync multiple sessions for a course in one request
-    sync: async (courseId: string, sessions: Partial<CourseSchedule>[]) => {
-        return request<ApiResponse<CourseSchedule[]>>(`/schedules/sync/${courseId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ sessions }),
-            headers: headers(true),
-        });
-    },
+  // Sync multiple sessions for a course in one request
+  sync: async (courseId: string, sessions: Partial<CourseSchedule>[]) => {
+    return request<ApiResponse<CourseSchedule[]>>(`/schedules/sync/${courseId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ sessions }),
+      headers: headers(true),
+    });
+  },
 
-    update: async (id: string, data: Partial<CourseSchedule>) => {
-        return request<ApiResponse<CourseSchedule>>(`/schedules/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-            headers: headers(true),
-        });
-    },
+  update: async (id: string, data: Partial<CourseSchedule>) => {
+    return request<ApiResponse<CourseSchedule>>(`/schedules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: headers(true),
+    });
+  },
 
-    delete: async (id: string) => {
-        return request<void>(`/schedules/${id}`, {
-            method: 'DELETE',
-            headers: headers(true),
-        });
-    },
+  delete: async (id: string) => {
+    return request<void>(`/schedules/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
 };
 
 // ============================================================
@@ -629,25 +658,50 @@ export const scheduleApi = {
 // ============================================================
 
 export const uploadApi = {
-    /** POST /upload/image — Generic Image Upload */
-    async uploadImage(file: File) {
-        const formData = new FormData();
-        formData.append('image', file);
+  /** POST /upload/image — Generic Image Upload */
+  async uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
 
-        const res = await fetch(`${API_BASE}/upload/image`, {
-            method: 'POST',
-            body: formData,
-            // Note: Content-Type is set automatically for FormData
-        });
+    const res = await fetch(`${API_BASE}/upload/image`, {
+      method: 'POST',
+      body: formData,
+      // Note: Content-Type is set automatically for FormData
+    });
 
-        const json = await res.json();
+    const json = await res.json();
 
-        if (!res.ok) {
-            throw new Error(json.message || 'Upload failed');
-        }
+    if (!res.ok) {
+      throw new Error(json.message || 'Upload failed');
+    }
 
-        return json as { success: boolean; url: string };
-    },
+    return json as { success: boolean; url: string };
+  },
+};
+
+// ============================================================
+// Site Content API (Homepage sections)
+// ============================================================
+
+export const siteContentApi = {
+  /** GET /site-content — All sections (public) */
+  getAll() {
+    return request<Record<string, unknown>>('/site-content');
+  },
+
+  /** GET /site-content/:key — Single section (public) */
+  getSection(key: string) {
+    return request<unknown>(`/site-content/${key}`);
+  },
+
+  /** PUT /site-content/:key — Update section (ADMIN) */
+  updateSection(key: string, data: unknown) {
+    return request<unknown>(`/site-content/${key}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ============================================================
@@ -655,15 +709,17 @@ export const uploadApi = {
 // ============================================================
 
 export const progressApi = {
-    /** GET /progress/:courseId - Fetch all completed items for a user in a specific course */
-    getCourseProgress: (courseId: string) =>
-        request<{ id: string, lessonId?: string, scheduleId?: string, isCompleted: boolean }[]>(`/progress/${courseId}`),
+  /** GET /progress/:courseId - Fetch all completed items for a user in a specific course */
+  getCourseProgress: (courseId: string) =>
+    request<{ id: string; lessonId?: string; scheduleId?: string; isCompleted: boolean }[]>(
+      `/progress/${courseId}`
+    ),
 
-    /** POST /progress/toggle - Toggle the completion status of a lesson/schedule */
-    toggleProgress: (courseId: string, data: { lessonId?: string; scheduleId?: string }) =>
-        request<any>('/progress/toggle', {
-            method: 'POST',
-            body: JSON.stringify({ courseId, ...data }),
-            headers: headers(true)
-        })
+  /** POST /progress/toggle - Toggle the completion status of a lesson/schedule */
+  toggleProgress: (courseId: string, data: { lessonId?: string; scheduleId?: string }) =>
+    request<any>('/progress/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ courseId, ...data }),
+      headers: headers(true),
+    }),
 };

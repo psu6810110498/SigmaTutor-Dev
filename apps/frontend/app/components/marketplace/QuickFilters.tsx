@@ -2,19 +2,22 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface QuickFiltersProps {
     filters?: string[];
     activeFilter?: string;
     onFilterChange: (filter: string) => void;
     disabled?: boolean;
+    className?: string;
 }
 
 export default function QuickFilters({
     filters = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"],
     activeFilter = "ทั้งหมด",
     onFilterChange,
-    disabled = false
+    disabled = false,
+    className
 }: QuickFiltersProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -73,7 +76,7 @@ export default function QuickFilters({
     };
 
     return (
-        <div className="relative w-full max-w-7xl mx-auto px-2 md:px-6">
+        <div className={cn("relative w-full max-w-7xl mx-auto px-2 md:px-6", className)}>
             {/* Mobile: Flex wrap (ไม่ต้องเลื่อน) */}
             <div className="md:hidden">
                 <div className="flex flex-wrap gap-2 justify-center py-3 px-2">

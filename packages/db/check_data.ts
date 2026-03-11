@@ -4,9 +4,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('--- Checking Instructors ---');
-    const users = await prisma.user.findMany({ where: { role: 'INSTRUCTOR' } });
-    users.forEach(u => console.log(`Instructor: ${u.name} (${u.nickname}, ${u.email}) - ID: ${u.id}`));
+    console.log('--- Checking Teachers ---');
+    const teachers = await prisma.teacher.findMany();
+    teachers.forEach(t => console.log(`Teacher: ${t.name} (${t.nickname}, ${t.email}) - ID: ${t.id}`));
 
     console.log('\n--- Checking Categories ---');
     const cats = await prisma.category.findMany();
@@ -14,7 +14,7 @@ async function main() {
 
     console.log('\n--- Checking Courses ---');
     const courses = await prisma.course.findMany();
-    courses.forEach(c => console.log(`Course: ${c.title} - Instructor: ${c.instructorId} - Category: ${c.categoryId}`));
+    courses.forEach(c => console.log(`Course: ${c.title} - Teacher: ${c.teacherId} - Category: ${c.categoryId}`));
 }
 
 main()
