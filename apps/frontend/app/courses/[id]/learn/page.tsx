@@ -187,7 +187,10 @@ export default function LearningPage() {
     } else if (course.schedules?.length > 0) {
         totalItems = course.schedules.length;
     }
-    const progressPercent = totalItems === 0 ? 0 : Math.round((completedLessons.size / totalItems) * 100);
+    
+    // กรองหาเฉพาะบทเรียนที่เรียนจบและยังมีอยู่จริงในคอร์ส เพื่อป้องกันเปอร์เซ็นต์เกิน 100% จากบทเรียนที่ถูกลบไปแล้ว
+    const validCompletedLessonsCount = Array.from(completedLessons).filter(id => allLessons.some((l: any) => l.id === id)).length;
+    const progressPercent = totalItems === 0 ? 0 : Math.min(100, Math.round((validCompletedLessonsCount / totalItems) * 100));
 
     // Note: video rendering logic is now inline in the JSX below,
     // supporting both YouTube and Gumlet providers.
@@ -349,24 +352,20 @@ export default function LearningPage() {
                         </div>
                         <div className="flex gap-3 shrink-0">
                             <button
-                                onClick={goToPrev}
-                                disabled={currentIndex <= 0}
+                                onClick={async () => {
+                                    if (!currentLesson) return;
+                                    await toggleCompleted(currentLesson.id);
+                                }}
                                 className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
-                                    ${currentIndex <= 0
-                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                    ${currentLesson && completedLessons.has(currentLesson.id)
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
                                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                             >
-                                <ArrowLeft size={16} /> ก่อนหน้า
-                            </button>
-                            <button
-                                onClick={goToNext}
-                                disabled={currentIndex >= allLessons.length - 1}
-                                className={`px-4 py-2 font-bold text-sm rounded-xl transition-all flex items-center gap-2
-                                    ${currentIndex >= allLessons.length - 1
-                                        ? 'bg-blue-300 text-white cursor-not-allowed'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'}`}
-                            >
-                                ถัดไป <ArrowLeft size={16} className="rotate-180" />
+                                {currentLesson && completedLessons.has(currentLesson.id) ? (
+                                    <><CheckCircle size={16} /> เรียนจบแล้ว</>
+                                ) : (
+                                    <><div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center bg-white" /> ทำเครื่องหมายว่าเรียนจบ</>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -409,7 +408,7 @@ export default function LearningPage() {
                     <h2 className="font-bold text-slate-900 text-lg leading-tight mb-4">{course.title}</h2>
 
                     <div className="flex items-center justify-between text-xs text-slate-500 font-bold mb-2">
-                        <span>{completedLessons.size} จาก {totalItems} บทเรียน</span>
+                        <span>{validCompletedLessonsCount} จาก {totalItems} บทเรียน</span>
                         <span className="text-blue-600">{progressPercent}%</span>
                     </div>
                     <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -514,32 +513,26 @@ export default function LearningPage() {
                 </div>
 
                 {/* Bottom Action */}
-                <div className="p-4 border-t border-slate-100 bg-white">
+                <div className="p-4 border-t border-slate-100 bg-white flex gap-3">
                     <button
-                        className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                            ${currentIndex === allLessons.length - 1 && currentLesson && completedLessons.has(currentLesson.id)
-                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
-                        onClick={async () => {
-                            if (!currentLesson) return;
-
-                            let success = true;
-                            if (!completedLessons.has(currentLesson.id)) {
-                                success = await toggleCompleted(currentLesson.id);
-                            }
-
-                            if (success && currentIndex < allLessons.length - 1) {
-                                goToNext();
-                            }
-                        }}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
+                            ${currentIndex <= 0
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'}`}
+                        onClick={goToPrev}
+                        disabled={currentIndex <= 0}
                     >
-                        {currentIndex < allLessons.length - 1 ? (
-                            <>บทเรียนถัดไป <ArrowLeft size={16} className="rotate-180" /></>
-                        ) : currentLesson && completedLessons.has(currentLesson.id) ? (
-                            <><CheckCircle size={18} /> เรียนจบแล้ว</>
-                        ) : (
-                            'ทำเครื่องหมายว่าเรียนจบ'
-                        )}
+                        <ArrowLeft size={16} /> ก่อนหน้า
+                    </button>
+                    <button
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
+                            ${currentIndex >= allLessons.length - 1
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
+                        onClick={goToNext}
+                        disabled={currentIndex >= allLessons.length - 1}
+                    >
+                        ถัดไป <ArrowLeft size={16} className="rotate-180" />
                     </button>
                 </div>
             </div>
