@@ -14,6 +14,7 @@ import {
   X,
   LogOut,
   Megaphone,
+  Star,
 } from 'lucide-react';
 import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
 import { ToastProvider } from '@/app/components/ui/Toast';
@@ -26,6 +27,7 @@ const sidebarLinks = [
   { href: '/admin/students', label: 'นักเรียน', icon: Users },
   { href: '/admin/orders', label: 'คำสั่งซื้อ', icon: ShoppingCart },
   { href: '/admin/marketing', label: 'การตลาด', icon: Megaphone },
+  { href: '/admin/reviews', label: 'รีวิว', icon: Star },
   { href: '/admin/settings', label: 'ตั้งค่า', icon: Settings },
 ];
 

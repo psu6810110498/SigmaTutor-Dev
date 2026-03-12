@@ -1,28 +1,28 @@
 model Coupon {
-    id            String       @id @default(cuid())
-    code          String       @unique
-    discountType  DiscountType @default(PERCENTAGE)
-    discountValue Float
-    maxDiscount   Float?
-    minPurchase   Float?
-    startDate     DateTime     @default(now())
-    endDate       DateTime?
-    usageLimit    Int? // Null means unlimited
-    isOneTimeUse  Boolean      @default(true) // 1 account 1 use
-    usedCount     Int          @default(0)
-    isActive      Boolean      @default(true)
-    deletedAt     DateTime? // For Soft Deletes
+  id            String       @id @default(cuid())
+  code          String       @unique
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Float
+  maxDiscount   Float?
+  minPurchase   Float?
+  startDate     DateTime     @default(now())
+  endDate       DateTime?
+  usageLimit    Int? // Null means unlimited
+  isOneTimeUse  Boolean      @default(true) // 1 account 1 use
+  usedCount     Int          @default(0)
+  isActive      Boolean      @default(true)
+  deletedAt     DateTime? // For Soft Deletes
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    // Relation: Target specific courses. If empty, applies to all carts
-    applicableCourses Course[] @relation("CourseCoupons")
+  // Relation: Target specific courses. If empty, applies to all carts
+  applicableCourses Course[] @relation("CourseCoupons")
 
-    // Track which payments used this coupon
-    payments Payment[] @relation("PaymentCoupon")
+  // Track which payments used this coupon
+  payments Payment[] @relation("PaymentCoupon")
 
-    @@index([code])
-    @@index([deletedAt]) // Index for faster soft-delete filtering
-    @@map("coupons")
+  @@index([code])
+  @@index([deletedAt]) // Index for faster soft-delete filtering
+  @@map("coupons")
 }
