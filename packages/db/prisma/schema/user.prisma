@@ -19,10 +19,10 @@ model User {
 
   // Relations
   sessions    Session[]
-  enrollments  Enrollment[]
-  payments     Payment[]
-  progress     UserProgress[]
-  reviews      Review[]
+  enrollments Enrollment[]
+  payments    Payment[]
+  progress    UserProgress[]
+  reviews     Review[]
 
   @@index([email])
 }

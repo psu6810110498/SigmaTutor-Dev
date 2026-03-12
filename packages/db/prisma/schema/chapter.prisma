@@ -1,12 +1,12 @@
 model Chapter {
-  id        String   @id @default(cuid())
-  title     String
-  order     Int      @default(0)
+  id    String @id @default(cuid())
+  title String
+  order Int    @default(0)
 
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  lessons   Lesson[]
+  lessons Lesson[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -16,26 +16,26 @@ model Chapter {
 }
 
 model Lesson {
-  id            String        @id @default(cuid())
-  title         String
-  type          LessonType    @default(VIDEO)
+  id    String     @id @default(cuid())
+  title String
+  type  LessonType @default(VIDEO)
 
-  content       String?       // File URL or other content
-  
+  content String? // File URL or other content
+
   // --- Video Hosting Fields ---
-  youtubeUrl    String?       // YouTube URL/ID (ของเดิม เก็บไว้ก่อนกันแอปพัง)
-  gumletVideoId String?       // 👈 ฟิลด์ใหม่: เก็บ Video ID ของ Gumlet 
+  youtubeUrl    String? // YouTube URL/ID (ของเดิม เก็บไว้ก่อนกันแอปพัง)
+  gumletVideoId String? // 👈 ฟิลด์ใหม่: เก็บ Video ID ของ Gumlet 
   videoProvider VideoProvider @default(YOUTUBE) // 👈 ฟิลด์ใหม่: ตัวระบุว่าใช้วิดีโอจากค่ายไหน
 
-  duration      Int?          // Duration in seconds
+  duration Int? // Duration in seconds
 
-  order         Int           @default(0)
+  order Int @default(0)
 
-  chapterId     String
-  chapter       Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([chapterId])
   @@map("lessons")

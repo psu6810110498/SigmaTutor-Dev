@@ -1,16 +1,16 @@
 // Course models
 
 model Course {
-  id               String       @id @default(cuid())
+  id               String        @id @default(cuid())
   title            String
-  slug             String       @unique
+  slug             String        @unique
   shortDescription String?
   description      String?
   price            Float // From Main (Float is better for price)
   originalPrice    Float? // Aligning with price
   promotionalPrice Float? // Discounted Price
-  status           CourseStatus @default(DRAFT)
-  courseType       CourseType   @default(ONLINE)
+  status           CourseStatus  @default(DRAFT)
+  courseType       CourseType    @default(ONLINE)
   demoVideoUrl     String? // สำหรับใส่ลิงก์ MP4 หรือ Youtube
   gumletVideoId    String? // สำหรับใส่ ID วิดีโอ Gumlet รีวิวคอร์ส
   videoProvider    VideoProvider @default(YOUTUBE) // ค่ายวิดีโอ (นำมาจาก chapter.prisma ที่มี enum ไว้แล้ว)
@@ -29,7 +29,7 @@ model Course {
   // Relations (Main)
   // ใน Model Course
   teacherId String? // changed from instructorId
-  teacher   Teacher?   @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
+  teacher   Teacher? @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
 
   // Head Fields
   courseCode      String? // เพิ่มช่องรหัสคอร์ส
@@ -130,20 +130,20 @@ enum PaymentStatus {
 
 // Track user completion of lessons and schedules
 model UserProgress {
-  id           String   @id @default(cuid())
-  userId       String
-  courseId     String
-  
-  // Track either a Lesson or a CourseSchedule
-  lessonId     String?
-  scheduleId   String?  
-  
-  isCompleted  Boolean  @default(true)
-  completedAt  DateTime @default(now())
+  id       String @id @default(cuid())
+  userId   String
+  courseId String
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
+  // Track either a Lesson or a CourseSchedule
+  lessonId   String?
+  scheduleId String?
+
+  isCompleted Boolean  @default(true)
+  completedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
   @@unique([userId, lessonId])
   @@unique([userId, scheduleId])
   @@index([userId, courseId])
