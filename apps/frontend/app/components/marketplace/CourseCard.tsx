@@ -120,11 +120,15 @@ function SeatBar({
 }: {
   remaining: number; max: number; isFull: boolean; pct: number; isReservedOnly: boolean;
 }) {
+  // When maxSeats is unknown (max=0) but course is full, clamp to 100%
+  const displayPct   = max === 0 && isFull ? 100 : pct;
+  const showCount    = max > 0;
+
   const barColor =
-    isReservedOnly ? 'bg-orange-400' :
-    isFull         ? 'bg-red-500'    :
-    pct >= 75      ? 'bg-orange-500' :
-    pct >= 50      ? 'bg-yellow-500' :
+    isReservedOnly  ? 'bg-orange-400' :
+    isFull          ? 'bg-red-500'    :
+    displayPct >= 75 ? 'bg-orange-500' :
+    displayPct >= 50 ? 'bg-yellow-500' :
     'bg-green-500';
 
   return (
@@ -136,14 +140,16 @@ function SeatBar({
             ? 'จองชั่วคราวเต็ม'
             : isFull
             ? 'ปิดรับสมัครแล้ว'
-            : `เหลือ ${remaining}/${max} ที่`}
+            : showCount
+            ? `เหลือ ${remaining}/${max} ที่`
+            : 'ยังมีที่ว่าง'}
         </span>
       </div>
       {/* Track */}
       <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${barColor} ${isReservedOnly && !isFull ? 'animate-pulse' : ''}`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${displayPct}%` }}
         />
       </div>
     </div>
@@ -307,12 +313,21 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
 
   const enrolledCount    = course._count?.enrollments ?? 0;
   const maxSeats         = course.maxSeats;
-  const showSeatBar      = isLimitedCourse && maxSeats != null && maxSeats > 0;
 
-  const liveIsFull       = availability ? availability.isFull        : showSeatBar && enrolledCount >= maxSeats!;
+  // Derive seat state from live availability data first, then fall back to static counts
+  const liveIsFull       = availability ? availability.isFull        : maxSeats != null && maxSeats > 0 && enrolledCount >= maxSeats;
   const liveRemaining    = availability ? (availability.remaining ?? 0) : maxSeats ? Math.max(0, maxSeats - enrolledCount) : 0;
   const liveReservedOnly = availability ? availability.isReservedOnly : false;
-  const livePct          = availability ? (availability.percentage ?? 100) : showSeatBar ? calcEnrolledPct(enrolledCount, maxSeats!) : 0;
+  const livePct          = availability
+    ? (availability.percentage ?? 100)
+    : maxSeats != null && maxSeats > 0
+    ? calcEnrolledPct(enrolledCount, maxSeats)
+    : 0;
+
+  // Show SeatBar when: limited course WITH known seats, OR full regardless of maxSeats
+  const showSeatBar      = isLimitedCourse && (
+    (maxSeats != null && maxSeats > 0) || liveIsFull
+  );
 
   const showLowSeatBadge = showSeatBar && livePct >= (100 - LOW_SEAT_THRESHOLD_PCT) && livePct < 100 && !visibleBadges.find(b => b.label === 'จำกัดที่นั่ง');
 
@@ -458,32 +473,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
             </div>
           )}
 
-          {/* ── Instructor overlay strip at thumbnail bottom ── */}
-          {allInstructors.length > 0 && (
-            <div className="absolute bottom-0 left-0 right-0 z-10 bg-linear-to-t from-black/60 to-transparent px-2.5 py-1.5 flex items-center gap-1.5">
-              {/* Lead avatar */}
-              <button
-                onClick={handleTutorClick}
-                className={`shrink-0 relative rounded-full border-2 overflow-hidden shadow transition-all hover:scale-110 ${
-                  isTutorActive ? 'border-green-400' : 'border-white/70'
-                }`}
-                style={{ width: 22, height: 22 }}
-                title={`กรองตาม ${allInstructors[0].name}`}
-              >
-                {allInstructors[0].profileImage ? (
-                  <Image src={allInstructors[0].profileImage} alt={allInstructors[0].name ?? ''} fill className="object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-primary flex items-center justify-center text-[8px] text-white font-bold">
-                    {allInstructors[0].name?.charAt(0) ?? 'T'}
-                  </div>
-                )}
-              </button>
-              <span className="text-white text-[11px] font-medium truncate drop-shadow">
-                {allInstructors[0].name}
-                {allInstructors.length > 1 && ` +${allInstructors.length - 1}`}
-              </span>
-            </div>
-          )}
+
         </div>
 
         {/* ══════════════════════════════════════════════════════════════
@@ -559,15 +549,46 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
         </div>
 
         {/* ══════════════════════════════════════════════════════════════
-            ZONE 4 · FOOTER  (compact, no instructor row — moved to thumbnail)
+            ZONE 4 · FOOTER
         ══════════════════════════════════════════════════════════════ */}
         <div className="mt-auto px-3 pb-3 pt-2 border-t border-gray-100">
+
+          {/* Instructor row — links to tutor profile page */}
+          {leadInstructor && (
+            <Link
+              href={`/tutors/${leadInstructor.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-2 py-2 mb-2 border-b border-gray-50 group/tutor"
+            >
+              <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-gray-200 flex-shrink-0 bg-gray-100">
+                {leadInstructor.profileImage ? (
+                  <Image
+                    src={leadInstructor.profileImage}
+                    alt={leadInstructor.name ?? ''}
+                    fill
+                    className="object-cover"
+                    sizes="24px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-500 font-bold">
+                    {leadInstructor.name?.charAt(0) ?? 'T'}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-gray-500 truncate group-hover/tutor:text-blue-600 transition-colors leading-none">
+                {(leadInstructor as any).nickname ?? leadInstructor.name}
+              </span>
+              {allInstructors.length > 1 && (
+                <span className="text-[10px] text-gray-400 flex-shrink-0">+{allInstructors.length - 1}</span>
+              )}
+            </Link>
+          )}
 
           {/* Seat progress bar — ONSITE / LIVE only */}
           {showSeatBar && (
             <SeatBar
               remaining={liveRemaining}
-              max={maxSeats!}
+              max={maxSeats ?? 0}
               isFull={isFull}
               pct={livePct}
               isReservedOnly={liveReservedOnly}

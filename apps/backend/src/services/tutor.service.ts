@@ -62,13 +62,6 @@ export class TutorService {
         expertise: true,
         experience: true,
         education: true,
-        educationHistory: true,
-        achievements: true,
-        quote: true,
-        facebookUrl: true,
-        instagramUrl: true,
-        tiktokUrl: true,
-        linkedinUrl: true,
         socialLink: true,
         _count: {
           select: { courses: { where: { status: 'PUBLISHED', published: true } } },
@@ -77,11 +70,14 @@ export class TutorService {
       orderBy: { name: 'asc' },
     });
 
-    // Attach aggregate review stats for each tutor
+    // Attach aggregate review stats + new profile fields (graceful — migration may not have run)
     const tutorsWithStats = await Promise.all(
       tutors.map(async (tutor) => {
-        const stats = await this._getReviewStats(tutor.id);
-        return { ...tutor, ...stats };
+        const [stats, richFields] = await Promise.all([
+          this._getReviewStats(tutor.id),
+          this._getRichFields(tutor.id),
+        ]);
+        return { ...tutor, ...stats, ...richFields };
       })
     );
 
@@ -107,13 +103,6 @@ export class TutorService {
         expertise: true,
         experience: true,
         education: true,
-        educationHistory: true,
-        achievements: true,
-        quote: true,
-        facebookUrl: true,
-        instagramUrl: true,
-        tiktokUrl: true,
-        linkedinUrl: true,
         socialLink: true,
         courses: {
           where: { status: 'PUBLISHED', published: true },
@@ -144,9 +133,10 @@ export class TutorService {
 
     if (!tutor) return null;
 
-    const [reviewStats, recentReviews] = await Promise.all([
+    const [reviewStats, recentReviews, richFields] = await Promise.all([
       this._getReviewStats(id),
       this._getRecentReviews(id),
+      this._getRichFields(id),
     ]);
 
     const totalStudents = await prisma.enrollment.count({
@@ -163,10 +153,42 @@ export class TutorService {
 
     return {
       ...tutor,
+      ...richFields,
       ...reviewStats,
       recentReviews,
       totalStudents,
     };
+  }
+
+
+  /** Fetch new rich profile fields — graceful fallback if migration hasn't run yet */
+  private async _getRichFields(tutorId: string): Promise<Record<string, unknown>> {
+    try {
+      const t = await prisma.teacher.findUnique({
+        where: { id: tutorId },
+        select: {
+          educationHistory: true,
+          achievements: true,
+          quote: true,
+          facebookUrl: true,
+          instagramUrl: true,
+          tiktokUrl: true,
+          linkedinUrl: true,
+        },
+      });
+      return t ?? {};
+    } catch {
+      // Migration not yet applied — return safe defaults
+      return {
+        educationHistory: [],
+        achievements: [],
+        quote: null,
+        facebookUrl: null,
+        instagramUrl: null,
+        tiktokUrl: null,
+        linkedinUrl: null,
+      };
+    }
   }
 
   /** Aggregate review stats for a tutor across all their courses */
