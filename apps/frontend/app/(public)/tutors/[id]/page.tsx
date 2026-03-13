@@ -24,11 +24,12 @@ function TikTokIcon({ className }: { className?: string }) {
 export const revalidate = 3600;
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const res = await tutorApi.getById(params.id);
+  const { id } = await params;
+  const res = await tutorApi.getById(id);
   const tutor = res.data;
   if (!tutor) return { title: "Tutor Not Found" };
   return {
@@ -117,7 +118,8 @@ function ReviewCard({ review }: { review: TutorReview }) {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default async function TutorProfilePage({ params }: Props) {
-  const res = await tutorApi.getById(params.id);
+  const { id } = await params;
+  const res = await tutorApi.getById(id);
   const tutor = res.data as TutorPublicProfile | null;
 
   if (!res.success || !tutor) notFound();
