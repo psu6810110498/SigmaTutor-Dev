@@ -386,11 +386,10 @@ export const couponApi = {
 // ============================================================
 // Category API
 // ============================================================
-
 export const categoryApi = {
   /** GET /categories — List all (for dropdowns) */
   list() {
-    return request<Category[]>('/categories', {}, true, 10 * 60 * 1000); // Cache 10 minutes
+    return request<Category[]>('/categories', { next: { revalidate: 600 } } as RequestInit); // Cache 10 minutes
   },
 
   /** POST /categories — Create (ADMIN) */
@@ -448,11 +447,10 @@ export const userApi = {
 // ============================================================
 // Level API
 // ============================================================
-
 export const levelApi = {
   /** GET /levels — List all (ordered) */
   list() {
-    return request<Level[]>('/levels', {}, true, 10 * 60 * 1000); // Cache 10 minutes
+    return request<Level[]>('/levels', { next: { revalidate: 600 } } as RequestInit); // Cache 10 minutes
   },
 
   /** POST /levels — Create (ADMIN) */
@@ -509,6 +507,15 @@ export const reviewApi = {
     });
   },
 
+  /** PUT /reviews/:id — Update own review */
+  update(id: string, data: { rating: number; comment?: string }) {
+    return request<Review>(`/reviews/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
+
   /** PATCH /reviews/:id/helpful — Mark helpful (+1) */
   markHelpful(id: string) {
     return request<Review>(`/reviews/${id}/helpful`, {
@@ -520,6 +527,38 @@ export const reviewApi = {
   delete(id: string) {
     return request<void>(`/reviews/${id}`, {
       method: 'DELETE',
+      headers: headers(true),
+    });
+  },
+
+
+  /** GET /reviews/admin/courses — Admin: Get courses with review aggregate stats */
+  adminCourseList() {
+    return request<{ id: string; title: string; slug: string; thumbnail?: string | null; totalReviews: number; averageRating: number }[]>(
+      '/reviews/admin/courses',
+      { headers: headers(true) }
+    );
+  },
+
+  /** GET /reviews/admin — Admin: Get all reviews */
+  adminList(params: { page?: number; limit?: number; courseId?: string; sort?: 'latest' | 'oldest' | 'highest' | 'lowest' }) {
+    const query =
+      '?' +
+      new URLSearchParams(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)])
+      ).toString();
+
+    return request<{ reviews: Review[]; pagination: any }>(`/reviews/admin${query}`, {
+      headers: headers(true),
+    });
+  },
+
+  /** PATCH /reviews/admin/:id/toggle-visibility */
+  toggleVisibility(id: string) {
+    return request<Review>(`/reviews/admin/${id}/toggle-visibility`, {
+      method: 'PATCH',
       headers: headers(true),
     });
   },

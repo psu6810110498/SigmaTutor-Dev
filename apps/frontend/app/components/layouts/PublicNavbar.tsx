@@ -73,7 +73,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
 
 
                         {/* Cart */}
-                        <div className="hidden md:block relative">
+                        {user && <div className="hidden md:block relative">
                             <button
                                 className="relative p-2.5 rounded-full hover:bg-gray-50 text-gray-500 hover:text-primary transition-colors"
                                 onClick={() => setIsCartOpen(!isCartOpen)}
@@ -133,7 +133,7 @@ export function PublicNavbar({ onSidebarToggle, isDashboard = false }: PublicNav
                                     )}
                                 </div>
                             )}
-                        </div>
+                        </div>}
 
                         {/* Divider */}
                         <div className="hidden md:block h-6 w-px bg-gray-200 mx-2" />

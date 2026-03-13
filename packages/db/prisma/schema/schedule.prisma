@@ -10,10 +10,10 @@ model CourseSchedule {
   topic String // หัวข้อเนื้อหาย่อย
 
   // ─── ส่วนที่ต้องเพิ่มใหม่ตามโจทย์ ──────────────────────────
-  chapterTitle  String?        // ✅ เพิ่มใหม่: ชื่อบทเรียน (เช่น บทที่ 1)
-  videoUrl      String?        // ✅ เพิ่มใหม่: ลิงก์วิดีโอเนื้อหา
-  materialUrl   String?        // ✅ เพิ่มใหม่: ลิงก์ไฟล์ประกอบบทเรียน
-  gumletVideoId String?        // ✅ Gumlet Video ID
+  chapterTitle  String? // ✅ เพิ่มใหม่: ชื่อบทเรียน (เช่น บทที่ 1)
+  videoUrl      String? // ✅ เพิ่มใหม่: ลิงก์วิดีโอเนื้อหา
+  materialUrl   String? // ✅ เพิ่มใหม่: ลิงก์ไฟล์ประกอบบทเรียน
+  gumletVideoId String? // ✅ Gumlet Video ID
   videoProvider VideoProvider @default(YOUTUBE) // ✅ ตัวระบุว่าใช้วิดีโอจากค่ายไหน
   // ────────────────────────────────────────────────────────
 
