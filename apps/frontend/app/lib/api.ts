@@ -15,6 +15,7 @@ import type {
   ReviewQueryParams,
   Banner,
   BannerPosition,
+  AdminDashboardStats,
 } from './types';
 
 // ── Config ────────────────────────────────────────────────
@@ -247,6 +248,17 @@ export const tutorApi = {
         ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
         : '';
     return request<TutorProfile[]>(`/tutors${query}`);
+  },
+};
+
+// ============================================================
+// Admin Dashboard API
+// ============================================================
+
+export const dashboardApi = {
+  /** GET /dashboard/admin/stats — High-level metrics for admin dashboard */
+  getAdminStats() {
+    return request<AdminDashboardStats>('/dashboard/admin/stats');
   },
 };
 
@@ -530,17 +542,27 @@ export const reviewApi = {
     });
   },
 
-
   /** GET /reviews/admin/courses — Admin: Get courses with review aggregate stats */
   adminCourseList() {
-    return request<{ id: string; title: string; slug: string; thumbnail?: string | null; totalReviews: number; averageRating: number }[]>(
-      '/reviews/admin/courses',
-      { headers: headers(true) }
-    );
+    return request<
+      {
+        id: string;
+        title: string;
+        slug: string;
+        thumbnail?: string | null;
+        totalReviews: number;
+        averageRating: number;
+      }[]
+    >('/reviews/admin/courses', { headers: headers(true) });
   },
 
   /** GET /reviews/admin — Admin: Get all reviews */
-  adminList(params: { page?: number; limit?: number; courseId?: string; sort?: 'latest' | 'oldest' | 'highest' | 'lowest' }) {
+  adminList(params: {
+    page?: number;
+    limit?: number;
+    courseId?: string;
+    sort?: 'latest' | 'oldest' | 'highest' | 'lowest';
+  }) {
     const query =
       '?' +
       new URLSearchParams(

@@ -145,7 +145,7 @@ export interface Review {
   helpful: number;
   isHidden: boolean;
   userId: string;
-  user: { id: string; name: string; profileImage?: string | null; email?: string | null; };
+  user: { id: string; name: string; profileImage?: string | null; email?: string | null };
   courseId: string;
   course?: { id: string; title: string };
   createdAt: string;
@@ -252,4 +252,76 @@ export interface ReviewQueryParams {
   limit?: number;
   sort?: 'createdAt' | 'rating' | 'helpful';
   order?: 'asc' | 'desc';
+}
+
+// ── Admin Dashboard ─────────────────────────────────────
+
+export interface AdminDashboardTotals {
+  courses: number;
+  students: number;
+  revenue: number;
+  enrollments: number;
+}
+
+export interface AdminDashboardDailyPoint {
+  date: string; // YYYY-MM-DD
+  revenue: number;
+  enrollments: number;
+}
+
+export interface AdminDashboardTopCourse {
+  courseId: string;
+  courseTitle: string;
+  revenue: number;
+}
+
+export interface AdminDashboardPaymentStatusPoint {
+  status: string;
+  count: number;
+}
+
+export interface AdminDashboardNewStudentsPoint {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+export interface AdminDashboardTutorSummary {
+  tutorId: string;
+  name: string;
+  profileImage: string | null;
+  courseCount: number;
+  revenue: number;
+  studentCount: number;
+  avgRating: number;
+}
+
+export interface AdminDashboardMonthlyMetricPoint {
+  month: string; // YYYY-MM
+  value: number;
+}
+
+export interface AdminDashboardRatingBucket {
+  rating: number;
+  count: number;
+}
+
+export interface AdminDashboardTopRatedCourse {
+  courseId: string;
+  courseTitle: string;
+  avgRating: number;
+  reviewCount: number;
+}
+
+export interface AdminDashboardStats {
+  totals: AdminDashboardTotals;
+  daily: AdminDashboardDailyPoint[];
+  topCoursesByRevenue?: AdminDashboardTopCourse[];
+  paymentStatus?: AdminDashboardPaymentStatusPoint[];
+  newStudentsDaily?: AdminDashboardNewStudentsPoint[];
+  monthlyRevenue?: AdminDashboardMonthlyMetricPoint[];
+  monthlyNewStudents?: AdminDashboardMonthlyMetricPoint[];
+  monthlyNewCourses?: AdminDashboardMonthlyMetricPoint[];
+  ratingDistribution?: AdminDashboardRatingBucket[];
+  topRatedCourses?: AdminDashboardTopRatedCourse[];
+  tutors?: AdminDashboardTutorSummary[];
 }
