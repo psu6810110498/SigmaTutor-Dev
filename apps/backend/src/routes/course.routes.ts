@@ -266,7 +266,6 @@ router.post(
         return;
       }
 
-      // Use UploadService to upload to R2 (Correct Logic)
       const { url } = await import('../services/upload.service.js').then((m) =>
         m.uploadService.uploadFile(req.file!, 'courses/thumbnails')
       );
@@ -275,6 +274,100 @@ router.post(
       res.json({ success: true, data: { thumbnailUrl: url, course } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+// ── Admin Seat Management ─────────────────────────────────────
+
+/**
+ * POST /api/courses/:id/seats/sync
+ * Force sync Redis seat counter from DB
+ */
+router.post(
+  '/:id/seats/sync',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const courseId = req.params.id;
+      const course = await prisma.course.findUniqueOrThrow({
+        where: { id: courseId },
+        select: { maxSeats: true, courseType: true }
+      });
+
+      if (course.courseType === 'ONLINE' || !course.maxSeats) {
+        res.status(400).json({ success: false, error: 'Not a limited course' });
+        return;
+      }
+
+      const enrolledCount = await prisma.enrollment.count({
+        where: { courseId, status: 'ACTIVE' },
+      });
+      // Need to import seatReservationService at top to use it here: 
+      const { seatReservationService } = await import('../services/seat-reservation.service.js');
+      const reservedCount = await seatReservationService.countReservations(courseId);
+      
+      await seatReservationService.syncCounter(courseId, course.maxSeats, enrolledCount, reservedCount);
+      
+      res.json({ success: true, message: 'Seat counter synced successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to sync seats';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * PATCH /api/courses/:id/seats
+ * Update maxSeats (ADMIN only)
+ */
+router.patch(
+  '/:id/seats',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const courseId = req.params.id;
+      const maxSeats = Number(req.body.maxSeats);
+      
+      if (isNaN(maxSeats) || maxSeats < 0) {
+        res.status(400).json({ success: false, error: 'Invalid maxSeats' });
+        return;
+      }
+
+      await courseService.update(courseId, { maxSeats });
+      res.json({ success: true, message: 'Seat limit updated and counter synced' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update seats';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/courses/:id/enrollments
+ * Get enrolled students list for a limited course (ADMIN only)
+ */
+router.get(
+  '/:id/enrollments',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const enrollments = await prisma.enrollment.findMany({
+        where: { courseId: req.params.id, status: 'ACTIVE' },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, profileImage: true, phone: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json({ success: true, data: enrollments });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get enrollments';
       res.status(400).json({ success: false, error: message });
     }
   }

@@ -1,7 +1,6 @@
 'use client';
 
-import Image from 'next/image';
-import { X, ChevronDown, Users } from 'lucide-react';
+import { X, ChevronDown, Users, Check } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -26,13 +25,13 @@ export interface SelectedInstructor {
 const ROLE_LABELS: Record<InstructorRole, string> = {
   LEAD: 'ผู้สอนหลัก',
   ASSISTANT: 'ผู้ช่วยสอน',
-  GUEST: 'ผู้สอนรับเชิญ',
+  GUEST: 'รับเชิญ',
 };
 
 const ROLE_COLORS: Record<InstructorRole, string> = {
-  LEAD: 'bg-blue-100 text-blue-700',
-  ASSISTANT: 'bg-gray-100 text-gray-600',
-  GUEST: 'bg-purple-100 text-purple-700',
+  LEAD: 'bg-primary/10 text-primary border-primary/20',
+  ASSISTANT: 'bg-gray-100 text-gray-700 border-gray-200',
+  GUEST: 'bg-purple-100 text-purple-700 border-purple-200',
 };
 
 // ─── Props ────────────────────────────────────────────────────
@@ -50,7 +49,6 @@ interface Props {
 
 export function InstructorMultiSelect({ options, value, onChange, required }: Props) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ปิด dropdown เมื่อคลิกนอกพื้นที่
@@ -66,25 +64,20 @@ export function InstructorMultiSelect({ options, value, onChange, required }: Pr
 
   const selectedIds = new Set(value.map((v) => v.id));
 
-  const filtered = options.filter((opt) => {
-    if (selectedIds.has(opt.id)) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      opt.name?.toLowerCase().includes(q) ||
-      opt.nickname?.toLowerCase().includes(q)
-    );
-  });
+  // แสดงตัวเลือกทั้งหมด (คนที่ยังไม่ถูกเลือก + คนที่เลือกแล้ว)
+  const filtered = options;
 
   // เพิ่มผู้สอนใหม่ — คนแรกที่เพิ่มจะเป็น LEAD อัตโนมัติ
-  const handleAdd = (opt: InstructorOption) => {
-    const isFirst = value.length === 0;
-    onChange([
-      ...value,
-      { id: opt.id, role: isFirst ? 'LEAD' : 'ASSISTANT', order: value.length },
-    ]);
-    setSearch('');
-    setOpen(false);
+  const handleToggle = (opt: InstructorOption) => {
+    if (selectedIds.has(opt.id)) {
+      handleRemove(opt.id);
+    } else {
+      const isFirst = value.length === 0;
+      onChange([
+        ...value,
+        { id: opt.id, role: isFirst ? 'LEAD' : 'ASSISTANT', order: value.length },
+      ]);
+    }
   };
 
   // ลบผู้สอนออก และ re-index order + ปรับ LEAD ถ้าจำเป็น
@@ -117,134 +110,136 @@ export function InstructorMultiSelect({ options, value, onChange, required }: Pr
   const getOption = (id: string) => options.find((o) => o.id === id);
 
   return (
-    <div className="space-y-2">
-      {/* รายชื่อที่เลือกแล้ว */}
+    <div className="space-y-3">
+      {/* ปุ่มเปิด Dropdown */}
+      <div ref={dropdownRef} className="relative">
+        <button 
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className={`w-full flex items-center justify-between min-h-[46px] bg-white border ${open ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-gray-300 hover:border-gray-400'} rounded-xl transition-all px-4 py-2 text-left`}
+        >
+          <div className="flex items-center text-sm">
+            <Users className="text-gray-400 shrink-0 mr-2" size={16} />
+            <span className={value.length === 0 ? "text-gray-400" : "text-gray-800 font-medium"}>
+              {value.length === 0 
+                ? (required ? 'คลิกเพื่อเลือกผู้สอน *' : 'คลิกเพื่อเลือกผู้สอน...') 
+                : `เลือกแล้ว ${value.length} ท่าน (+ เพิ่มอีก)`}
+            </span>
+          </div>
+          <ChevronDown className={`text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} size={16} />
+        </button>
+
+        {/* Dropdown Options */}
+        {open && (
+           <div className="absolute z-50 top-full mt-2 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
+            <div className="max-h-[250px] overflow-y-auto p-1.5">
+              {filtered.length === 0 ? (
+                <div className="px-4 py-6 text-center text-sm text-gray-500">
+                  <span className="block text-3xl mb-2">✅</span>
+                  เลือกผู้สอนทุกคนแล้ว
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {filtered.map((opt) => {
+                    const isSelected = selectedIds.has(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggle(opt);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          isSelected 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-100 border border-gray-200">
+                            {opt.profileImage ? (
+                              <img src={opt.profileImage} alt={opt.name} className="w-full h-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-bold uppercase">
+                                {opt.name?.charAt(0) || '?'}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left flex flex-col">
+                            <span>{opt.name}</span>
+                            {opt.nickname && <span className="text-xs text-gray-500 font-normal">({opt.nickname})</span>}
+                          </div>
+                        </div>
+                        {isSelected && <Check size={16} className="text-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Selected Instructors List */}
       {value.length > 0 && (
-        <div className="space-y-2">
+        <div className="bg-gray-50/50 rounded-xl border border-gray-100 p-2 space-y-2">
           {value.map((sel) => {
             const opt = getOption(sel.id);
             if (!opt) return null;
             return (
               <div
                 key={sel.id}
-                className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50"
+                className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 shadow-sm transition-all hover:shadow-md"
               >
-                {/* Avatar */}
-                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary">
-                  {opt.profileImage ? (
-                    <Image src={opt.profileImage} alt={opt.name} fill className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
-                      {opt.name?.charAt(0)}
-                    </div>
-                  )}
-                </div>
-
-                {/* ชื่อ */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {opt.name}
-                    {opt.nickname && (
-                      <span className="text-gray-400 font-normal ml-1">({opt.nickname})</span>
+                {/* Left side: Avatar + Name */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 shadow-sm border border-gray-100 bg-gray-50">
+                    {opt.profileImage ? (
+                      <img src={opt.profileImage} alt={opt.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold uppercase">
+                        {opt.name?.charAt(0) || '?'}
+                      </div>
                     )}
-                  </p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {opt.name}
+                    </p>
+                    {opt.nickname && <p className="text-xs text-gray-500 truncate">({opt.nickname})</p>}
+                  </div>
                 </div>
 
-                {/* เลือก role */}
-                <select
-                  value={sel.role}
-                  onChange={(e) => handleRoleChange(sel.id, e.target.value as InstructorRole)}
-                  className={`text-xs px-2 py-1 rounded-full border-0 font-medium cursor-pointer ${ROLE_COLORS[sel.role]}`}
-                >
-                  {Object.entries(ROLE_LABELS).map(([r, label]) => (
-                    <option key={r} value={r}>{label}</option>
-                  ))}
-                </select>
+                {/* Right side: Role Select + Remove Action */}
+                <div className="flex items-center gap-2 pl-12 sm:pl-0">
+                  <select
+                    value={sel.role}
+                    onChange={(e) => handleRoleChange(sel.id, e.target.value as InstructorRole)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border outline-none cursor-pointer font-semibold transition-colors focus:ring-2 focus:ring-primary/20 ${ROLE_COLORS[sel.role]}`}
+                  >
+                    {Object.entries(ROLE_LABELS).map(([r, label]) => (
+                      <option key={r} value={r} className="bg-white text-gray-900 font-medium">
+                        {label}
+                      </option>
+                    ))}
+                  </select>
 
-                {/* ปุ่มลบ */}
-                <button
-                  type="button"
-                  onClick={() => handleRemove(sel.id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                  title="ลบผู้สอนนี้ออก"
-                >
-                  <X size={14} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(sel.id)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                    title="ลบผู้สอน"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
-
-      {/* Dropdown เพิ่มผู้สอน */}
-      <div ref={dropdownRef} className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-primary hover:text-primary transition-colors"
-        >
-          <Users size={14} />
-          <span>
-            {value.length === 0
-              ? required
-                ? 'เลือกผู้สอน *'
-                : 'เลือกผู้สอน'
-              : '+ เพิ่มผู้สอน'}
-          </span>
-          <ChevronDown size={14} className={`ml-auto transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-
-        {open && (
-          <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-            {/* ช่องค้นหา */}
-            <div className="p-2 border-b border-gray-100">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ค้นหาชื่อ..."
-                className="w-full text-sm px-2 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:border-primary"
-                autoFocus
-              />
-            </div>
-
-            {/* รายการผู้สอน */}
-            <ul className="max-h-48 overflow-y-auto">
-              {filtered.length === 0 ? (
-                <li className="px-3 py-3 text-xs text-gray-400 text-center">
-                  {search ? 'ไม่พบผู้สอนที่ค้นหา' : 'ผู้สอนทุกคนถูกเลือกแล้ว'}
-                </li>
-              ) : (
-                filtered.map((opt) => (
-                  <li key={opt.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleAdd(opt)}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="relative w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-primary">
-                        {opt.profileImage ? (
-                          <Image src={opt.profileImage} alt={opt.name} fill className="object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white text-[10px] font-bold">
-                            {opt.name?.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-gray-700">
-                        {opt.name}
-                        {opt.nickname && (
-                          <span className="text-gray-400 ml-1">({opt.nickname})</span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

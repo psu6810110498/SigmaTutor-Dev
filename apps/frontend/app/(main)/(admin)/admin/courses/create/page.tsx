@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
     FileText, Video, Folder, Globe, MapPin, Users, Monitor,
-    Save, ChevronLeft, Tag, User, Award, Sparkles, BookOpen, CalendarDays, File
+    Save, ChevronLeft, Tag, User, Award, Sparkles, BookOpen, CalendarDays, File,
+    LayoutDashboard, Calendar, CheckCircle2
 } from "lucide-react";
-import { courseApi, categoryApi, levelApi, scheduleApi } from "@/app/lib/api";
+import { courseApi, categoryApi, levelApi, userApi } from "@/app/lib/api";
 import type { Category, Level, CreateCourseInput } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { AdminFormLayout } from "@/app/components/layouts/AdminFormLayout";
@@ -16,8 +17,10 @@ import { NumberInput } from "@/app/components/ui/NumberInput";
 import { RichTextarea } from "@/app/components/ui/RichTextarea";
 import { ImageUpload } from "@/app/components/ui/ImageUpload";
 import { Button } from "@/app/components/ui/Button";
-import { ScheduleInput, type ScheduleSession } from "@/app/components/ui/ScheduleInput";
 import { InstructorMultiSelect, type SelectedInstructor, type InstructorOption } from "@/app/components/ui/InstructorMultiSelect";
+import { LessonsTab } from "../[id]/edit/tabs/LessonsTab";
+import { LiveScheduleTab } from "../[id]/edit/tabs/LiveScheduleTab";
+import { OnsiteScheduleTab } from "../[id]/edit/tabs/OnsiteScheduleTab";
 
 const DRAFT_KEY = "draft_course_create";
 const QUICK_FILTERS = ["ทั้งหมด", "ประถม", "ม.ต้น", "ม.ปลาย", "TCAS", "SAT", "IELTS"];
@@ -31,28 +34,31 @@ export default function CreateCoursePage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    // ── ข้อมูลอ้างอิงจาก API ──
+    const [activeTab, setActiveTab] = useState<"overview" | "content">("overview");
+    const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
+
     const [categories, setCategories] = useState<Category[]>([]);
     const [levels, setLevels] = useState<Level[]>([]);
     const [instructors, setInstructors] = useState<InstructorOption[]>([]);
-    // ผู้สอนที่เลือกแล้ว (รองรับหลายคน)
     const [selectedInstructors, setSelectedInstructors] = useState<SelectedInstructor[]>([]);
 
     useEffect(() => {
         categoryApi.list().then((r) => { if (r.success && r.data) setCategories(r.data); });
         levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
-
         const fetchInstructors = async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/users/instructors', { credentials: 'include' });
-                const data = await res.json();
-                if (data.success) setInstructors(data.data as InstructorOption[]);
+                const res = await userApi.list();
+                if (res.success && res.data) {
+                    const options: InstructorOption[] = res.data.map((t: any) => ({
+                        id: t.id, name: t.name, profileImage: t.profileImage || undefined,
+                    }));
+                    setInstructors(options);
+                }
             } catch (error) { console.error("Failed to fetch instructors:", error); }
         };
         fetchInstructors();
     }, []);
 
-    // ── จัดการหมวดหมู่และระดับชั้น ──
     const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
     const [rootCategoryId, setRootCategoryId] = useState<string>("");
     const [activeQuickFilter, setActiveQuickFilter] = useState<string>("ทั้งหมด");
@@ -70,7 +76,6 @@ export default function CreateCoursePage() {
 
     const showLevelDropdown = levelOptions.length > 0;
 
-    // ── Form State ──
     const [form, setForm] = useState<any>({
         title: "",
         courseCode: "",
@@ -101,24 +106,22 @@ export default function CreateCoursePage() {
         tags: [],
         isBestSeller: false,
         isRecommended: false,
+        accessDurationDays: 365,
     });
 
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-    const [sessions, setSessions] = useState<ScheduleSession[]>([]);
     const [saving, setSaving] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [uploadingGumlet, setUploadingGumlet] = useState(false);
     const [gumletProgress, setGumletProgress] = useState(0);
-    const [createdCourseId, setCreatedCourseId] = useState<string | null>(null);
 
-    // ── จัดการข้อมูลแบบร่าง (Draft) ──
     useEffect(() => {
+        if (createdCourseId) return;
         const saved = localStorage.getItem(DRAFT_KEY);
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.form) setForm(prev => ({ ...prev, ...parsed.form }));
-                if (parsed.sessions) setSessions(parsed.sessions);
+                if (parsed.form) setForm((prev: any) => ({ ...prev, ...parsed.form }));
                 if (parsed.rootCategoryId) setRootCategoryId(parsed.rootCategoryId);
                 if (parsed.activeQuickFilter) setActiveQuickFilter(parsed.activeQuickFilter);
             } catch (e) { console.error("Failed to parse draft", e); }
@@ -126,29 +129,20 @@ export default function CreateCoursePage() {
     }, []);
 
     useEffect(() => {
+        if (createdCourseId) return;
         const timer = setTimeout(() => {
-            localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, sessions, rootCategoryId, activeQuickFilter }));
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, rootCategoryId, activeQuickFilter }));
         }, 1000);
         return () => clearTimeout(timer);
-    }, [form, sessions, rootCategoryId, activeQuickFilter]);
+    }, [form, rootCategoryId, activeQuickFilter, createdCourseId]);
 
-    // ✅ เคลียร์ categoryId/levelId ที่ไม่ถูกต้องจาก draft (เช่น หลัง seed ใหม่ ID เปลี่ยน)
     useEffect(() => {
         if (categories.length === 0 && levels.length === 0) return;
         let changed = false;
         const updates: any = {};
-        if (form.categoryId && !categories.some((c) => c.id === form.categoryId)) {
-            updates.categoryId = null;
-            changed = true;
-        }
-        if (form.levelId && !levels.some((l) => l.id === form.levelId)) {
-            updates.levelId = null;
-            changed = true;
-        }
-        if (rootCategoryId && !categories.some((c) => c.id === rootCategoryId)) {
-            setRootCategoryId("");
-            changed = true;
-        }
+        if (form.categoryId && !categories.some((c) => c.id === form.categoryId)) { updates.categoryId = null; changed = true; }
+        if (form.levelId && !levels.some((l) => l.id === form.levelId)) { updates.levelId = null; changed = true; }
+        if (rootCategoryId && !categories.some((c) => c.id === rootCategoryId)) { setRootCategoryId(""); changed = true; }
         if (changed) setForm((prev: any) => ({ ...prev, ...updates }));
     }, [categories, levels]);
 
@@ -178,16 +172,9 @@ export default function CreateCoursePage() {
     const handleQuickFilter = (label: string) => {
         setActiveQuickFilter(label);
         updateForm("levelId", null);
-        if (label === "ทั้งหมด") {
-            setRootCategoryId("");
-            setForm(prev => ({ ...prev, categoryId: null }));
-            return;
-        }
+        if (label === "ทั้งหมด") { setRootCategoryId(""); setForm((prev: any) => ({ ...prev, categoryId: null })); return; }
         const found = rootCategories.find(c => c.name === label);
-        if (found) {
-            setRootCategoryId(found.id);
-            setForm(prev => ({ ...prev, categoryId: null }));
-        }
+        if (found) { setRootCategoryId(found.id); setForm((prev: any) => ({ ...prev, categoryId: null })); }
     };
 
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,96 +184,36 @@ export default function CreateCoursePage() {
         const formData = new FormData();
         formData.append("file", file);
         try {
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
-                method: 'POST',
-                credentials: 'include',
-                body: formData
-            });
+            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', { method: 'POST', credentials: 'include', body: formData });
             const data = await res.json();
-            if (data.url) {
-                updateForm("materialUrl", data.url);
-                toast.success("อัปโหลด PDF สำเร็จ");
-            } else {
-                toast.error(data.error || "อัปโหลดไฟล์ไม่สำเร็จ");
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error("เกิดข้อผิดพลาดในการอัปโหลด");
-        } finally {
-            setUploadingPdf(false);
-        }
+            if (data.url) { updateForm("materialUrl", data.url); toast.success("อัปโหลด PDF สำเร็จ"); }
+            else toast.error(data.error || "อัปโหลดไฟล์ไม่สำเร็จ");
+        } catch (error) { console.error(error); toast.error("เกิดข้อผิดพลาดในการอัปโหลด"); }
+        finally { setUploadingPdf(false); }
     };
 
     const handleGumletVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Ensure video
-        if (!file.type.startsWith('video/')) {
-            toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น");
-            return;
-        }
-
+        if (!file || !file.type.startsWith('video/')) { toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น"); return; }
         try {
-            setUploadingGumlet(true);
-            setGumletProgress(0);
-
-            // 1. Get Signed URL and Asset ID from our Backend
-            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
-                method: 'POST',
-                credentials: 'include'
-            });
+            setUploadingGumlet(true); setGumletProgress(0);
+            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', { method: 'POST', credentials: 'include' });
             const data = await res.json();
-
-            if (!data.success || !data.upload_url) {
-                toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
-                setUploadingGumlet(false);
-                return;
-            }
-
+            if (!data.success || !data.upload_url) { toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้"); setUploadingGumlet(false); return; }
             const { upload_url, asset_id } = data;
-
-            // 2. Upload raw file directly to Gumlet securely
             return new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url, true);
                 xhr.setRequestHeader('Content-Type', file.type);
-
-                xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        const percentComplete = Math.round((event.loaded / event.total) * 100);
-                        setGumletProgress(percentComplete);
-                    }
-                };
-
+                xhr.upload.onprogress = (event) => { if (event.lengthComputable) setGumletProgress(Math.round((event.loaded / event.total) * 100)); };
                 xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        updateForm("gumletVideoId", asset_id);
-                        toast.success("อัปโหลดวิดีโอสำเร็จ");
-                        setUploadingGumlet(false);
-                        resolve();
-                    } else {
-                        console.error('Upload failed with status', xhr.status, xhr.responseText);
-                        toast.error("อัปโหลดไม่สำเร็จ หรือถูกยกเลิก");
-                        setUploadingGumlet(false);
-                        reject(new Error("Upload failed"));
-                    }
+                    if (xhr.status >= 200 && xhr.status < 300) { updateForm("gumletVideoId", asset_id); toast.success("อัปโหลดวิดีโอสำเร็จ"); setUploadingGumlet(false); resolve(); }
+                    else { toast.error("อัปโหลดไม่สำเร็จ"); setUploadingGumlet(false); reject(new Error("Upload failed")); }
                 };
-
-                xhr.onerror = () => {
-                    console.error('XHR Upload Error');
-                    toast.error("เกิดข้อผิดพลาดในการอัปโหลดวิดีโอ");
-                    setUploadingGumlet(false);
-                    reject(new Error("XHR Error"));
-                };
-
+                xhr.onerror = () => { toast.error("เกิดข้อผิดพลาดในการอัปโหลด"); setUploadingGumlet(false); reject(new Error("XHR Error")); };
                 xhr.send(file);
             });
-        } catch (error) {
-            console.error(error);
-            toast.error("ระบบอัปโหลดมีปัญหา");
-            setUploadingGumlet(false);
-        }
+        } catch (error) { console.error(error); toast.error("ระบบอัปโหลดมีปัญหา"); setUploadingGumlet(false); }
     };
 
     const handleSubmit = async () => {
@@ -299,32 +226,20 @@ export default function CreateCoursePage() {
             toast.error("กรุณาระบุจำนวนที่นั่งสำหรับคอร์สประเภทนี้");
             setSaving(false); return;
         }
-        if (form.courseType === "ONLINE") {
-            form.maxSeats = null;
-        }
+        if (form.courseType === "ONLINE") form.maxSeats = null;
 
         const payload: any = { ...form };
-        // ส่ง instructorIds array ไปพร้อม payload (backend จัดการ CourseTeacher)
-        payload.instructorIds = selectedInstructors
-            .sort((a, b) => a.order - b.order)
-            .map((s) => s.id);
-        // ลบ instructorId เดิมออก ใช้ instructorIds แทน
+        payload.instructorIds = selectedInstructors.sort((a, b) => a.order - b.order).map((s) => s.id);
         delete payload.instructorId;
-
         ['enrollStartDate', 'enrollEndDate'].forEach(key => {
-            if (payload[key]) {
-                try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; }
-            } else { payload[key] = null; }
+            if (payload[key]) { try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; } }
+            else payload[key] = null;
         });
-
         ['demoVideoUrl', 'gumletVideoId', 'location', 'materialUrl', 'mapUrl', 'zoomLink', 'meetingId'].forEach((key) => {
             if (payload[key] === "") payload[key] = null;
         });
-
         payload.description = payload.description || "";
         payload.shortDescription = payload.shortDescription || "";
-
-        // ✅ จัดการเรื่อง ID ระดับชั้น
         if (showLevelDropdown) {
             const found = levels.find(l => l.id === payload.levelId || l.name === payload.levelId);
             payload.levelId = found ? found.id : null;
@@ -338,24 +253,13 @@ export default function CreateCoursePage() {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
             });
             const res = await response.json();
-
             if (res.success) {
                 const newId = res.data.id;
-                setCreatedCourseId(newId);
-
                 if (thumbnailFile) await courseApi.uploadThumbnail(newId, thumbnailFile);
-
-                if (sessions.length > 0) {
-                    try {
-                        await scheduleApi.sync(newId, sessions);
-                    } catch (err) {
-                        console.warn("schedule sync failed", err);
-                    }
-                }
-
                 localStorage.removeItem(DRAFT_KEY);
-                toast.success("สร้างคอร์สสำเร็จแล้ว 🎉");
-                router.push("/admin/courses");
+                setCreatedCourseId(newId);
+                toast.success("สร้างคอร์สสำเร็จ! เพิ่มบทเรียนได้เลย");
+                setActiveTab("content");
             } else {
                 toast.error(res.error || "สร้างคอร์สไม่สำเร็จ");
             }
@@ -378,393 +282,316 @@ export default function CreateCoursePage() {
 
     const inputClass = "w-full h-10 px-3 rounded-lg border border-gray-300 bg-white text-sm focus:ring-2 focus:ring-primary/30 outline-none transition-all";
     const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+    const fakeCourse = createdCourseId ? { ...form, id: createdCourseId } : null;
 
     return (
         <AdminFormLayout
-            title="สร้างคอร์สใหม่"
-            description="กรอกข้อมูลคอร์สเพื่อเริ่มสอน คอร์สที่สร้างจะแสดงในหน้าค้นหาอัตโนมัติ"
+            title={createdCourseId ? `แก้ไข: ${form.title}` : "สร้างคอร์สใหม่"}
+            description={createdCourseId ? "จัดการบทเรียนหรือตารางเรียน" : "กรอกข้อมูลคอร์สเพื่อเริ่มสอน"}
             breadcrumbs={[
                 { label: 'แดชบอร์ด', href: '/admin' },
                 { label: 'จัดการคอร์ส', href: '/admin/courses' },
                 { label: 'สร้างคอร์สใหม่', href: '#' }
             ]}
             actions={
-                <>
-                    <Link href="/admin/courses"><Button variant="ghost">ยกเลิก</Button></Link>
-                    <Button onClick={handleSubmit} isLoading={saving}>
-                        <Save size={18} className="mr-2" /> บันทึกคอร์ส
-                    </Button>
-                </>
+                activeTab === "overview" ? (
+                    <>
+                        <Link href="/admin/courses"><Button variant="ghost">ยกเลิก</Button></Link>
+                        {!createdCourseId ? (
+                            <Button onClick={handleSubmit} isLoading={saving}>
+                                <Save size={18} className="mr-2" /> บันทึกและไปต่อ
+                            </Button>
+                        ) : (
+                            <Button onClick={() => setActiveTab("content")}>
+                                <CheckCircle2 size={18} className="mr-2" /> ไปจัดการบทเรียน
+                            </Button>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <Button variant="ghost" onClick={() => setActiveTab("overview")}>
+                            <ChevronLeft size={18} className="mr-1" /> ข้อมูลทั่วไป
+                        </Button>
+                        <Link href="/admin/courses">
+                            <Button variant="outline">
+                                <CheckCircle2 size={18} className="mr-2" /> เสร็จสิ้น
+                            </Button>
+                        </Link>
+                    </>
+                )
             }
         >
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <SectionCard title="ข้อมูลทั่วไป" icon={FileText}>
-                        <div className="space-y-4">
-                            <div>
-                                <label className={labelClass}>ชื่อคอร์ส <span className="text-red-500">*</span></label>
-                                <input type="text" value={form.title} onChange={(e) => updateForm("title", e.target.value)} placeholder="เช่น ฟิสิกส์ A-Level ฉบับแม่นยำ" className={inputClass} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>รหัสคอร์ส</label>
-                                <input type="text" value={form.courseCode || ""} onChange={(e) => updateForm("courseCode", e.target.value)} placeholder="เช่น PHYS-A001" className={inputClass} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>คำอธิบายสั้นๆ (แสดงหน้าคอร์ส) <span className="text-red-500">*</span></label>
-                                <textarea
-                                    value={form.shortDescription || ""}
-                                    onChange={(e) => updateForm("shortDescription", e.target.value)}
-                                    placeholder="คำอธิบายสั้นๆ ที่จะแสดงในหน้าคอร์ส (ประมาณ 1-2 บรรทัด)…"
-                                    rows={3}
-                                    className={inputClass}
-                                />
-                            </div>
-                            <RichTextarea label="คำอธิบายเต็มๆ" value={form.description || ""} onChange={(val) => updateForm("description", val)} placeholder="รายละเอียดเนื้อหา สิ่งที่จะได้รับ…" rows={6} />
-                        </div>
-                    </SectionCard>
+            <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+                <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutDashboard} label="ข้อมูลทั่วไป" />
+                <TabButton
+                    active={activeTab === "content"}
+                    onClick={() => createdCourseId ? setActiveTab("content") : undefined}
+                    icon={form.courseType === "ONLINE" ? BookOpen : Calendar}
+                    label={form.courseType === "ONLINE" ? "เนื้อหาบทเรียน" : "ตารางเรียน"}
+                    disabled={!createdCourseId}
+                />
+            </div>
 
-                    <SectionCard title="สื่อการสอน" icon={Video}>
-                        <div className="space-y-4">
-                            <ImageUpload label="ภาพปก (16:9)" value={thumbnailFile} onChange={setThumbnailFile} />
-
-                            <div className="grid grid-cols-1 gap-4 pt-4 border-t border-gray-100">
-                                <div>
-                                    <label className={labelClass}>ผู้ให้บริการวิดีโอตัวอย่าง</label>
-                                    <select
-                                        value={form.videoProvider}
-                                        onChange={(e) => updateForm("videoProvider", e.target.value)}
-                                        className={inputClass}
-                                    >
-                                        <option value="YOUTUBE">YouTube</option>
-                                        <option value="GUMLET">Gumlet</option>
-                                    </select>
-                                </div>
-
-                                {form.videoProvider === 'GUMLET' ? (
+            <div className="animate-fade-in-up">
+                {activeTab === "overview" && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-6">
+                            <SectionCard title="ข้อมูลทั่วไป" icon={FileText}>
+                                <div className="space-y-4">
                                     <div>
-                                        <label className={labelClass}>วิดีโอตัวอย่าง (Gumlet Video ID)</label>
-                                        <div className="relative flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <Video className={`absolute left-3 top-1/2 -translate-y-1/2 ${form.gumletVideoId ? 'text-green-500' : 'text-gray-400'}`} size={16} />
-                                                <input
-                                                    type="text"
-                                                    value={form.gumletVideoId || ""}
-                                                    onChange={(e) => updateForm("gumletVideoId", e.target.value)}
-                                                    className={`w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm pl-10 pr-20 ${form.gumletVideoId && form.gumletVideoId.length > 5 ? 'border-green-300 bg-green-50/30 text-green-800' : 'bg-white'}`}
-                                                    placeholder="กรอก Video ID หรืออัปโหลดไฟล์..."
-                                                    disabled={uploadingGumlet}
-                                                />
-                                                {form.gumletVideoId && !uploadingGumlet && (
-                                                    <button type="button" onClick={() => updateForm("gumletVideoId", "")} className="absolute right-12 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-500">
-                                                        ✗
-                                                    </button>
-                                                )}
+                                        <label className={labelClass}>ชื่อคอร์ส <span className="text-red-500">*</span></label>
+                                        <input type="text" value={form.title} onChange={(e) => updateForm("title", e.target.value)} placeholder="เช่น ฟิสิกส์ A-Level ฉบับแม่นยำ" className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>รหัสคอร์ส</label>
+                                        <input type="text" value={form.courseCode || ""} onChange={(e) => updateForm("courseCode", e.target.value)} placeholder="เช่น PHYS-A001" className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className={labelClass}>คำอธิบายสั้นๆ (แสดงบน Card) <span className="text-red-500">*</span></label>
+                                            <span className={`text-xs font-medium tabular-nums ${(form.shortDescription?.length ?? 0) === 0 ? 'text-gray-400' : (form.shortDescription?.length ?? 0) >= 50 && (form.shortDescription?.length ?? 0) <= 120 ? 'text-green-600' : (form.shortDescription?.length ?? 0) > 180 ? 'text-red-500' : 'text-amber-500'}`}>
+                                                {form.shortDescription?.length ?? 0} / 120
+                                            </span>
+                                        </div>
+                                        <textarea value={form.shortDescription || ""} onChange={(e) => updateForm("shortDescription", e.target.value)} placeholder="คำอธิบายสั้นๆ ที่จะแสดงบนการ์ดคอร์ส — แนะนำ 50‒120 ตัวอักษร" rows={3} maxLength={200}
+                                            className={`${inputClass} ${(form.shortDescription?.length ?? 0) >= 50 && (form.shortDescription?.length ?? 0) <= 120 ? 'ring-1 ring-green-400 border-green-300' : ''}`} />
+                                        <p className="text-[11px] text-gray-400 mt-1">50–120 ตัวอักษรดีที่สุด</p>
+                                    </div>
+                                    <RichTextarea label="คำอธิบายเต็มๆ" value={form.description || ""} onChange={(val) => updateForm("description", val)} placeholder="รายละเอียดเนื้อหา สิ่งที่จะได้รับ…" rows={6} />
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard title="สื่อการสอน" icon={Video}>
+                                <div className="space-y-4">
+                                    <ImageUpload label="ภาพปก (16:9)" value={thumbnailFile} onChange={setThumbnailFile} />
+                                    <div className="grid grid-cols-1 gap-4 pt-4 border-t border-gray-100">
+                                        <div>
+                                            <label className={labelClass}>ผู้ให้บริการวิดีโอตัวอย่าง</label>
+                                            <select value={form.videoProvider} onChange={(e) => updateForm("videoProvider", e.target.value)} className={inputClass}>
+                                                <option value="YOUTUBE">YouTube</option>
+                                                <option value="GUMLET">Gumlet</option>
+                                            </select>
+                                        </div>
+                                        {form.videoProvider === 'GUMLET' ? (
+                                            <div>
+                                                <label className={labelClass}>วิดีโอตัวอย่าง (Gumlet Video ID)</label>
+                                                <div className="relative flex items-center gap-2">
+                                                    <div className="relative flex-1">
+                                                        <Video className={`absolute left-3 top-1/2 -translate-y-1/2 ${form.gumletVideoId ? 'text-green-500' : 'text-gray-400'}`} size={16} />
+                                                        <input type="text" value={form.gumletVideoId || ""} onChange={(e) => updateForm("gumletVideoId", e.target.value)} className={`w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm pl-10 pr-20 ${form.gumletVideoId && form.gumletVideoId.length > 5 ? 'border-green-300 bg-green-50/30 text-green-800' : 'bg-white'}`} placeholder="กรอก Video ID หรืออัปโหลดไฟล์..." disabled={uploadingGumlet} />
+                                                        {form.gumletVideoId && !uploadingGumlet && <button type="button" onClick={() => updateForm("gumletVideoId", "")} className="absolute right-12 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-500">✗</button>}
+                                                    </div>
+                                                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex">
+                                                        <input type="file" accept="video/mp4,video/x-m4v,video/*" onChange={handleGumletVideoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploadingGumlet} title="อัปโหลดวิดีโอใหม่" />
+                                                        <button type="button" disabled={uploadingGumlet} className={`h-8 px-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center ${uploadingGumlet ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}>
+                                                            {uploadingGumlet ? <span className="flex items-center gap-1"><svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>{gumletProgress}%</span> : <span className="flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>อัปโหลด</span>}
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex">
-                                                <input
-                                                    type="file"
-                                                    accept="video/mp4,video/x-m4v,video/*"
-                                                    onChange={handleGumletVideoUpload}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                    disabled={uploadingGumlet}
-                                                    title="อัปโหลดวิดีโอใหม่"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    disabled={uploadingGumlet}
-                                                    className={`h-8 px-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center ${
-                                                        uploadingGumlet
-                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                            : 'bg-primary/10 text-primary hover:bg-primary/20'
-                                                    }`}
-                                                >
-                                                    {uploadingGumlet ? (
-                                                        <span className="flex items-center gap-1">
-                                                            <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg>
-                                                            {gumletProgress}%
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                                                            อัปโหลด
-                                                        </span>
-                                                    )}
-                                                </button>
+                                        ) : (
+                                            <div>
+                                                <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (Youtube / MP4)</label>
+                                                <input type="url" value={form.demoVideoUrl || ""} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={inputClass} placeholder="https://www.youtube.com/watch?v=..." />
                                             </div>
+                                        )}
+                                        <div>
+                                            <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF หรืออัปโหลดใหม่)</label>
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                                <div className="relative flex-1">
+                                                    <File className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                                    <input type="url" value={form.materialUrl || ""} onChange={(e) => updateForm("materialUrl", e.target.value)} className={`${inputClass} pl-10`} placeholder="https://example.com/handout.pdf" disabled={uploadingPdf} />
+                                                </div>
+                                                <div className="relative shrink-0 flex">
+                                                    <input type="file" accept="application/pdf" onChange={handlePdfUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploadingPdf} />
+                                                    <Button variant="outline" disabled={uploadingPdf} className="w-full sm:w-auto">{uploadingPdf ? "กำลังอัปโหลด..." : "เลือกไฟล์ PDF"}</Button>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-400 mt-1.5">รองรับไฟล์ .pdf ขนาดไม่เกิน 10MB</p>
                                         </div>
                                     </div>
-                                ) : (
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard title="หมวดหมู่และระดับชั้น" icon={Folder}>
+                                <div className="space-y-4">
                                     <div>
-                                        <label className={labelClass}>ลิงก์วิดีโอตัวอย่าง (Youtube / MP4)</label>
-                                        <input type="url" value={form.demoVideoUrl || ""} onChange={(e) => updateForm("demoVideoUrl", e.target.value)} className={inputClass} placeholder="https://www.youtube.com/watch?v=..." />
+                                        <label className={labelClass}>หมวดหมู่หลัก <span className="text-red-500">*</span></label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {QUICK_FILTERS.map((filter) => (
+                                                <button key={filter} type="button" onClick={() => handleQuickFilter(filter)}
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeQuickFilter === filter ? 'bg-secondary text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                                                    {filter}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {rootCategoryId && childCategories.length > 0 && (
+                                        <div>
+                                            <label className={labelClass}>เลือกวิชา <span className="text-red-500">*</span></label>
+                                            <select value={form.categoryId || ""} onChange={(e) => updateForm("categoryId", e.target.value || null)} className={inputClass}>
+                                                <option value="" disabled>-- เลือกวิชา --</option>
+                                                {childCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className={labelClass}>ระดับชั้น</label>
+                                        <select value={form.levelId || ""} onChange={(e) => updateForm("levelId", e.target.value || null)} className={inputClass}>
+                                            <option value="">-- เลือกระดับชั้น --</option>
+                                            {levels.filter(l => {
+                                                if (!activeQuickFilter || activeQuickFilter === "ทั้งหมด") return true;
+                                                if (activeQuickFilter === "ประถม") return l.name.startsWith("ป.");
+                                                if (activeQuickFilter === "ม.ต้น") return ["ม.1", "ม.2", "ม.3"].includes(l.name);
+                                                if (activeQuickFilter === "ม.ปลาย") return ["ม.4", "ม.5", "ม.6"].includes(l.name);
+                                                if (activeQuickFilter === "TCAS") return l.name === "สอบเข้ามหาลัย";
+                                                if (activeQuickFilter === "SAT" || activeQuickFilter === "IELTS") return l.name === "ทั่วไป";
+                                                return true;
+                                            }).map((lvl) => <option key={lvl.id} value={lvl.id}>{lvl.name}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard title="ผู้สอน" icon={User}>
+                                <InstructorMultiSelect options={instructors} value={selectedInstructors} onChange={setSelectedInstructors} required />
+                            </SectionCard>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="bg-white p-5 rounded-xl border shadow-sm">
+                                <div className="flex justify-between mb-2">
+                                    <span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Sparkles size={16} className="text-yellow-500" /> ความสมบูรณ์</span>
+                                    <span>{completeness}%</span>
+                                </div>
+                                <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${completeness}%` }}></div></div>
+                                {createdCourseId && <p className="text-xs text-green-600 mt-3 flex items-center gap-1"><CheckCircle2 size={14} /> คอร์สถูกสร้างแล้ว</p>}
+                            </div>
+
+                            <SectionCard title="ราคา">
+                                <div className="space-y-4">
+                                    <NumberInput label="ราคาตั้งต้น (บาท)" value={form.originalPrice || undefined} onChange={(v) => updateForm("originalPrice", v || null)} />
+                                    <NumberInput label="ราคาขาย (บาท) *" value={form.price} onChange={(v) => updateForm("price", v)} />
+                                    <div>
+                                        <label className={labelClass}>ช่วงราคา</label>
+                                        <select value={form.priceRange || ""} onChange={(e) => updateForm("priceRange", e.target.value || null)} className={inputClass}>
+                                            <option value="">-- เลือกช่วงราคา --</option>
+                                            <option value="under-1000">ต่ำกว่า 1,000 บาท</option>
+                                            <option value="1000-3000">1,000 - 3,000 บาท</option>
+                                            <option value="3000-5000">3,000 - 5,000 บาท</option>
+                                            <option value="5000-10000">5,000 - 10,000 บาท</option>
+                                            <option value="above-10000">มากกว่า 10,000 บาท</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
+                                <div className="space-y-2">
+                                    {([
+                                        { value: "ONLINE", label: "Online (VDO)", icon: Monitor },
+                                        { value: "ONLINE_LIVE", label: "Live (Zoom)", icon: Video },
+                                        { value: "ONSITE", label: "Onsite", icon: MapPin }
+                                    ] as const).map((type) => {
+                                        const IconComponent = type.icon;
+                                        return (
+                                            <button key={type.value} type="button" onClick={() => !createdCourseId && updateForm("courseType", type.value)}
+                                                className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${form.courseType === type.value ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20" : createdCourseId ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed" : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"}`}>
+                                                <IconComponent size={18} className={form.courseType === type.value ? "text-primary" : "text-gray-400"} />
+                                                <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>{type.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <label className={labelClass}>จำนวนที่นั่งสูงสุด <span className="text-red-500">*</span> <span className="text-xs text-gray-400 font-normal ml-1">(จำเป็นสำหรับคอร์สประเภทนี้)</span></label>
+                                        <input type="number" min={1} value={form.maxSeats || ""} onChange={(e) => updateForm("maxSeats", e.target.value ? parseInt(e.target.value) : null)} placeholder="เช่น 30" className={inputClass} />
                                     </div>
                                 )}
-
-                                <div>
-                                    <label className={labelClass}>ไฟล์เอกสารประกอบ (ลิงก์ PDF หรืออัปโหลดใหม่)</label>
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                        <div className="relative flex-1">
-                                            <File className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                            <input
-                                                type="url"
-                                                value={form.materialUrl || ""}
-                                                onChange={(e) => updateForm("materialUrl", e.target.value)}
-                                                className={`${inputClass} pl-10`}
-                                                placeholder="https://example.com/handout.pdf"
-                                                disabled={uploadingPdf}
-                                            />
+                                {form.courseType === "ONLINE_LIVE" && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                        <div>
+                                            <label className={labelClass}>ลิงก์ Zoom/Google Meet (หลักสำหรับคอร์ส)</label>
+                                            <input type="url" value={form.zoomLink || ""} onChange={(e) => updateForm("zoomLink", e.target.value)} placeholder="https://zoom.us/j/123456789" className={inputClass} />
                                         </div>
-                                        <div className="relative shrink-0 flex">
-                                            <input
-                                                type="file"
-                                                accept="application/pdf"
-                                                onChange={handlePdfUpload}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                disabled={uploadingPdf}
-                                            />
-                                            <Button
-                                                variant="outline"
-                                                disabled={uploadingPdf}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                {uploadingPdf ? "กำลังอัปโหลด..." : "เลือกไฟล์ PDF"}
-                                            </Button>
+                                        <div>
+                                            <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
+                                            <input type="text" value={form.meetingId || ""} onChange={(e) => updateForm("meetingId", e.target.value)} placeholder="123 456 7890" className={inputClass} />
                                         </div>
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1.5">รองรับไฟล์ .pdf ขนาดไม่เกิน 10MB</p>
+                                )}
+                                {form.courseType === "ONSITE" && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                        <div>
+                                            <label className={labelClass}>สถานที่</label>
+                                            <input type="text" value={form.location || ""} onChange={(e) => updateForm("location", e.target.value)} placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม" className={inputClass} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>ลิงก์ Google Map</label>
+                                            <input type="url" value={form.mapUrl || ""} onChange={(e) => updateForm("mapUrl", e.target.value)} placeholder="https://maps.google.com/?q=..." className={inputClass} />
+                                        </div>
+                                    </div>
+                                )}
+                            </SectionCard>
+
+                            <SectionCard title="ระยะเวลาเรียน">
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">วัน</label>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.d} onChange={(e) => handleDurationChange('d', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">ชม.</label>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.h} onChange={(e) => handleDurationChange('h', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">นาที</label>
+                                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
+                                            <input type="number" min="0" value={parsedDuration.m} onChange={(e) => handleDurationChange('m', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            </SectionCard>
+
+                            <SectionCard title="อายุการเข้าถึงคอร์ส">
+                                <div className="flex items-center gap-2">
+                                    <input type="number" min="1" value={form.accessDurationDays ?? 365} onChange={(e) => updateForm("accessDurationDays", parseInt(e.target.value) || 365)} className="w-28 h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm text-center" />
+                                    <span className="text-sm text-gray-500">วัน (ค่าเริ่มต้น 365 = 1 ปี)</span>
+                                </div>
+                            </SectionCard>
                         </div>
-                    </SectionCard>
-
-                    <SectionCard title="หมวดหมู่และระดับชั้น" icon={Folder}>
-                        <div className="space-y-4">
-                            <div>
-                                <label className={labelClass}>หมวดหมู่หลัก <span className="text-red-500">*</span></label>
-                                <div className="flex flex-wrap gap-2">
-                                    {QUICK_FILTERS.map((filter) => (
-                                        <button
-                                            key={filter}
-                                            type="button"
-                                            onClick={() => handleQuickFilter(filter)}
-                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeQuickFilter === filter
-                                                ? 'bg-secondary text-white shadow-md'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                }`}
-                                        >
-                                            {filter}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {rootCategoryId && childCategories.length > 0 && (
-                                <div>
-                                    <label className={labelClass}>เลือกวิชา <span className="text-red-500">*</span></label>
-                                    <select
-                                        value={form.categoryId || ""}
-                                        onChange={(e) => updateForm("categoryId", e.target.value || null)}
-                                        className={inputClass}
-                                    >
-                                        <option value="" disabled>-- เลือกวิชา --</option>
-                                        {childCategories.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className={labelClass}>ระดับชั้น</label>
-                                <select
-                                    value={form.levelId || ""}
-                                    onChange={(e) => updateForm("levelId", e.target.value || null)}
-                                    className={inputClass}
-                                >
-                                    <option value="">-- เลือกระดับชั้น --</option>
-                                    {levels.filter(l => {
-                                        if (!activeQuickFilter || activeQuickFilter === "ทั้งหมด") return true;
-                                        if (activeQuickFilter === "ประถม") return l.name.startsWith("ป.");
-                                        if (activeQuickFilter === "ม.ต้น") return ["ม.1", "ม.2", "ม.3"].includes(l.name);
-                                        if (activeQuickFilter === "ม.ปลาย") return ["ม.4", "ม.5", "ม.6"].includes(l.name);
-                                        if (activeQuickFilter === "TCAS") return l.name === "สอบเข้ามหาลัย";
-                                        if (activeQuickFilter === "SAT" || activeQuickFilter === "IELTS") return l.name === "ทั่วไป";
-                                        return true;
-                                    }).map((lvl) => (
-                                        <option key={lvl.id} value={lvl.id}>{lvl.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </SectionCard>
-
-                    <SectionCard title="ผู้สอน" icon={User}>
-                        <InstructorMultiSelect
-                            options={instructors}
-                            value={selectedInstructors}
-                            onChange={setSelectedInstructors}
-                            required
-                        />
-                    </SectionCard>
-
-                    <SectionCard title="ตารางเรียน" icon={CalendarDays}>
-                        <ScheduleInput courseType={form.courseType as any} value={sessions} onChange={setSessions} />
-                    </SectionCard>
-                </div>
-
-                <div className="space-y-6">
-                    <div className="bg-white p-5 rounded-xl border shadow-sm">
-                        <div className="flex justify-between mb-2"><span className="text-sm font-bold text-gray-900 flex items-center gap-2"><Sparkles size={16} className="text-yellow-500" /> ความสมบูรณ์</span><span>{completeness}%</span></div>
-                        <div className="w-full bg-gray-100 h-2 rounded-full"><div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${completeness}%` }}></div></div>
                     </div>
+                )}
 
-                    <SectionCard title="ราคา">
-                        <div className="space-y-4">
-                            <NumberInput label="ราคาตั้งต้น (บาท)" value={form.originalPrice || undefined} onChange={(v) => updateForm("originalPrice", v || null)} />
-                            <NumberInput label="ราคาขาย (บาท) *" value={form.price} onChange={(v) => updateForm("price", v)} />
-                            <div>
-                                <label className={labelClass}>ช่วงราคา</label>
-                                <select
-                                    value={form.priceRange || ""}
-                                    onChange={(e) => updateForm("priceRange", e.target.value || null)}
-                                    className={inputClass}
-                                >
-                                    <option value="">-- เลือกช่วงราคา --</option>
-                                    <option value="under-1000">ต่ำกว่า 1,000 บาท</option>
-                                    <option value="1000-3000">1,000 - 3,000 บาท</option>
-                                    <option value="3000-5000">3,000 - 5,000 บาท</option>
-                                    <option value="5000-10000">5,000 - 10,000 บาท</option>
-                                    <option value="above-10000">มากกว่า 10,000 บาท</option>
-                                </select>
-                            </div>
-                        </div>
-                    </SectionCard>
-
-                    <SectionCard title="รูปแบบการสอน" icon={BookOpen}>
-                        <div className="space-y-2">
-                            {([
-                                { value: "ONLINE", label: "Online (VDO)", icon: Monitor },
-                                { value: "ONLINE_LIVE", label: "Live (Zoom)", icon: Video },
-                                { value: "ONSITE", label: "Onsite", icon: MapPin }
-                            ] as const).map((type) => {
-                                const IconComponent = type.icon;
-                                return (
-                                    <button
-                                        key={type.value}
-                                        type="button"
-                                        onClick={() => updateForm("courseType", type.value)}
-                                        className={`w-full px-4 py-3 text-left rounded-lg transition-all border flex items-center gap-3 ${form.courseType === type.value
-                                            ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20"
-                                            : "border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                            }`}
-                                    >
-                                        <IconComponent
-                                            size={18}
-                                            className={form.courseType === type.value ? "text-primary" : "text-gray-400"}
-                                        />
-                                        <span className={`text-sm font-medium ${form.courseType === type.value ? "text-primary" : "text-gray-700"}`}>
-                                            {type.label}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {(form.courseType === "ONLINE_LIVE" || form.courseType === "ONSITE") && (
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                <label className={labelClass}>
-                                    จำนวนที่นั่งสูงสุด <span className="text-red-500">*</span>
-                                    <span className="text-xs text-gray-400 font-normal ml-1">(จำเป็นสำหรับคอร์สประเภทนี้)</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={form.maxSeats || ""}
-                                    onChange={(e) => updateForm("maxSeats", e.target.value ? parseInt(e.target.value) : null)}
-                                    placeholder="เช่น 30"
-                                    className={inputClass}
-                                />
-                            </div>
-                        )}
-
-                        {form.courseType === "ONLINE_LIVE" && (
-                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-                                <div>
-                                    <label className={labelClass}>ลิงก์ Zoom/Google Meet</label>
-                                    <input
-                                        type="url"
-                                        value={form.zoomLink || ""}
-                                        onChange={(e) => updateForm("zoomLink", e.target.value)}
-                                        placeholder="https://zoom.us/j/123456789 หรือ https://meet.google.com/xxx-yyyy-zzz"
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Meeting ID <span className="text-gray-400 text-xs">(ไม่บังคับ)</span></label>
-                                    <input
-                                        type="text"
-                                        value={form.meetingId || ""}
-                                        onChange={(e) => updateForm("meetingId", e.target.value)}
-                                        placeholder="123 456 7890"
-                                        className={inputClass}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {form.courseType === "ONSITE" && (
-                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-                                <div>
-                                    <label className={labelClass}>สถานที่</label>
-                                    <input
-                                        type="text"
-                                        value={form.location || ""}
-                                        onChange={(e) => updateForm("location", e.target.value)}
-                                        placeholder="เช่น สถาบัน Sigma Tutor สาขาสีลม"
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>ลิงก์ Google Map</label>
-                                    <input
-                                        type="url"
-                                        value={form.mapUrl || ""}
-                                        onChange={(e) => updateForm("mapUrl", e.target.value)}
-                                        placeholder="https://maps.google.com/?q=..."
-                                        className={inputClass}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </SectionCard>
-
-                    <SectionCard title="ระยะเวลาเรียน">
-                        <div className="grid grid-cols-3 gap-2">
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase">วัน</label>
-                                <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
-                                    <input type="number" min="0" value={parsedDuration.d} onChange={(e) => handleDurationChange('d', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase">ชม.</label>
-                                <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
-                                    <input type="number" min="0" value={parsedDuration.h} onChange={(e) => handleDurationChange('h', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase">นาที</label>
-                                <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white focus-within:ring-2 focus-within:ring-primary/30">
-                                    <input type="number" min="0" value={parsedDuration.m} onChange={(e) => handleDurationChange('m', e.target.value)} className="w-full h-10 outline-none text-sm bg-transparent text-center" placeholder="0" />
-                                </div>
-                            </div>
-                        </div>
-                    </SectionCard>
-                </div>
+                {activeTab === "content" && fakeCourse && (
+                    <>
+                        {form.courseType === "ONLINE" && <LessonsTab course={fakeCourse} onUpdate={() => {}} />}
+                        {form.courseType === "ONLINE_LIVE" && <LiveScheduleTab course={fakeCourse} onUpdate={() => {}} />}
+                        {form.courseType === "ONSITE" && <OnsiteScheduleTab course={fakeCourse} onUpdate={() => {}} />}
+                    </>
+                )}
             </div>
         </AdminFormLayout>
+    );
+}
+
+function TabButton({ active, onClick, icon: Icon, label, disabled }: {
+    active: boolean;
+    onClick: (() => void) | undefined;
+    icon: any;
+    label: string;
+    disabled?: boolean;
+}) {
+    return (
+        <button onClick={onClick} disabled={disabled}
+            className={`flex items-center gap-2 px-6 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${disabled ? "border-transparent text-gray-300 cursor-not-allowed" : active ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            <Icon size={18} /> {label}
+            {disabled && <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">บันทึกก่อน</span>}
+        </button>
     );
 }

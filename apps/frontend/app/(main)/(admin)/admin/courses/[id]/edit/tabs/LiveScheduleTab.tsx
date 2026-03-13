@@ -1,0 +1,275 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Save, Loader2, CalendarDays, Plus, Trash2, Video, Link, Eye, EyeOff } from "lucide-react";
+import type { Course, CourseSchedule } from "@/app/lib/types";
+import { useToast } from "@/app/components/ui/Toast";
+import { Button } from "@/app/components/ui/Button";
+
+interface LiveScheduleTabProps {
+    course: Course;
+    onUpdate: () => void;
+}
+
+interface LiveSession {
+    id?: string;
+    sessionNumber: number;
+    topic: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    zoomLink: string;
+    // Replay video (ย้อนหลัง)
+    gumletVideoId: string;
+    videoUrl: string;
+    videoProvider: "YOUTUBE" | "GUMLET";
+}
+
+const API = "http://localhost:4000/api";
+const CREDS: RequestInit = { credentials: "include" };
+
+function toDateInput(iso: string | null | undefined): string {
+    if (!iso) return "";
+    try { return new Date(iso).toISOString().split("T")[0]; } catch { return ""; }
+}
+
+function toTimeInput(iso: string | null | undefined): string {
+    if (!iso) return "";
+    try {
+        const d = new Date(iso);
+        return d.toTimeString().slice(0, 5);
+    } catch { return ""; }
+}
+
+function combineDatetime(date: string, time: string): string | null {
+    if (!date || !time) return null;
+    return new Date(`${date}T${time}:00`).toISOString();
+}
+
+function emptySession(sessionNumber: number): LiveSession {
+    return {
+        sessionNumber,
+        topic: "",
+        date: "",
+        startTime: "",
+        endTime: "",
+        zoomLink: "",
+        gumletVideoId: "",
+        videoUrl: "",
+        videoProvider: "YOUTUBE",
+    };
+}
+
+export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
+    const { toast } = useToast();
+    const [loading, setLoading] = useState(false);
+    const [sessions, setSessions] = useState<LiveSession[]>([]);
+    const [showZoom, setShowZoom] = useState<Record<number, boolean>>({});
+
+    useEffect(() => {
+        if (course.schedules && course.schedules.length > 0) {
+            setSessions(course.schedules.map((s, i) => ({
+                id: s.id,
+                sessionNumber: s.sessionNumber ?? (i + 1),
+                topic: s.topic || "",
+                date: toDateInput(s.date),
+                startTime: toTimeInput(s.startTime),
+                endTime: toTimeInput(s.endTime),
+                zoomLink: s.zoomLink || "",
+                gumletVideoId: s.gumletVideoId || "",
+                videoUrl: s.videoUrl || "",
+                videoProvider: (s.videoProvider as "YOUTUBE" | "GUMLET") || "YOUTUBE",
+            })));
+        } else {
+            setSessions([emptySession(1)]);
+        }
+    }, [course]);
+
+    function updateSession(index: number, key: keyof LiveSession, value: string | number) {
+        setSessions(prev => prev.map((s, i) => i === index ? { ...s, [key]: value } : s));
+    }
+
+    function addSession() {
+        setSessions(prev => [...prev, emptySession(prev.length + 1)]);
+    }
+
+    function removeSession(index: number) {
+        if (sessions.length === 1) { toast.error("ต้องมีอย่างน้อย 1 ครั้ง"); return; }
+        setSessions(prev => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, sessionNumber: i + 1 })));
+    }
+
+    async function handleSave() {
+        setLoading(true);
+        try {
+            const payload = sessions.map(s => ({
+                sessionNumber: s.sessionNumber,
+                topic: s.topic || `ครั้งที่ ${s.sessionNumber}`,
+                date: combineDatetime(s.date, "00:00"),
+                startTime: combineDatetime(s.date, s.startTime || "00:00"),
+                endTime: combineDatetime(s.date, s.endTime || "00:00"),
+                zoomLink: s.zoomLink || null,
+                isOnline: true,
+                gumletVideoId: s.gumletVideoId || null,
+                videoUrl: s.videoUrl || null,
+                videoProvider: s.gumletVideoId ? "GUMLET" : "YOUTUBE",
+                status: "ON_SCHEDULE",
+            }));
+
+            const res = await fetch(`${API}/schedules/sync/${course.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                ...CREDS,
+                body: JSON.stringify({ sessions: payload }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || "บันทึกไม่สำเร็จ");
+            toast.success("บันทึกตารางเรียน Live สำเร็จ");
+            onUpdate();
+        } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : "เกิดข้อผิดพลาดในการเชื่อมต่อ");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-5 border-b">
+                <div>
+                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+                        <CalendarDays className="text-primary" size={28} /> ตารางเรียน Online-Live
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">จัดการตารางเรียนสด ลิงก์ Zoom และวิดีโอย้อนหลัง</p>
+                </div>
+                <Button onClick={handleSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
+                    {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />}
+                    บันทึก
+                </Button>
+            </div>
+
+            {/* Session list */}
+            <div className="space-y-4">
+                {sessions.map((session, index) => (
+                    <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
+                        {/* Session header */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-100">
+                            <span className="font-bold text-blue-700 text-sm">ครั้งที่ {session.sessionNumber}</span>
+                            <button
+                                type="button"
+                                onClick={() => removeSession(index)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                                <Trash2 size={15} />
+                            </button>
+                        </div>
+
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Topic */}
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-semibold text-gray-600 mb-1">หัวข้อการเรียน *</label>
+                                <input
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    value={session.topic}
+                                    onChange={e => updateSession(index, "topic", e.target.value)}
+                                    placeholder="เช่น Introduction to React"
+                                />
+                            </div>
+
+                            {/* Date */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-600 mb-1">วันที่</label>
+                                <input
+                                    type="date"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    value={session.date}
+                                    onChange={e => updateSession(index, "date", e.target.value)}
+                                />
+                            </div>
+
+                            {/* Time */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1">เวลาเริ่ม</label>
+                                    <input
+                                        type="time"
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                        value={session.startTime}
+                                        onChange={e => updateSession(index, "startTime", e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1">เวลาสิ้นสุด</label>
+                                    <input
+                                        type="time"
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                        value={session.endTime}
+                                        onChange={e => updateSession(index, "endTime", e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Zoom link */}
+                            <div className="md:col-span-2">
+                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 mb-1">
+                                    <Link size={12} /> ลิงก์ Zoom
+                                    <span className="text-gray-400 font-normal">(นักเรียนเห็นหลังชำระเงิน)</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowZoom(prev => ({ ...prev, [index]: !prev[index] }))}
+                                        className="ml-auto text-gray-400 hover:text-primary"
+                                    >
+                                        {showZoom[index] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                    </button>
+                                </label>
+                                <input
+                                    type={showZoom[index] ? "text" : "password"}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    value={session.zoomLink}
+                                    onChange={e => updateSession(index, "zoomLink", e.target.value)}
+                                    placeholder="https://zoom.us/j/..."
+                                />
+                            </div>
+
+                            {/* Replay video section */}
+                            <div className="md:col-span-2 pt-2 border-t border-gray-100">
+                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 mb-2">
+                                    <Video size={12} className="text-purple-500" /> วิดีโอย้อนหลัง (ไม่แสดงในหน้าคอร์ส)
+                                </label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Gumlet Video ID</label>
+                                        <input
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
+                                            value={session.gumletVideoId}
+                                            onChange={e => updateSession(index, "gumletVideoId", e.target.value)}
+                                            placeholder="Gumlet Video ID"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">หรือ Video URL</label>
+                                        <input
+                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
+                                            value={session.videoUrl}
+                                            onChange={e => updateSession(index, "videoUrl", e.target.value)}
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Add session */}
+            <button
+                type="button"
+                onClick={addSession}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-primary border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 rounded-xl transition-colors"
+            >
+                <Plus size={16} /> เพิ่มครั้งเรียน
+            </button>
+        </div>
+    );
+}

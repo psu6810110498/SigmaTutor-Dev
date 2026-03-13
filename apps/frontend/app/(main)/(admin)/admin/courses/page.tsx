@@ -500,6 +500,16 @@ export default function AdminCoursesPage() {
                             <Eye size={16} />
                           </button>
                         </Link>
+                        {course.courseType !== 'ONLINE' && (
+                          <Link href={`/admin/courses/${course.id}/seats`}>
+                            <button
+                              className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                              title="จัดการที่นั่ง"
+                            >
+                              <Users size={16} />
+                            </button>
+                          </Link>
+                        )}
                         <Link href={`/admin/courses/${course.id}/edit`}>
                           <button
                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"

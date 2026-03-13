@@ -14,7 +14,7 @@ import { getRedisClient } from '../lib/redis.client.js';
 
 // ── Types ─────────────────────────────────────────────────
 
-export type ReserveResult = 'OK' | 'FULL' | 'ALREADY_RESERVED';
+export type ReserveResult = 'OK' | 'FULL' | 'ALREADY_RESERVED' | 'NO_COUNTER';
 
 // ── Redis Key Helpers ─────────────────────────────────────
 
@@ -41,7 +41,10 @@ const DEFAULT_TTL = 1800; // 30 minutes (Stripe minimum for expires_at)
  */
 const RESERVE_SCRIPT = `
 local available = redis.call('GET', KEYS[1])
-if not available or tonumber(available) <= 0 then
+if not available then
+  return 'NO_COUNTER'
+end
+if tonumber(available) <= 0 then
   return 'FULL'
 end
 local existing = redis.call('GET', KEYS[2])

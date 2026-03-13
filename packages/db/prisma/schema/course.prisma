@@ -43,6 +43,7 @@ model Course {
   zoomLink        String?
   meetingId       String? // เพิ่มช่องรหัสห้องประชุม
   priceRange      String? // เพิ่มช่องช่วงราคา
+  accessDurationDays Int?         @default(365) // อายุการเข้าถึงคอร์ส (วัน)
   published       Boolean   @default(false)
   tags            String[]  @default([])
   isBestSeller    Boolean   @default(false)
@@ -78,6 +79,7 @@ model Enrollment {
   userId    String
   courseId  String
   status    EnrollmentStatus @default(ACTIVE)
+  expiresAt DateTime?  // วันหมดอายุการเข้าถึงคอร์ส
   createdAt DateTime         @default(now())
 
   user   User   @relation(fields: [userId], references: [id])

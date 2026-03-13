@@ -6,7 +6,9 @@ const nextConfig: NextConfig = {
     root: '../..',
   },
   images: {
-    dangerouslyAllowSVG: true, // เพิ่มบรรทัดนี้เพื่อยอมรับไฟล์ SVG
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },

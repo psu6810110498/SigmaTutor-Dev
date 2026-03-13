@@ -17,6 +17,11 @@ router.post('/toggle', authenticate, async (req: AuthRequest, res: Response) => 
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
+        const access = await progressService.checkEnrollmentAccess(userId, courseId, req.user?.role);
+        if (!access.allowed) {
+            return res.status(403).json({ success: false, error: access.reason });
+        }
+
         const progress = await progressService.toggleProgress(userId, courseId, { lessonId, scheduleId });
         res.json({ success: true, data: progress });
     } catch (error: any) {

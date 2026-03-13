@@ -1,25 +1,45 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+/**
+ * CourseGridSection — Lazy-loaded, filterable course grid with smart expand behavior.
+ *
+ * Expand UX:
+ *  - Mobile (<md): horizontal scroll → expands to 2-column vertical grid ("Load More" chunks)
+ *  - Desktop (≥md): "ดูทั้งหมด" navigates to /explore with pre-set category/level filters
+ *    (avoids loading 1000+ items inline which kills perf and loses page position)
+ *
+ * Course count note:
+ *  Only courses with status=PUBLISHED are shown. Draft courses are expected to be hidden.
+ *  initialLimit defaults to 8 (was 4) so you see a useful amount at a glance.
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Course } from '@/app/lib/types';
 import { courseApi } from '@/app/lib/api';
 import CourseCard from '@/app/components/marketplace/CourseCard';
-import Link from 'next/link';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import CourseCardSkeleton from '@/app/components/marketplace/CourseCardSkeleton';
+import { ChevronRight, ChevronDown, ArrowUpRight } from 'lucide-react';
+
+// How many additional cards to reveal per "Load More" tap on mobile
+const LOAD_MORE_STEP = 8;
 
 interface CourseGridSectionProps {
     title: string;
     subtitle?: string;
-    categoryId?: string; // Optional: if null, might fetch all or based on other criteria
+    categoryId?: string;
     levelId?: string | null;
     tutorId?: string | null;
     courseType?: string | null;
     minPrice?: number | null;
     maxPrice?: number | null;
     search?: string;
+    /** How many cards to show initially. Raised to 8 (was 4) for better first impression. */
     initialLimit?: number;
-    className?: string; // For custom styling (e.g. background icons)
+    className?: string;
     icon?: React.ReactNode;
+    /** If provided, "ดูทั้งหมด" on desktop navigates here instead of /explore */
+    viewAllHref?: string;
 }
 
 export default function CourseGridSection({
@@ -32,43 +52,45 @@ export default function CourseGridSection({
     minPrice,
     maxPrice,
     search,
-    initialLimit = 4,
+    initialLimit = 8,
     className = "",
-    icon
+    icon,
+    viewAllHref,
 }: CourseGridSectionProps) {
+    const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [totalCourses, setTotalCourses] = useState(0);
     const [hasIntersected, setHasIntersected] = useState(false);
+    const [totalCourses, setTotalCourses] = useState(0);
+
+    // Mobile expand: how many cards to show in vertical 2-col grid
+    const [mobileLimit, setMobileLimit] = useState(initialLimit);
+    // Desktop expand: whether we've navigated or expanded (navigation mode)
+    const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+
     const sectionRef = useRef<HTMLElement>(null);
 
-    // 1. Intersection Observer for Lazy Loading
+    // ── Intersection Observer for lazy loading ────────────────────────────────
     useEffect(() => {
         if (!sectionRef.current) return;
-
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                setHasIntersected(true);
-                observer.disconnect(); // Unobserve once it becomes visible
-            }
-        }, { rootMargin: '300px' }); // Pre-load when 300px away
-
+        const observer = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting) { setHasIntersected(true); observer.disconnect(); } },
+            { rootMargin: '300px' }
+        );
         observer.observe(sectionRef.current);
         return () => observer.disconnect();
     }, []);
 
-    // 2. Fetch Data with Debounce and AbortController
+    // ── Fetch courses ─────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!hasIntersected) return; // Skip fetching if not visible yet
-
+        if (!hasIntersected) return;
         setLoading(true);
-        const abortController = new AbortController();
+        const ctrl = new AbortController();
 
-        const fetchCourses = async () => {
+        const fetch = async () => {
             try {
-                const limit = isExpanded ? 1000 : initialLimit;
-
+                // On desktop expanded: fetch all (up to 200, avoid 1000 which is excessive)
+                const limit = isDesktopExpanded ? 200 : initialLimit;
                 const res = await courseApi.getMarketplace({
                     categoryId,
                     levelId: levelId || undefined,
@@ -79,118 +101,168 @@ export default function CourseGridSection({
                     maxPrice,
                     search,
                     limit,
-                    sort: 'popular'
-                }, { signal: abortController.signal });
+                    sort: 'popular',
+                }, { signal: ctrl.signal });
 
-                if (!abortController.signal.aborted && res.success && res.data) {
+                if (!ctrl.signal.aborted && res.success && res.data) {
                     setCourses(res.data.courses);
                     setTotalCourses(res.data.pagination.total);
                 }
-            } catch (error: any) {
-                if (error.name !== 'AbortError') {
-                    console.error(`Failed to fetch courses for ${title}`, error);
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name !== 'AbortError') {
+                    console.error(`CourseGridSection: fetch failed for "${title}"`, err);
                 }
             } finally {
-                if (!abortController.signal.aborted) {
-                    setLoading(false);
-                }
+                if (!ctrl.signal.aborted) setLoading(false);
             }
         };
 
-        const timeoutId = setTimeout(() => {
-            fetchCourses();
-        }, 300); // 300ms Debounce
+        const t = setTimeout(fetch, 300);
+        return () => { clearTimeout(t); ctrl.abort(); };
+    }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, initialLimit, title, hasIntersected, isDesktopExpanded]);
 
-        return () => {
-            clearTimeout(timeoutId);
-            abortController.abort(); // Cancel pending request if filters change rapidly
-        };
-    }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, isExpanded, initialLimit, title, hasIntersected]);
+    // Reset mobile limit when filters change
+    useEffect(() => { setMobileLimit(initialLimit); }, [categoryId, levelId, tutorId, courseType, minPrice, maxPrice, search, initialLimit]);
 
+    // ── "ดูทั้งหมด" handler — navigates to /explore on desktop ──────────────
+    const buildExploreHref = useCallback(() => {
+        if (viewAllHref) return viewAllHref;
+        const params = new URLSearchParams();
+        if (categoryId) params.set('categoryId', categoryId);
+        if (levelId) params.set('levelId', levelId);
+        if (courseType) params.set('courseType', courseType);
+        params.set('sort', 'popular');
+        return `/explore?${params.toString()}`;
+    }, [viewAllHref, categoryId, levelId, courseType]);
+
+    // ── Render states ─────────────────────────────────────────────────────────
     if (!hasIntersected || loading) {
         return (
-            <section ref={sectionRef} className="py-12 px-4 max-w-7xl mx-auto min-h-[450px]">
-                <div className="h-8 w-64 bg-gray-100 rounded mb-4 animate-pulse" />
-                <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
-                    <div className="flex gap-4">
-                        {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-[300px] w-[280px] bg-gray-50 rounded-2xl animate-pulse flex-shrink-0" />
-                        ))}
-                    </div>
-                </div>
-                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="h-[300px] bg-gray-50 rounded-2xl animate-pulse" />
+            <section ref={sectionRef} className={`py-10 px-4 max-w-7xl mx-auto min-h-[380px] ${className}`}>
+                <div className="h-7 w-56 bg-gray-100 rounded mb-4 animate-pulse" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[...Array(initialLimit > 4 ? 4 : initialLimit)].map((_, i) => (
+                        <CourseCardSkeleton key={i} />
                     ))}
                 </div>
             </section>
         );
     }
 
-    if (courses.length === 0) return (
-        // Add ref here too to ensure observer still has an element to watch if it re-renders empty
-        <div ref={(node) => {
-            if (node) {
-                // @ts-ignore
-                sectionRef.current = node.parentElement;
-            }
-        }}></div>
-    );
+    if (courses.length === 0) return null;
+
+    // Cards to show on mobile (vertical grid, expandable via Load More)
+    const mobileCards = courses.slice(0, mobileLimit);
+    const hasMoreMobile = mobileLimit < courses.length || mobileLimit < totalCourses;
+
+    // Cards for desktop (all fetched, shown in grid)
+    const desktopCards = isDesktopExpanded ? courses : courses.slice(0, initialLimit);
+    const hasMoreDesktop = !isDesktopExpanded && (courses.length > initialLimit || totalCourses > initialLimit);
 
     return (
-        <section ref={sectionRef} className={`py-12 md:py-16 min-h-[450px] ${className}`}>
+        <section ref={sectionRef} className={`py-10 md:py-14 min-h-[380px] ${className}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+
+                {/* ── Section header ───────────────────────────────────────── */}
+                <div className="flex items-end justify-between mb-6 gap-4">
                     <div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
                             {icon && <span className="text-primary">{icon}</span>}
                             {title}
                         </h2>
-                        {subtitle && <p className="text-gray-500 mt-2 font-serif">{subtitle}</p>}
+                        {subtitle && <p className="text-gray-500 text-sm mt-1">{subtitle}</p>}
                     </div>
 
-                    {/* Toggle Button (Desktop) */}
-                    <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="hidden md:flex items-center text-primary font-bold hover:bg-primary/5 px-4 py-2 rounded-lg transition-colors"
-                    >
-                        {isExpanded ? (
-                            <>ย่อลง <ChevronDown className="ml-2 w-4 h-4" /></>
-                        ) : (
-                            <>ดูทั้งหมด <ChevronRight className="ml-2 w-4 h-4" /></>
-                        )}
-                    </button>
+                    {/* Desktop "ดูทั้งหมด" — navigate to /explore */}
+                    {hasMoreDesktop && (
+                        <button
+                            onClick={() => router.push(buildExploreHref())}
+                            className="hidden md:flex items-center gap-1.5 text-sm text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                        >
+                            ดูทั้งหมด ({totalCourses})
+                            <ArrowUpRight size={15} />
+                        </button>
+                    )}
+                    {isDesktopExpanded && (
+                        <button
+                            onClick={() => setIsDesktopExpanded(false)}
+                            className="hidden md:flex items-center gap-1 text-sm text-gray-500 font-bold hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                        >
+                            ย่อลง <ChevronDown size={15} />
+                        </button>
+                    )}
                 </div>
 
-                {/* Grid */}
-                <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-6">
-                    {/* Mobile: Horizontal scroll container */}
-                    <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4">
-                        <div className="flex gap-4">
-                            {courses.map((course) => (
-                                <CourseCard key={course.id} course={course} />
-                            ))}
-                        </div>
-                    </div>
-                    {/* Desktop: Grid layout */}
-                    <div className="hidden md:contents">
-                        {courses.map((course) => (
-                            <CourseCard key={course.id} course={course} />
+                {/* ══════════════════════════════════════════════════════════════
+                    MOBILE: 2-column vertical grid (replaces horizontal scroll)
+                    — Users can "Load More" to see additional cards
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="md:hidden">
+                    <div className="grid grid-cols-2 gap-3">
+                        {mobileCards.map((course, i) => (
+                            <CourseCard
+                                key={course.id}
+                                course={course}
+                                index={i}
+                                priority={i < 4}
+                            />
                         ))}
                     </div>
+
+                    {hasMoreMobile && (
+                        <button
+                            onClick={() => {
+                                if (mobileLimit >= courses.length && totalCourses > courses.length) {
+                                    // Need to fetch more — navigate to explore
+                                    router.push(buildExploreHref());
+                                } else {
+                                    setMobileLimit(prev => prev + LOAD_MORE_STEP);
+                                }
+                            }}
+                            className="mt-5 w-full bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                        >
+                            ดูเพิ่มเติม ({Math.min(totalCourses - mobileCards.length, LOAD_MORE_STEP)} คอร์ส)
+                            <ChevronRight size={16} />
+                        </button>
+                    )}
+
+                    {/* Link to full explore when all cards are shown */}
+                    {!hasMoreMobile && totalCourses > 0 && (
+                        <button
+                            onClick={() => router.push(buildExploreHref())}
+                            className="mt-3 w-full text-primary text-sm font-semibold py-2 flex items-center justify-center gap-1.5 hover:underline"
+                        >
+                            ดูทั้งหมด {totalCourses} คอร์ส <ArrowUpRight size={14} />
+                        </button>
+                    )}
                 </div>
 
-                {/* Mobile Toggle Button */}
-                <div className="mt-8 text-center md:hidden">
-                    <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                        {isExpanded ? 'ย่อลง' : 'ดูคอร์สทั้งหมด'}
-                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </button>
+                {/* ══════════════════════════════════════════════════════════════
+                    DESKTOP: standard responsive grid
+                ══════════════════════════════════════════════════════════════ */}
+                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {desktopCards.map((course, i) => (
+                        <CourseCard
+                            key={course.id}
+                            course={course}
+                            index={i}
+                            priority={i < 4}
+                        />
+                    ))}
                 </div>
+
+                {/* Desktop: inline expand (if navigating to explore is not wanted) */}
+                {isDesktopExpanded && courses.length < totalCourses && (
+                    <div className="hidden md:flex justify-center mt-6">
+                        <button
+                            onClick={() => router.push(buildExploreHref())}
+                            className="flex items-center gap-2 text-primary font-bold border border-primary/20 hover:bg-primary/5 px-6 py-2.5 rounded-xl text-sm transition-colors"
+                        >
+                            ดูทั้งหมด {totalCourses} คอร์สใน Explore <ArrowUpRight size={15} />
+                        </button>
+                    </div>
+                )}
+
             </div>
         </section>
     );

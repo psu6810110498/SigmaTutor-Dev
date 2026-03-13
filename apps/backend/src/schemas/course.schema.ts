@@ -40,6 +40,7 @@ const baseCourseSchema = z.object({
     }).passthrough()).optional().default([]),
     isBestSeller: z.boolean().optional().default(false),
     isRecommended: z.boolean().optional().default(false),
+    accessDurationDays: z.number().int().positive().optional().default(365),
     courseCode: z.string().trim().optional().nullable(),
     shortDescription: z.string().trim().optional().nullable(),
     priceRange: z.string().trim().optional().nullable(),
@@ -114,6 +115,8 @@ export const marketplaceQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(12),
     sort: z.enum(['newest', 'price-asc', 'price-desc', 'popular']).default('newest'),
+    /** ซ่อนคอร์สที่ปิดรับสมัครแล้ว (เต็มที่นั่ง) — ใช้สำหรับหน้าแรก */
+    excludeFull: z.coerce.boolean().optional(),
 });
 
 /**

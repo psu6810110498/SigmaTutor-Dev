@@ -2,16 +2,23 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import { prisma } from '@sigma/db';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth.middleware.js';
-import bcrypt from 'bcryptjs';
-import multer from 'multer'; // 🌟 1. นำเข้า multer
+import multer from 'multer';
 
 const router: express.Router = express.Router();
 
-// 🌟 2. ตั้งค่าการเก็บไฟล์ (เบื้องต้นเก็บไว้ใน Memory เพื่อรอจัดการต่อ)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 }, // จำกัด 2MB ตามหน้าบ้าน
+  limits: { fileSize: 2 * 1024 * 1024 },
 });
+
+/** Helper: parse JSON string array or return the array as-is */
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value as string[];
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return []; }
+  }
+  return [];
+}
 
 /**
  * GET /api/users/instructors - ดึงรายชื่อคุณครูพร้อมยอดสถิติและรายได้จริง
@@ -34,6 +41,13 @@ router.get(
             profileImage: true,
             expertise: true,
             education: true,
+            educationHistory: true,
+            achievements: true,
+            quote: true,
+            facebookUrl: true,
+            instagramUrl: true,
+            tiktokUrl: true,
+            linkedinUrl: true,
             experience: true,
             socialLink: true,
             createdAt: true,
@@ -56,9 +70,7 @@ router.get(
                 },
               },
             },
-            _count: {
-              select: { courses: true },
-            },
+            _count: { select: { courses: true } },
           },
           orderBy: { createdAt: 'desc' },
         }),
@@ -83,10 +95,7 @@ router.get(
         return {
           ...inst,
           totalEarnings,
-          _count: {
-            courses: inst._count.courses,
-            enrollments: uniqueStudentsCount,
-          },
+          _count: { courses: inst._count.courses, enrollments: uniqueStudentsCount },
         };
       });
 
@@ -161,7 +170,7 @@ router.get(
       });
       res.json({ success: true, data: formattedStudents });
     } catch (error) {
-      console.error('🔥 Fetch Students Error:', error);
+      console.error('Fetch Students Error:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch students' });
     }
   }
@@ -177,18 +186,14 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
-        name,
-        email,
-        password,
-        nickname,
-        title,
-        bio,
-        profileImage,
-        expertise,
-        education,
-        experience,
-        socialLink,
+        name, email, nickname, title, bio, profileImage,
+        expertise, education, experience, socialLink,
+        quote, facebookUrl, instagramUrl, tiktokUrl, linkedinUrl,
       } = req.body;
+
+      const educationHistory = parseJsonArray(req.body.educationHistory);
+      const achievements = parseJsonArray(req.body.achievements);
+
       const finalEmail = email || `teacher_${Date.now()}@sigma.com`;
       const existingTeacher = await prisma.teacher.findUnique({ where: { email: finalEmail } });
       if (existingTeacher) {
@@ -198,66 +203,55 @@ router.post(
 
       const newTeacher = await prisma.teacher.create({
         data: {
-          name,
-          email: finalEmail,
-          nickname,
-          title,
-          bio,
-          profileImage,
-          expertise,
-          education,
-          experience,
-          socialLink,
+          name, email: finalEmail, nickname, title, bio, profileImage,
+          expertise, education, experience, socialLink,
+          educationHistory, achievements, quote,
+          facebookUrl, instagramUrl, tiktokUrl, linkedinUrl,
         },
         select: { id: true, name: true, email: true },
       });
       res.status(201).json({ success: true, data: newTeacher });
     } catch (error) {
+      console.error('Create instructor error:', error);
       res.status(500).json({ success: false, error: 'Failed to create instructor' });
     }
   }
 );
 
 /**
- * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้ (รองรับ FormData)
+ * PATCH /api/users/:id - อัปเดตข้อมูลผู้ใช้
+ * - รองรับ FormData (ผ่าน Multer)
+ * - ถ้าเป็นครู จะอัปเดต Teacher record ด้วย (แก้ bug เดิมที่ไม่ได้บันทึก teacher fields)
  */
 router.patch(
   '/:id',
   authenticate as express.RequestHandler,
-  upload.single('profileImage') as any, // 🌟 ใช้ Multer อ่าน FormData
+  upload.single('profileImage') as any,
   async (req: Request, res: Response): Promise<void> => {
     const authReq = req as AuthRequest;
     const id = req.params.id as string;
 
     try {
-      const {
-        name,
-        phone,
-        birthday,
-        educationLevel,
-        school,
-        province,
-        address,
-        expertise,
-        education,
-        experience,
-        socialLink,
-        nickname,
-        title,
-        bio,
-      } = req.body;
-
       if (authReq.user?.userId !== id && authReq.user?.role !== 'ADMIN') {
         res.status(403).json({ success: false, error: 'Access denied' });
         return;
       }
 
-      let profileImageUrl = req.body.profileImage;
+      const {
+        name, phone, birthday, educationLevel, school, province, address,
+        expertise, education, experience, socialLink, nickname, title, bio,
+        quote, facebookUrl, instagramUrl, tiktokUrl, linkedinUrl,
+      } = req.body;
+
+      const educationHistory = parseJsonArray(req.body.educationHistory);
+      const achievements = parseJsonArray(req.body.achievements);
+
+      let profileImageUrl = req.body.profileImage as string | undefined;
       if (req.file) {
-        // บันทึกรูปเป็น Base64 สำหรับการทดสอบที่รวดเร็ว
         profileImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       }
 
+      // Update User record (general fields)
       const user = await prisma.user.update({
         where: { id },
         data: {
@@ -270,18 +264,38 @@ router.patch(
           profileImage: profileImageUrl,
           birthday: birthday ? new Date(birthday) : undefined,
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          profileImage: true,
-          updatedAt: true,
-        },
+        select: { id: true, email: true, name: true, role: true, profileImage: true, updatedAt: true },
       });
+
+      // If the user is a teacher, sync teacher-specific fields as well
+      const teacher = await prisma.teacher.findUnique({ where: { email: user.email } });
+      if (teacher) {
+        await prisma.teacher.update({
+          where: { id: teacher.id },
+          data: {
+            name,
+            nickname,
+            title,
+            bio,
+            expertise,
+            education,
+            experience,
+            socialLink,
+            profileImage: profileImageUrl,
+            educationHistory,
+            achievements,
+            quote,
+            facebookUrl,
+            instagramUrl,
+            tiktokUrl,
+            linkedinUrl,
+          },
+        });
+      }
 
       res.json({ success: true, data: user });
     } catch (error) {
+      console.error('Update user error:', error);
       res.status(500).json({ success: false, error: 'Failed to update user' });
     }
   }
@@ -305,28 +319,22 @@ router.delete(
 );
 
 /**
- * 🌟 GET /api/users/:id - ดึงข้อมูลผู้ใช้รายบุคคล (สำหรับหน้าดูข้อมูลและแก้ไข)
+ * GET /api/users/:id - ดึงข้อมูลผู้ใช้รายบุคคล
  */
 router.get(
   '/:id',
   authenticate as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: req.params.id },
-      });
-
+      const user = await prisma.user.findUnique({ where: { id: req.params.id } });
       if (!user) {
         res.status(404).json({ success: false, error: 'User not found' });
         return;
       }
-
-      // ลบรหัสผ่านทิ้งก่อนส่งให้หน้าบ้านเพื่อความปลอดภัย
       const { password, ...userData } = user;
-
       res.json({ success: true, data: userData });
     } catch (error) {
-      console.error('🔥 Fetch User by ID Error:', error);
+      console.error('Fetch User by ID Error:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch user data' });
     }
   }

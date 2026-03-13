@@ -8,7 +8,9 @@ import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { AdminFormLayout } from "@/app/components/layouts/AdminFormLayout";
 import { CourseOverviewTab } from "./tabs/CourseOverviewTab";
-import { ScheduleTab } from "./tabs/ScheduleTab"; // ✅ ลบ CurriculumTab ออก แล้วใช้แค่ ScheduleTab
+import { LessonsTab } from "./tabs/LessonsTab";
+import { LiveScheduleTab } from "./tabs/LiveScheduleTab";
+import { OnsiteScheduleTab } from "./tabs/OnsiteScheduleTab";
 
 export default function EditCoursePage() {
     const params = useParams();
@@ -92,8 +94,15 @@ export default function EditCoursePage() {
                         onUpdate={fetchData}
                     />
                 )}
-                {/* ✅ บังคับให้เรียกใช้ ScheduleTab เสมอ เพื่อให้หน้าตาเหมือนตอนสร้างคอร์สเป๊ะๆ */}
-                {activeTab === "schedule" && <ScheduleTab course={course} onUpdate={fetchData} />}
+                {activeTab === "schedule" && course.courseType === "ONLINE" && (
+                    <LessonsTab course={course} onUpdate={fetchData} />
+                )}
+                {activeTab === "schedule" && course.courseType === "ONLINE_LIVE" && (
+                    <LiveScheduleTab course={course} onUpdate={fetchData} />
+                )}
+                {activeTab === "schedule" && course.courseType === "ONSITE" && (
+                    <OnsiteScheduleTab course={course} onUpdate={fetchData} />
+                )}
             </div>
         </AdminFormLayout>
     );

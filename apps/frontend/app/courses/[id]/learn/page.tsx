@@ -31,6 +31,8 @@ export default function LearningPage() {
     const [currentLesson, setCurrentLesson] = useState<any>(null);
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+    const [courseExpired, setCourseExpired] = useState(false);
+    const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
     // State สำหรับการรีวิว
     const [userReview, setUserReview] = useState<Review | null>(null);
@@ -48,6 +50,27 @@ export default function LearningPage() {
 
                 if (data.success) {
                     setCourse(data.data);
+
+                    // Check enrollment expiry (non-admin users only)
+                    if (user && user.role !== 'ADMIN') {
+                        try {
+                            const enrollRes = await fetch('http://localhost:4000/api/courses/enrolled', {
+                                credentials: 'include',
+                            });
+                            const enrollData = await enrollRes.json();
+                            if (enrollData.success && Array.isArray(enrollData.data)) {
+                                const enrollment = enrollData.data.find((e: any) => e.courseId === courseId || e.course?.id === courseId);
+                                if (enrollment?.expiresAt) {
+                                    setExpiresAt(enrollment.expiresAt);
+                                    if (new Date(enrollment.expiresAt) < new Date()) {
+                                        setCourseExpired(true);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to check enrollment expiry:', e);
+                        }
+                    }
 
                     // Fetch user's completed progress
                     try {
@@ -259,6 +282,26 @@ export default function LearningPage() {
     }
 
     if (!course) return null;
+
+    if (courseExpired) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
+                    <div className="text-5xl mb-4">⏰</div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">คอร์สนี้หมดอายุแล้ว</h2>
+                    <p className="text-gray-500 text-sm mb-1">คุณไม่สามารถเข้าถึงบทเรียนได้อีกต่อไป</p>
+                    {expiresAt && (
+                        <p className="text-xs text-gray-400 mb-6">
+                            หมดอายุเมื่อ {new Date(expiresAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                    )}
+                    <a href="/" className="inline-block px-6 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                        กลับหน้าหลัก
+                    </a>
+                </div>
+            </div>
+        );
+    }
 
     // คำนวณเปอร์เซ็นต์เรียนจบแบบ UI Fake
     let totalItems = 0;

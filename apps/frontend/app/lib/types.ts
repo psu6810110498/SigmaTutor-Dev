@@ -62,6 +62,57 @@ export interface Instructor {
   profileImage?: string | null;
 }
 
+/**
+ * Public instructor profile — used for the Tutors listing grid.
+ * Maps to Teacher model with extended fields.
+ */
+export interface InstructorPublic {
+  id: string;
+  name: string;
+  nickname?: string | null;
+  profileImage?: string | null;
+  title?: string | null;
+  bio?: string | null;
+  expertise?: string | null;
+  experience?: string | null;
+  education?: string | null;
+  educationHistory: string[];
+  achievements: string[];
+  quote?: string | null;
+  socialLink?: string | null;
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  tiktokUrl?: string | null;
+  linkedinUrl?: string | null;
+  _count?: { courses: number };
+  // Review stats (from aggregation)
+  averageRating?: number;
+  totalReviews?: number;
+  ratingDistribution?: { star: number; count: number }[];
+  courses?: Pick<Course, 'id' | 'title' | 'slug' | 'thumbnail' | 'price' | 'courseType'>[];
+}
+
+/**
+ * Full tutor profile — used for the /tutors/[id] detail page.
+ * Includes all InstructorPublic fields plus aggregated reviews and student count.
+ */
+export interface TutorPublicProfile extends InstructorPublic {
+  courses: Course[];
+  recentReviews: TutorReview[];
+  totalStudents: number;
+}
+
+/** A review as returned by the tutor profile endpoint */
+export interface TutorReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  helpful: number;
+  user: { name: string; profileImage?: string | null };
+  course: { id: string; title: string };
+}
+
 /** Instructor พร้อม role และ order (ใช้ใน instructors[] array) */
 export interface CourseInstructor extends Instructor {
   role: CourseTeacherRole;
@@ -112,6 +163,7 @@ export interface Course {
   promotionalPrice?: number | null;
   isBestSeller?: boolean;
   isRecommended?: boolean;
+  accessDurationDays?: number | null;
 
   // Calculated fields
   rating?: number;
@@ -149,6 +201,7 @@ export interface Lesson {
   gumletVideoId: string | null;
   videoProvider: 'YOUTUBE' | 'GUMLET';
   duration: number | null;
+  isFree?: boolean;
   order: number;
   chapterId: string;
 }
@@ -166,6 +219,7 @@ export interface CourseSchedule {
   gumletVideoId?: string | null;
   videoProvider?: 'YOUTUBE' | 'GUMLET';
   location: string | null;
+  zoomLink?: string | null;
   isOnline: boolean;
   status?: 'ON_SCHEDULE' | 'POSTPONED' | 'CANCELLED';
   courseId: string;
@@ -182,6 +236,17 @@ export interface Review {
   courseId: string;
   course?: { id: string; title: string };
   createdAt: string;
+}
+
+export interface Enrollment {
+  id: string;
+  userId: string;
+  courseId: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  expiresAt: string | null;
+  isExpired?: boolean;
+  createdAt: string;
+  course?: Course;
 }
 
 // ── API Response Shapes ───────────────────────────────────
@@ -243,6 +308,7 @@ export interface CreateCourseInput {
   tags?: string[];
   isBestSeller?: boolean;
   isRecommended?: boolean;
+  accessDurationDays?: number;
   gumletVideoId?: string | null;
   videoProvider?: 'YOUTUBE' | 'GUMLET';
 }
@@ -278,6 +344,8 @@ export interface CourseQueryParams {
   page?: number;
   limit?: number;
   sort?: 'newest' | 'price-asc' | 'price-desc' | 'popular';
+  /** กรองคอร์สที่เต็มออก — ใช้สำหรับหน้าแรก */
+  excludeFull?: boolean;
 }
 
 export interface ReviewQueryParams {

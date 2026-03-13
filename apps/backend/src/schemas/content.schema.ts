@@ -18,10 +18,14 @@ export const createLessonSchema = z.object({
     youtubeUrl: z.string().optional().nullable(),
     gumletVideoId: z.string().optional().nullable(),
     videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
-    duration: z.number().int().optional(),
+    duration: z.number().int().optional(), // Duration in minutes
+    isFree: z.boolean().optional().default(false),
     order: z.number().int().optional(),
 });
 export const updateLessonSchema = createLessonSchema.partial();
+export const reorderLessonSchema = z.object({
+    orders: z.array(z.object({ id: z.string(), order: z.number().int() })),
+});
 
 // ── Schedule (ปรับโฉมเป็นเนื้อหาบทเรียน) ───────────────────────────
 export const createScheduleSchema = z.object({
@@ -36,6 +40,9 @@ export const createScheduleSchema = z.object({
     startTime: z.string().datetime().optional().nullable(),
     endTime: z.string().datetime().optional().nullable(),
     location: z.string().optional().nullable(),
+    zoomLink: z.string().optional().nullable(),
+    gumletVideoId: z.string().optional().nullable(),
+    videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
     isOnline: z.boolean().optional(),
 });
 

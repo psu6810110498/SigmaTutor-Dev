@@ -4,6 +4,7 @@
 // ============================================================
 
 import type {
+  TutorPublicProfile,
   ApiResponse,
   Course,
   CourseListResponse,
@@ -234,6 +235,8 @@ export type TutorProfile = {
   title?: string | null;
 };
 
+import type { InstructorPublic, TutorPublicProfile } from './types';
+
 export const tutorApi = {
   /**
    * GET /tutors — Returns instructors filtered by active course filters.
@@ -248,6 +251,27 @@ export const tutorApi = {
         ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
         : '';
     return request<TutorProfile[]>(`/tutors${query}`);
+  },
+
+  /** 
+   * GET /tutors/all — Full list for the Instructors/Tutors Grid Page
+   * Cached at Edge/CDN for performance.
+   */
+  getAll(): Promise<ApiResponse<InstructorPublic[]>> {
+    // Revalidate every 1 hour (3600 seconds) for ISR
+    return request<InstructorPublic[]>('/tutors/all', {
+      next: { revalidate: 3600 },
+    } as RequestInit);
+  },
+
+  /** 
+   * GET /tutors/:id — Full Instructor Profile including review stats
+   * Cached at Edge/CDN for performance.
+   */
+  getById(id: string): Promise<ApiResponse<TutorPublicProfile>> {
+    return request<TutorPublicProfile>(`/tutors/${id}`, {
+      next: { revalidate: 3600 },
+    } as RequestInit);
   },
 };
 

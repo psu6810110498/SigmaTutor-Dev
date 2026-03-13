@@ -78,6 +78,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         published: course.published ?? false,
         isBestSeller: course.isBestSeller ?? false,
         isRecommended: course.isRecommended ?? false,
+        accessDurationDays: course.accessDurationDays ?? 365,
     });
 
     const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
@@ -522,6 +523,19 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                                 )}
                                 <p className="text-xs text-gray-400 mt-1.5">รองรับไฟล์ .pdf ขนาดไม่เกิน 10MB</p>
                             </div>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">อายุการเข้าถึงคอร์ส (วัน) <span className="text-xs text-gray-400 font-normal">— ตั้งค่า admin เท่านั้น</span></label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="1"
+                                value={form.accessDurationDays ?? 365}
+                                onChange={(e) => updateForm("accessDurationDays", parseInt(e.target.value) || 365)}
+                                className="w-32 h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm text-center"
+                            />
+                            <span className="text-sm text-gray-500">วัน (ค่าเริ่มต้น 365 วัน = 1 ปี)</span>
                         </div>
                     </div>
                 </SectionCard>

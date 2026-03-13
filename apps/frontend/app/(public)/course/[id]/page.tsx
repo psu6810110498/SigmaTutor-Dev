@@ -242,8 +242,27 @@ export default function CourseDetailPage() {
   const formatPrice = (n: number) =>
     new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0 }).format(n);
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const formatTime = (d: string | null | undefined) => {
+    if (!d) return '';
+    return new Date(d).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const calcTotalMinutes = (lessons: any[]) =>
+    lessons.reduce((sum, l) => sum + (l.duration ?? 0), 0);
+
+  const formatMinutes = (mins: number) => {
+    if (mins <= 0) return '';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) return h + ' ชม. ' + m + ' นาที';
+    if (h > 0) return h + ' ชม.';
+    return m + ' นาที';
+  };
 
   const toggleLesson = (id: string) => {
     setExpandedLessons((prev) => {
@@ -503,7 +522,17 @@ export default function CourseDetailPage() {
                 {course.chapters && course.chapters.length > 0 ? (
                   course.chapters.map((chapter) => (
                     <div key={chapter.id}>
-                      <h3 className="font-bold text-gray-900 mb-3 ml-1">{chapter.title}</h3>
+                      <div className="flex items-center justify-between mb-3 ml-1">
+                        <h3 className="font-bold text-gray-900">{chapter.title}</h3>
+                        {chapter.lessons && chapter.lessons.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {chapter.lessons.length} บทเรียน
+                            {calcTotalMinutes(chapter.lessons) > 0 && (
+                              <> · {formatMinutes(calcTotalMinutes(chapter.lessons))}</>
+                            )}
+                          </span>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         {chapter.lessons?.map((lesson, i) => (
                           <div
@@ -521,6 +550,9 @@ export default function CourseDetailPage() {
                                 <span className="text-sm font-medium text-gray-900">
                                   {lesson.title}
                                 </span>
+                                {lesson.isFree && (
+                                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">ทดลองเรียน</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3 text-gray-400">
                                 {lesson.duration && (

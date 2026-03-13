@@ -1,8 +1,27 @@
 'use client';
 
+/**
+ * CourseCard — Marketplace / Landing Page course listing card.
+ *
+ * Design principles:
+ *  - 4-zone layout (Thumbnail → Header → Meta → Footer) with fixed min-h per zone
+ *    so ALL cards in a row are the same height regardless of content variance.
+ *  - Scroll-entrance animation via IntersectionObserver (staggered per index).
+ *  - Hover: card lifts + shadow escalates + thumbnail zooms in.
+ *  - CTA button: shimmer sweep on hover (GPU-accelerated via globals.css).
+ *  - Cart add: icon bounce feedback (optimistic — no API wait).
+ *  - Urgency badge overlay: shown when < 30% seats remaining (ONSITE/LIVE).
+ *  - Above-fold images: priority={true} when index < 5.
+ *  - Prefetch course detail page on card hover.
+ *
+ * @param index  Position in the rendered grid — controls stagger delay.
+ * @param priority Whether to eagerly load the thumbnail (above-fold cards).
+ */
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import {
   Star,
   CheckCircle2,
@@ -16,84 +35,114 @@ import {
   Video,
   MapPin,
   BookOpen,
+  Flame,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Course, CourseInstructor, Instructor } from '@/app/lib/types';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
 import { useMarketplaceFilters } from '@/app/hooks/useMarketplaceFilters';
+import { useCourseAvailability } from '@/app/hooks/useCourseAvailability';
 
-// ─── ค่าคงที่ ────────────────────────────────────────────────
-/** จำนวนวันนับเป็น "คอร์สใหม่" */
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Days since creation before "New" badge disappears */
 const NEW_COURSE_DAYS = 30;
-/** รีวิวขั้นต่ำก่อนแสดงดาว (ป้องกัน bias ตอน bootstrap) */
+/** Minimum reviews before we trust the rating average */
 const MIN_REVIEWS_TO_SHOW_RATING = 5;
-/** แสดง badge จำกัดที่นั่งเมื่อเหลือไม่ถึง % นี้ */
+/** Show "Low Seats" badge when this % of seats are filled */
 const LOW_SEAT_THRESHOLD_PCT = 30;
+/** Show 🔥 Urgency badge when remaining seats are below this % */
+const URGENCY_SEAT_THRESHOLD_PCT = 30;
+/** Animation stagger step per card (ms) */
+const STAGGER_DELAY_MS = 80;
 
-// ─── ประเภทที่นั่ง ────────────────────────────────────────────
+// ─── Course Type Config ──────────────────────────────────────────────────────
+
 const COURSE_TYPE_CONFIG = {
-  ONLINE: {
-    label: 'ออนไลน์',
-    icon: Monitor,
-    color: 'text-blue-600 bg-blue-50',
-  },
-  ONLINE_LIVE: {
-    label: 'Live สด',
-    icon: Video,
-    color: 'text-orange-600 bg-orange-50',
-  },
-  ONSITE: {
-    label: 'ออนไซต์',
-    icon: MapPin,
-    color: 'text-green-700 bg-green-50',
-  },
+  ONLINE:      { label: 'ออนไลน์', icon: Monitor, color: 'text-blue-600 bg-blue-50' },
+  ONLINE_LIVE: { label: 'Live สด',  icon: Video,   color: 'text-orange-600 bg-orange-50' },
+  ONSITE:      { label: 'ออนไซต์', icon: MapPin,   color: 'text-green-700 bg-green-50' },
 } as const;
 
-// ─── Helper functions ─────────────────────────────────────────
+// ─── Helper Functions ─────────────────────────────────────────────────────────
 
-/** คำนวณ % ส่วนลดจากราคาตั้งต้น */
-function calcDiscountPct(price: number, promoPrice: number): number {
+function calcDiscountPct(price: number, promoPrice: number) {
   return Math.round(((price - promoPrice) / price) * 100);
 }
 
-/** ตรวจสอบว่าคอร์สสร้างภายใน N วันที่ผ่านมา */
-function isNewCourse(createdAt: string | undefined, days: number): boolean {
+function isNewCourse(createdAt: string | undefined, days: number) {
   if (!createdAt) return false;
-  const diffMs = Date.now() - new Date(createdAt).getTime();
-  return diffMs < days * 24 * 60 * 60 * 1000;
+  return Date.now() - new Date(createdAt).getTime() < days * 86_400_000;
 }
 
-/** คำนวณ % ที่ลงทะเบียนแล้ว (สำหรับ Progress Bar บน Card) */
-function calcEnrolledPct(enrolled: number, max: number): number {
+function calcEnrolledPct(enrolled: number, max: number) {
   return Math.min(Math.round((enrolled / max) * 100), 100);
 }
 
-// ─── Sub-components ───────────────────────────────────────────
+// ─── Custom Hook: Scroll Entrance ─────────────────────────────────────────────
 
-/** แถบแสดงที่นั่งที่เหลือ — ใช้ข้อมูล static จาก list API */
-function SeatBar({ enrolled, max }: { enrolled: number; max: number }) {
-  const remaining = Math.max(0, max - enrolled);
-  const isFull = remaining <= 0;
-  const pct = isFull ? 100 : calcEnrolledPct(enrolled, max);
+/**
+ * Triggers a fade+slide-up entrance animation as the element enters the viewport.
+ * @param delay  Extra delay in ms (for staggering).
+ */
+function useCardEntrance(delay = 0) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          const t = setTimeout(() => setIsVisible(true), delay);
+          obs.disconnect();
+          return () => clearTimeout(t);
+        }
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' },
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [delay]);
+
+  return { ref, isVisible };
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Seat progress bar with colour ramp */
+function SeatBar({
+  remaining, max, isFull, pct, isReservedOnly,
+}: {
+  remaining: number; max: number; isFull: boolean; pct: number; isReservedOnly: boolean;
+}) {
   const barColor =
-    isFull ? 'bg-red-500' :
-    pct >= 75 ? 'bg-orange-500' :
-    pct >= 50 ? 'bg-yellow-500' :
+    isReservedOnly ? 'bg-orange-400' :
+    isFull         ? 'bg-red-500'    :
+    pct >= 75      ? 'bg-orange-500' :
+    pct >= 50      ? 'bg-yellow-500' :
     'bg-green-500';
 
   return (
-    <div className="mt-2.5">
+    <div className="mt-1.5">
       <div className="flex justify-between items-center mb-1">
         <span className="text-[10px] text-gray-500">ที่นั่ง</span>
         <span className={`text-[10px] font-semibold ${isFull ? 'text-red-600' : 'text-gray-700'}`}>
-          {isFull ? 'ปิดรับสมัครแล้ว' : `เหลือ ${remaining}/${max} ที่`}
+          {isReservedOnly
+            ? 'จองชั่วคราวเต็ม'
+            : isFull
+            ? 'ปิดรับสมัครแล้ว'
+            : `เหลือ ${remaining}/${max} ที่`}
         </span>
       </div>
-      <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+      {/* Track */}
+      <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+          className={`h-full rounded-full transition-all duration-500 ${barColor} ${isReservedOnly && !isFull ? 'animate-pulse' : ''}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -101,19 +150,18 @@ function SeatBar({ enrolled, max }: { enrolled: number; max: number }) {
   );
 }
 
-/** แสดง badge ประเภทคอร์ส (ONLINE / LIVE / ONSITE) */
+/** Small inline badge for course type (ONLINE / LIVE / ONSITE) */
 function CourseTypeBadge({ type }: { type: Course['courseType'] }) {
-  const config = COURSE_TYPE_CONFIG[type];
-  const Icon = config.icon;
+  const { label, icon: Icon, color } = COURSE_TYPE_CONFIG[type];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${config.color}`}>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${color}`}>
       <Icon size={10} />
-      {config.label}
+      {label}
     </span>
   );
 }
 
-// ─── Avatar Stack: แสดงผู้สอนหลายคนซ้อนกัน ───────────────────
+// ─── Instructor Avatar Stack ───────────────────────────────────────────────────
 
 interface AvatarProps {
   person: Instructor | CourseInstructor;
@@ -126,7 +174,7 @@ function Avatar({ person, size = 24, className = '' }: AvatarProps) {
   return (
     <div
       style={{ width: size, height: size }}
-      className={`relative rounded-full border-2 border-white overflow-hidden flex-shrink-0 ${className}`}
+      className={`relative rounded-full border-2 border-white overflow-hidden shrink-0 ${className}`}
     >
       {person.profileImage ? (
         <Image src={person.profileImage} alt={person.name ?? ''} fill className="object-cover" />
@@ -139,7 +187,6 @@ function Avatar({ person, size = 24, className = '' }: AvatarProps) {
   );
 }
 
-/** แสดง avatar ซ้อนกัน พร้อมชื่อผู้สอนหลัก + "และอีก N คน" */
 interface InstructorStackProps {
   instructors: (Instructor | CourseInstructor)[];
   onClickLead?: (e: React.MouseEvent) => void;
@@ -157,10 +204,10 @@ function InstructorStack({ instructors, onClickLead, isLeadActive }: InstructorS
 
   return (
     <div className="flex items-center gap-2">
-      {/* Avatar ของ LEAD — คลิกได้เพื่อกรอง */}
+      {/* Lead avatar — clickable filter */}
       <button
         onClick={onClickLead}
-        className={`relative flex-shrink-0 rounded-full border-2 overflow-hidden shadow-sm transition-all hover:scale-110 ${
+        className={`relative shrink-0 rounded-full border-2 overflow-hidden shadow-sm transition-all hover:scale-110 ${
           isLeadActive ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200'
         }`}
         style={{ width: 24, height: 24 }}
@@ -180,7 +227,7 @@ function InstructorStack({ instructors, onClickLead, isLeadActive }: InstructorS
         )}
       </button>
 
-      {/* Avatars ของผู้สอนคนอื่น (overlap กัน) */}
+      {/* Extra avatars */}
       {visibleExtra.length > 0 && (
         <div className="flex -space-x-1.5">
           {visibleExtra.map((inst, idx) => (
@@ -194,7 +241,6 @@ function InstructorStack({ instructors, onClickLead, isLeadActive }: InstructorS
         </div>
       )}
 
-      {/* ชื่อผู้สอน */}
       <span className="text-[11px] text-gray-400 truncate">
         โดย {lead.name}
         {extras.length > 0 && ` และอีก ${extras.length} คน`}
@@ -203,77 +249,89 @@ function InstructorStack({ instructors, onClickLead, isLeadActive }: InstructorS
   );
 }
 
-// ─── Component หลัก ──────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 interface CourseCardProps {
   course: Course;
+  /** Grid position — controls stagger entrance delay */
+  index?: number;
+  /** Pass true for cards in the first visible row (improves LCP) */
+  priority?: boolean;
 }
 
-export default function CourseCard({ course }: CourseCardProps) {
+export default function CourseCard({ course, index = 0, priority = false }: CourseCardProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { tutorId, toggleTutor } = useMarketplaceFilters();
   const { addToCart, isInCart } = useCourse();
 
-  // ── ข้อมูลราคา ──────────────────────────────────────────────
-  const hasDiscount =
-    course.promotionalPrice != null && course.promotionalPrice < course.price;
+  // ── Entrance animation ─────────────────────────────────────────────────────
+  const { ref: entranceRef, isVisible } = useCardEntrance(index * STAGGER_DELAY_MS);
+
+  // ── Cart bounce feedback ───────────────────────────────────────────────────
+  const [cartBounce, setCartBounce] = useState(false);
+
+  // ── Pricing ───────────────────────────────────────────────────────────────
+  const hasDiscount = course.promotionalPrice != null && course.promotionalPrice < course.price;
   const displayPrice = hasDiscount ? course.promotionalPrice! : course.price;
-  const discountPct = hasDiscount
-    ? calcDiscountPct(course.price, course.promotionalPrice!)
-    : 0;
+  const discountPct  = hasDiscount ? calcDiscountPct(course.price, course.promotionalPrice!) : 0;
 
-  // ── ข้อมูล badge ─────────────────────────────────────────────
+  // ── Badges ────────────────────────────────────────────────────────────────
   const isNew = isNewCourse(course.createdAt, NEW_COURSE_DAYS);
-
-  // กำหนด badge ลำดับ priority — แสดงสูงสุด 2 อัน
   const badgeCandidates = [
-    course.isBestSeller && { label: 'มาแรง!!', color: 'bg-amber-500 text-white' },
-    course.isRecommended && { label: 'แนะนำ', color: 'bg-blue-600 text-white' },
-    isNew && { label: 'ใหม่', color: 'bg-green-600 text-white' },
+    course.isBestSeller  && { label: 'มาแรง!!', color: 'bg-amber-500 text-white' },
+    course.isRecommended && { label: 'แนะนำ',   color: 'bg-blue-600 text-white' },
+    isNew                && { label: 'ใหม่',    color: 'bg-green-600 text-white' },
   ].filter(Boolean) as { label: string; color: string }[];
   const visibleBadges = badgeCandidates.slice(0, 2);
 
-  // ── ข้อมูล rating ────────────────────────────────────────────
-  const reviewCount = course.reviewCount ?? course._count?.reviews ?? 0;
-  const showRating = reviewCount >= MIN_REVIEWS_TO_SHOW_RATING;
+  // ── Rating ────────────────────────────────────────────────────────────────
+  const reviewCount   = course.reviewCount ?? course._count?.reviews ?? 0;
+  const showRating    = reviewCount >= MIN_REVIEWS_TO_SHOW_RATING;
   const displayRating = course.rating ?? 0;
 
-  // ── ข้อมูล tutor filter ──────────────────────────────────────
-  // รวม instructors[] กับ instructor เดี่ยว (backward compat)
+  // ── Instructors ───────────────────────────────────────────────────────────
   const allInstructors: (Instructor | CourseInstructor)[] =
-    course.instructors && course.instructors.length > 0
-      ? course.instructors
-      : course.instructor
-      ? [course.instructor]
-      : [];
+    course.instructors?.length ? course.instructors
+    : course.instructor         ? [course.instructor]
+    : [];
   const leadInstructor = allInstructors[0] ?? null;
-  const isTutorActive = tutorId === leadInstructor?.id;
+  const isTutorActive  = tutorId === leadInstructor?.id;
 
-  // ── ข้อมูลที่นั่ง (Progress Bar) ─────────────────────────────
-  const isLimitedCourse =
-    course.courseType === 'ONSITE' || course.courseType === 'ONLINE_LIVE';
-  const enrolledCount = course._count?.enrollments ?? 0;
-  const maxSeats = course.maxSeats;
-  const showSeatBar = isLimitedCourse && maxSeats != null && maxSeats > 0;
+  // ── Seat / availability (ONSITE + LIVE only) ──────────────────────────────
+  const isLimitedCourse  = course.courseType === 'ONSITE' || course.courseType === 'ONLINE_LIVE';
+  const { availability } = useCourseAvailability(course.id, {
+    disabled: !isLimitedCourse,
+    pollInterval: 0, // no polling on list page — avoid API spam
+  });
 
-  // badge "จำกัดที่นั่ง" แสดงเมื่อเหลือน้อย แต่ยังไม่เต็ม
-  const seatPct = showSeatBar ? calcEnrolledPct(enrolledCount, maxSeats!) : 0;
-  const showLowSeatBadge =
-    showSeatBar &&
-    seatPct >= (100 - LOW_SEAT_THRESHOLD_PCT) &&
-    seatPct < 100 &&
-    !visibleBadges.find((b) => b.label === 'จำกัดที่นั่ง');
+  const enrolledCount    = course._count?.enrollments ?? 0;
+  const maxSeats         = course.maxSeats;
+  const showSeatBar      = isLimitedCourse && maxSeats != null && maxSeats > 0;
 
-  // ── ข้อมูล CTA ───────────────────────────────────────────────
-  const isFull = showSeatBar && enrolledCount >= maxSeats!;
+  const liveIsFull       = availability ? availability.isFull        : showSeatBar && enrolledCount >= maxSeats!;
+  const liveRemaining    = availability ? (availability.remaining ?? 0) : maxSeats ? Math.max(0, maxSeats - enrolledCount) : 0;
+  const liveReservedOnly = availability ? availability.isReservedOnly : false;
+  const livePct          = availability ? (availability.percentage ?? 100) : showSeatBar ? calcEnrolledPct(enrolledCount, maxSeats!) : 0;
+
+  const showLowSeatBadge = showSeatBar && livePct >= (100 - LOW_SEAT_THRESHOLD_PCT) && livePct < 100 && !visibleBadges.find(b => b.label === 'จำกัดที่นั่ง');
+
+  // 🔥 Urgency badge: remaining < 30% and not fully closed
+  const showUrgencyBadge = showSeatBar && liveRemaining > 0 && livePct >= (100 - URGENCY_SEAT_THRESHOLD_PCT);
+
+  // ── CTA state ─────────────────────────────────────────────────────────────
+  const isFull       = liveIsFull;
   const alreadyInCart = isInCart(course.id);
   const ctaLabel =
-    isFull ? 'ปิดรับสมัครแล้ว' :
-    isLimitedCourse ? 'จองที่นั่ง' :
+    isFull           ? 'ปิดรับสมัครแล้ว' :
+    isLimitedCourse  ? 'จองที่นั่ง' :
     'ซื้อคอร์สนี้';
 
-  // ── Event handlers ───────────────────────────────────────────
+  // ── Event handlers ────────────────────────────────────────────────────────
+
+  /** Prefetch course detail on hover for near-instant navigation */
+  const handleMouseEnter = () => router.prefetch(`/course/${course.slug}`);
+
   const handleTutorClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -293,232 +351,288 @@ export default function CourseCard({ course }: CourseCardProps) {
       return;
     }
     addToCart(toCartItem(course));
-    toast.success('เพิ่มลงตะกร้าแล้ว', {
-      description: course.title,
-      duration: 2500,
-    });
+    toast.success('เพิ่มลงตะกร้าแล้ว', { description: course.title, duration: 2500 });
+
+    // Optimistic bounce feedback
+    setCartBounce(true);
+    setTimeout(() => setCartBounce(false), 350);
   };
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isFull) return;
-    // เพิ่มเข้าตะกร้าก่อนแล้วไปหน้า checkout
-    if (!alreadyInCart) {
-      addToCart(toCartItem(course));
-    }
-    router.push('/cart');
+    if (!alreadyInCart) addToCart(toCartItem(course));
+    router.push('/checkout');
   };
 
-  // ─────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Link
-      href={`/course/${course.slug}`}
-      className={`block bg-white rounded-2xl border shadow-sm transition-all duration-300 overflow-hidden flex flex-col h-full group w-[280px] md:w-full flex-shrink-0 relative ${
-        isFull
-          ? 'border-gray-200 opacity-80'
-          : 'border-gray-100 hover:shadow-lg hover:-translate-y-0.5'
-      }`}
+    /*
+     * Entrance wrapper — IntersectionObserver controls opacity + translateY.
+     * motion-reduce disables the animation for users who prefer reduced motion.
+     */
+    <div
+      ref={entranceRef}
+      className={`
+        transition-[opacity,transform] duration-500 ease-out
+        motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
+      `}
     >
-      {/* ── Thumbnail ── */}
-      <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
-        {course.thumbnail ? (
-          <Image
-            src={encodeURI(course.thumbnail)}
-            alt={course.title}
-            fill
-            className={`object-cover transition-transform duration-500 ${
-              isFull ? 'grayscale-[30%]' : 'group-hover:scale-105'
-            }`}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-sm">
-            ไม่มีรูปภาพ
-          </div>
-        )}
+      <Link
+        href={`/course/${course.slug}`}
+        onMouseEnter={handleMouseEnter}
+        className={`
+          group block bg-white rounded-2xl border shadow-sm w-full h-full relative
+          flex flex-col overflow-hidden
+          transition-[transform,box-shadow] duration-250 ease-out
+          ${isFull
+            ? 'border-gray-200 opacity-75 cursor-pointer'
+            : 'border-gray-100 hover:-translate-y-1 hover:shadow-xl'}
+        `}
+      >
 
-        {/* Overlay เมื่อเต็ม */}
-        {isFull && (
-          <div className="absolute inset-0 bg-gray-900/40 flex items-center justify-center">
-            <span className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg tracking-wide">
-              ปิดรับสมัครแล้ว
-            </span>
-          </div>
-        )}
+        {/* ══════════════════════════════════════════════════════════════
+            ZONE 1 · THUMBNAIL  (fixed height — equal across all cards)
+        ══════════════════════════════════════════════════════════════ */}
+        <div className="relative h-36 w-full bg-gray-100 overflow-hidden">
+          {course.thumbnail ? (
+            <Image
+              src={encodeURI(course.thumbnail)}
+              alt={course.title}
+              fill
+              priority={priority}
+              className={`object-cover transition-transform duration-500 ${
+                isFull ? 'grayscale-[30%]' : 'group-hover:scale-[1.04]'
+              }`}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 text-gray-400 text-sm font-medium">
+              ไม่มีรูปภาพ
+            </div>
+          )}
 
-        {/* Badges มุมบนซ้าย — สูงสุด 2 อัน (ซ่อนเมื่อเต็ม เพื่อไม่รก) */}
-        {!isFull && (visibleBadges.length > 0 || showLowSeatBadge) && (
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-            {visibleBadges.map((b) => (
-              <span
-                key={b.label}
-                className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ${b.color}`}
-              >
-                {b.label}
+          {/* Sold-out overlay */}
+          {isFull && (
+            <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center backdrop-blur-[1px]">
+              <span className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg tracking-wide">
+                ปิดรับสมัครแล้ว
               </span>
-            ))}
-            {showLowSeatBadge && visibleBadges.length < 2 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded shadow-sm bg-orange-500 text-white">
-                จำกัดที่นั่ง
+            </div>
+          )}
+
+          {/* Top-left promo badges */}
+          {!isFull && (visibleBadges.length > 0 || showLowSeatBadge) && (
+            <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+              {visibleBadges.map(b => (
+                <span key={b.label} className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ${b.color}`}>
+                  {b.label}
+                </span>
+              ))}
+              {showLowSeatBadge && visibleBadges.length < 2 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded shadow-sm bg-orange-500 text-white">
+                  จำกัดที่นั่ง
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 🔥 Urgency badge — bottom-right */}
+          {showUrgencyBadge && (
+            <div className="absolute bottom-8 right-2 z-10">
+              <span className="inline-flex items-center gap-1 bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-lg animate-pulse">
+                <Flame size={10} />
+                เหลือ {liveRemaining} ที่!
+              </span>
+            </div>
+          )}
+
+          {/* Discount badge — bottom-left above instructor strip */}
+          {hasDiscount && !isFull && (
+            <div className="absolute bottom-8 left-2 z-10">
+              <span className="bg-red-500/90 backdrop-blur-sm text-white text-[11px] font-extrabold px-2 py-0.5 rounded shadow">
+                ลด {discountPct}%
+              </span>
+            </div>
+          )}
+
+          {/* ── Instructor overlay strip at thumbnail bottom ── */}
+          {allInstructors.length > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-linear-to-t from-black/60 to-transparent px-2.5 py-1.5 flex items-center gap-1.5">
+              {/* Lead avatar */}
+              <button
+                onClick={handleTutorClick}
+                className={`shrink-0 relative rounded-full border-2 overflow-hidden shadow transition-all hover:scale-110 ${
+                  isTutorActive ? 'border-green-400' : 'border-white/70'
+                }`}
+                style={{ width: 22, height: 22 }}
+                title={`กรองตาม ${allInstructors[0].name}`}
+              >
+                {allInstructors[0].profileImage ? (
+                  <Image src={allInstructors[0].profileImage} alt={allInstructors[0].name ?? ''} fill className="object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-primary flex items-center justify-center text-[8px] text-white font-bold">
+                    {allInstructors[0].name?.charAt(0) ?? 'T'}
+                  </div>
+                )}
+              </button>
+              <span className="text-white text-[11px] font-medium truncate drop-shadow">
+                {allInstructors[0].name}
+                {allInstructors.length > 1 && ` +${allInstructors.length - 1}`}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            ZONE 2 · HEADER  (compact — reduced min-h)
+        ══════════════════════════════════════════════════════════════ */}
+        <div className="px-3 pt-2.5 pb-0 min-h-[72px]">
+          {/* Category + Rating row */}
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full leading-snug">
+              {course.category?.name ?? 'วิชาทั่วไป'}
+            </span>
+            {showRating ? (
+              <div className="flex items-center gap-1">
+                <Star size={10} className="text-amber-400 fill-amber-400" />
+                <span className="text-[11px] font-semibold text-gray-700">{displayRating.toFixed(1)}</span>
+                <span className="text-[10px] text-gray-400">({reviewCount})</span>
+              </div>
+            ) : reviewCount > 0 ? (
+              <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">รีวิวใหม่</span>
+            ) : null}
+          </div>
+
+          {/* Course title */}
+          <h3 className="font-bold text-gray-900 text-[13px] leading-snug line-clamp-2 min-h-[36px]">
+            {course.title}
+          </h3>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            ZONE 3 · META CHIPS  (compact — min-h reduced)
+        ══════════════════════════════════════════════════════════════ */}
+        <div className="px-3 pt-1.5 min-h-[44px] flex flex-col gap-1">
+          {/* Info chips row */}
+          <div className="flex flex-wrap gap-1">
+            <CourseTypeBadge type={course.courseType} />
+
+            {course.duration && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                <Clock size={9} />
+                {course.duration}
+              </span>
+            )}
+
+            {course.level?.name && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                <GraduationCap size={9} />
+                {course.level.name}
+              </span>
+            )}
+
+            {!isLimitedCourse && course.videoCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                <BookOpen size={9} />
+                {course.videoCount} บท
               </span>
             )}
           </div>
-        )}
-      </div>
 
-      {/* ── Content ── */}
-      <div className="p-4 flex flex-col flex-grow">
-
-        {/* Category chip */}
-        <div className="mb-2">
-          <span className="text-[10px] text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
-            {course.category?.name ?? 'วิชาทั่วไป'}
-          </span>
-        </div>
-
-        {/* ชื่อคอร์ส */}
-        <h3 className="font-bold text-gray-900 text-base leading-snug mb-1 line-clamp-2 min-h-[2.75rem]">
-          {course.title}
-        </h3>
-
-        {/* Rating — แสดงเฉพาะเมื่อมีรีวิวมากพอ */}
-        {showRating && (
-          <div className="flex items-center gap-1 mb-1.5">
-            <Star size={11} className="text-amber-400 fill-amber-400" />
-            <span className="text-xs font-semibold text-gray-700">
-              {displayRating.toFixed(1)}
-            </span>
-            <span className="text-[10px] text-gray-400">({reviewCount} รีวิว)</span>
-          </div>
-        )}
-        {!showRating && reviewCount > 0 && (
-          <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full inline-block mb-1.5 w-fit">
-            รีวิวใหม่
-          </span>
-        )}
-
-        {/* คำอธิบายสั้น */}
-        {course.shortDescription && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 mb-2 leading-relaxed">
-            {course.shortDescription}
-          </p>
-        )}
-
-        {/* Info Chips */}
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          <CourseTypeBadge type={course.courseType} />
-
-          {course.duration && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-              <Clock size={10} />
-              {course.duration}
-            </span>
-          )}
-
-          {course.level?.name && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-              <GraduationCap size={10} />
-              {course.level.name}
-            </span>
-          )}
-
-          {/* วันเริ่มเรียน เฉพาะ ONSITE/LIVE */}
-          {isLimitedCourse && course.enrollStartDate && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-              <CalendarDays size={10} />
-              {new Date(course.enrollStartDate).toLocaleDateString('th-TH', {
-                day: 'numeric',
-                month: 'short',
-              })}
-            </span>
-          )}
-
-          {/* จำนวน videos/sessions สำหรับ ONLINE */}
-          {!isLimitedCourse && course.videoCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-              <BookOpen size={10} />
-              {course.videoCount} บท
-            </span>
+          {/* Start date chip — ONSITE / LIVE only */}
+          {isLimitedCourse && course.enrollStartDate ? (
+            <div className="flex">
+              <span className="inline-flex items-center gap-1 text-[10px] text-primary bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 font-medium">
+                <CalendarDays size={10} />
+                เริ่ม {new Date(course.enrollStartDate).toLocaleDateString('th-TH', {
+                  day: 'numeric', month: 'short', year: 'numeric',
+                })}
+              </span>
+            </div>
+          ) : (
+            /* Placeholder keeps ONLINE cards same height as ONSITE */
+            <div className="h-[20px]" aria-hidden="true" />
           )}
         </div>
 
-        {/* Progress Bar ที่นั่ง — เฉพาะ ONSITE/LIVE */}
-        {showSeatBar && (
-          <SeatBar enrolled={enrolledCount} max={maxSeats!} />
-        )}
+        {/* ══════════════════════════════════════════════════════════════
+            ZONE 4 · FOOTER  (compact, no instructor row — moved to thumbnail)
+        ══════════════════════════════════════════════════════════════ */}
+        <div className="mt-auto px-3 pb-3 pt-2 border-t border-gray-100">
 
-        {/* Tutor row — รองรับผู้สอนหลายคน */}
-        {allInstructors.length > 0 && (
-          <div className="mt-2.5">
-            <InstructorStack
-              instructors={allInstructors}
-              onClickLead={handleTutorClick}
-              isLeadActive={isTutorActive}
+          {/* Seat progress bar — ONSITE / LIVE only */}
+          {showSeatBar && (
+            <SeatBar
+              remaining={liveRemaining}
+              max={maxSeats!}
+              isFull={isFull}
+              pct={livePct}
+              isReservedOnly={liveReservedOnly}
             />
-          </div>
-        )}
+          )}
 
-        {/* ── Price + CTA ── */}
-        <div className="mt-auto pt-3 border-t border-gray-100">
-
-          {/* ราคา */}
-          <div className="flex items-baseline gap-2 mb-2.5">
-            {hasDiscount ? (
-              <>
-                <span className="text-xl font-bold text-secondary">
-                  ฿{displayPrice.toLocaleString()}
-                </span>
-                <span className="text-xs text-gray-400 line-through">
-                  ฿{course.price.toLocaleString()}
-                </span>
-                <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded">
-                  -{discountPct}%
-                </span>
-              </>
-            ) : (
-              <span className="text-xl font-bold text-secondary">
+          {/* Price + CTA */}
+          <div className={showSeatBar ? 'mt-2' : ''}>
+            {/* Price */}
+            <div className="flex items-end gap-1.5 mb-2">
+              <span className={`text-lg font-extrabold leading-none ${hasDiscount ? 'text-secondary' : 'text-gray-900'}`}>
                 ฿{displayPrice.toLocaleString()}
               </span>
-            )}
-          </div>
+              {hasDiscount && (
+                <span className="text-xs text-gray-400 line-through leading-relaxed">
+                  ฿{course.price.toLocaleString()}
+                </span>
+              )}
+            </div>
 
-          {/* ปุ่ม CTA */}
-          <div className="flex gap-2">
-            {/* ปุ่มเพิ่มตะกร้า */}
-            <button
-              onClick={handleAddToCart}
-              disabled={isFull}
-              title={alreadyInCart ? 'อยู่ในตะกร้าแล้ว' : 'เพิ่มลงตะกร้า'}
-              className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border transition-all ${
-                isFull
-                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                  : alreadyInCart
-                  ? 'border-green-400 text-green-600 bg-green-50'
-                  : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary hover:bg-primary/5'
-              }`}
-            >
-              <ShoppingCart size={15} />
-            </button>
+            {/* CTA buttons: bigger on mobile (touch target), normal on desktop */}
+            <div className="flex gap-1.5">
+              {/* Cart icon button */}
+              <button
+                onClick={handleAddToCart}
+                disabled={isFull}
+                title={alreadyInCart ? 'อยู่ในตะกร้าแล้ว' : 'เพิ่มลงตะกร้า'}
+                className={`
+                  shrink-0 w-11 sm:w-10 h-11 sm:h-9 flex items-center justify-center rounded-xl border transition-all
+                  ${cartBounce ? 'scale-125' : 'scale-100'}
+                  ${isFull
+                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                    : alreadyInCart
+                    ? 'border-green-400 text-green-600 bg-green-50'
+                    : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary hover:bg-primary/5'}
+                `}
+              >
+                <ShoppingCart size={16} />
+              </button>
 
-            {/* ปุ่มซื้อ/จอง หลัก */}
-            <button
-              onClick={handleBuyNow}
-              disabled={isFull}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                isFull
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : isLimitedCourse
-                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
-                  : 'bg-primary hover:bg-primary/90 text-white shadow-sm'
-              }`}
-            >
-              {!isFull && (isLimitedCourse ? <Zap size={13} /> : <ArrowRight size={13} />)}
-              {ctaLabel}
-            </button>
+              {/* Primary buy / reserve CTA with shimmer */}
+              <button
+                onClick={handleBuyNow}
+                disabled={isFull}
+                className={`
+                  course-card-cta
+                  flex-1 relative overflow-hidden
+                  flex items-center justify-center gap-1.5
+                  h-11 sm:h-9 rounded-xl text-sm font-bold
+                  transition-all duration-250
+                  ${isFull
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : isLimitedCourse
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm hover:shadow-orange-500/30 hover:shadow-md'
+                    : 'bg-primary hover:bg-primary/90 text-white shadow-sm hover:shadow-primary/30 hover:shadow-md'}
+                `}
+              >
+                {!isFull && (isLimitedCourse ? <Zap size={14} /> : <ArrowRight size={14} />)}
+                {ctaLabel}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </Link>
+
+      </Link>
+    </div>
   );
 }

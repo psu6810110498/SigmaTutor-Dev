@@ -348,18 +348,27 @@ export class PaymentService {
           where: { userId_courseId: { userId, courseId } },
         });
 
+        const courseAccess = await tx.course.findUnique({
+          where: { id: courseId },
+          select: { accessDurationDays: true },
+        });
+        const accessDays = courseAccess?.accessDurationDays ?? 365;
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + accessDays);
+
         if (!existing) {
           await tx.enrollment.create({
             data: {
               userId,
               courseId,
               status: 'ACTIVE',
+              expiresAt,
             },
           });
         } else {
           await tx.enrollment.update({
             where: { userId_courseId: { userId, courseId } },
-            data: { status: 'ACTIVE' },
+            data: { status: 'ACTIVE', expiresAt },
           });
         }
       }

@@ -29,7 +29,8 @@ model Lesson {
 
   duration Int? // Duration in seconds
 
-  order Int @default(0)
+  isFree        Boolean       @default(false) // ทดลองเรียนฟรี
+  order         Int           @default(0)
 
   chapterId String
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)

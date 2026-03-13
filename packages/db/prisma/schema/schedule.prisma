@@ -17,7 +17,8 @@ model CourseSchedule {
   videoProvider VideoProvider @default(YOUTUBE) // ✅ ตัวระบุว่าใช้วิดีโอจากค่ายไหน
   // ────────────────────────────────────────────────────────
 
-  location String? // Room or Zoom Link (unified)
+  location String? // สถานที่เรียน (Onsite)
+  zoomLink String? // ลิงก์ Zoom per session (Online-Live)
   isOnline Boolean        @default(false)
   status   ScheduleStatus @default(ON_SCHEDULE)
 

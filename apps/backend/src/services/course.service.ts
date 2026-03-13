@@ -165,6 +165,11 @@ export class CourseService {
       });
     });
 
+    // ✅ Init Redis counter สำหรับคอร์สใหม่ที่มีจำกัดที่นั่ง (ONSITE/LIVE)
+    if (course.courseType !== 'ONLINE' && course.maxSeats != null && course.maxSeats > 0) {
+      await seatReservationService.syncCounter(course.id, course.maxSeats, 0, 0);
+    }
+
     return mapCourseToApiShape(course);
   }
 
@@ -266,7 +271,13 @@ export class CourseService {
         ],
       }),
       ...(levelId && { levelId }),
-      ...(tutorId && { teacherId: tutorId }),
+      // tutorId — ค้นหาทั้งจาก teacherId (legacy) และ teachers join table (multi-instructor)
+      ...(tutorId && {
+        OR: [
+          { teacherId: tutorId },
+          { teachers: { some: { teacherId: tutorId } } },
+        ],
+      }),
       ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
     };
@@ -318,8 +329,19 @@ export class CourseService {
 
     const mappedCourses = courses.map((course) => mapCourseToApiShape(course));
 
+    // กรองคอร์สที่เต็มออก (สำหรับหน้าแรก) — post-filter เพื่อหลีกเลี่ยง subquery ที่ซับซ้อน
+    // ใช้เมื่อ excludeFull=true (landing page) เท่านั้น
+    const filteredCourses = query.excludeFull
+      ? mappedCourses.filter((c: any) => {
+          const isLimited = c.courseType === 'ONSITE' || c.courseType === 'ONLINE_LIVE';
+          if (!isLimited || c.maxSeats == null) return true; // ONLINE courses are never full
+          const enrolled = c._count?.enrollments ?? 0;
+          return enrolled < c.maxSeats; // hide if full
+        })
+      : mappedCourses;
+
     return {
-      courses: mappedCourses,
+      courses: filteredCourses,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -346,8 +368,10 @@ export class CourseService {
     // Map teacher → instructor for frontend compatibility
     return enrollments.map((en: any) => {
       const { teacher, teacherId, ...courseRest } = en.course;
+      const isExpired = en.expiresAt ? new Date(en.expiresAt) < new Date() : false;
       return {
         ...en,
+        isExpired,
         course: { ...courseRest, instructor: teacher, instructorId: teacherId }
       };
     });
@@ -453,7 +477,7 @@ export class CourseService {
       if (!lvl) throw new Error('ระดับชั้นที่เลือกไม่ถูกต้อง กรุณาเลือกระดับชั้นใหม่อีกครั้ง');
     }
 
-    return this.db.$transaction(async (tx) => {
+    const course = await this.db.$transaction(async (tx) => {
       // อัพเดท Course fields ปกติ
       await tx.course.update({ where: { id }, data: updateData });
 
@@ -483,6 +507,17 @@ export class CourseService {
         },
       });
     });
+
+    // ✅ Re-sync Redis counter ถ้ามีการแก้ไข maxSeats หรือ courseType
+    if (course.courseType !== 'ONLINE' && course.maxSeats != null && course.maxSeats > 0) {
+      const enrolledCount = await this.db.enrollment.count({
+        where: { courseId: id, status: 'ACTIVE' },
+      });
+      const reservedCount = await seatReservationService.countReservations(id);
+      await seatReservationService.syncCounter(id, course.maxSeats, enrolledCount, reservedCount);
+    }
+
+    return course;
   }
 
   async updateStatus(id: string, input: UpdateCourseStatusInput) {
