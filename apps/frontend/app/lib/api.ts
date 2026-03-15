@@ -5,6 +5,7 @@
 
 import type {
   TutorPublicProfile,
+  InstructorPublic,
   ApiResponse,
   Course,
   CourseListResponse,
@@ -237,7 +238,7 @@ export type TutorProfile = {
   title?: string | null;
 };
 
-import type { InstructorPublic, TutorPublicProfile } from './types';
+
 
 export const tutorApi = {
   /**
@@ -838,4 +839,17 @@ export const availabilityApi = {
       method: 'POST',
       body: JSON.stringify({ courseId, email }),
     }),
+};
+
+// ============================================================
+// Gumlet API
+// ============================================================
+export const gumletApi = {
+  /** POST /gumlet/upload-url — Get signed upload URL (ADMIN) */
+  getUploadUrl() {
+    return request<{ upload_url: string; asset_id: string }>('/gumlet/upload-url', {
+      method: 'POST',
+      headers: headers(true),
+    });
+  },
 };

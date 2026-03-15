@@ -174,9 +174,65 @@ export class CourseService {
   }
 
   /**
+   * Helper to censor sensitive course data for unauthorized users (not enrolled, not admin, not instructor)
+   */
+  private async censorCourseData(course: any, userId?: string) {
+    let isAuthorized = false;
+
+    if (userId) {
+      if (course.instructorId === userId) {
+        isAuthorized = true;
+      } else {
+        const user = await this.db.user.findUnique({ where: { id: userId }, select: { role: true } });
+        if (user?.role === 'ADMIN' || (user?.role as string) === 'INSTRUCTOR') {
+          isAuthorized = true;
+        } else {
+          const enrollment = await this.db.enrollment.findFirst({
+            where: { userId, courseId: course.id, status: 'ACTIVE' }
+          });
+          if (enrollment) isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      if ('zoomLink' in course) course.zoomLink = null;
+      if ('meetingId' in course) course.meetingId = null;
+      if ('materialUrl' in course) course.materialUrl = null;
+
+      if (Array.isArray(course.chapters)) {
+        course.chapters.forEach((chapter: any) => {
+          if (Array.isArray(chapter.lessons)) {
+            chapter.lessons.forEach((lesson: any) => {
+              if (lesson.isFree !== true) {
+                lesson.gumletVideoId = null;
+                lesson.youtubeUrl = null;
+                lesson.content = null;
+              }
+            });
+          }
+        });
+      }
+
+      if (Array.isArray(course.schedules)) {
+        course.schedules.forEach((sched: any, index: number) => {
+          sched.zoomLink = null;
+          sched.materialUrl = null;
+          if (index >= 2) {
+            sched.videoUrl = null;
+            sched.gumletVideoId = null;
+          }
+        });
+      }
+    }
+
+    return course;
+  }
+
+  /**
    * Get a single course by ID
    */
-  async findById(id: string) {
+  async findById(id: string, userId?: string) {
     const course = await this.db.course.findUnique({
       where: { id },
       include: {
@@ -199,13 +255,14 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    return mapCourseToApiShape(course);
+    const mapped = mapCourseToApiShape(course);
+    return this.censorCourseData(mapped, userId);
   }
 
   /**
    * Get a single course by slug
    */
-  async findBySlug(slug: string) {
+  async findBySlug(slug: string, userId?: string) {
     const course = await this.db.course.findFirst({
       where: { slug },
       include: {
@@ -228,7 +285,8 @@ export class CourseService {
     });
 
     if (!course) throw new Error('Course not found');
-    return mapCourseToApiShape(course);
+    const mapped = mapCourseToApiShape(course);
+    return this.censorCourseData(mapped, userId);
   }
 
   /**

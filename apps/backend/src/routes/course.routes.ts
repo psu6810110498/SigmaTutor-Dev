@@ -3,7 +3,7 @@ import { courseService } from '../services/course.service.js';
 import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { publicApiLimiter } from '../middleware/rate-limit.middleware.js';
-import { authenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
+import { authenticate, optionalAuthenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
 import {
   createCourseSchema,
   updateCourseSchema,
@@ -167,9 +167,10 @@ router.get('/my-courses', authenticate, async (req: Request, res: Response): Pro
  * GET /api/courses/slug/:slug
  * Get course details by slug (public)
  */
-router.get('/slug/:slug', async (req: Request, res: Response): Promise<void> => {
+router.get('/slug/:slug', optionalAuthenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
   try {
-    const course = await courseService.findBySlug(String(req.params.slug));
+    const course = await courseService.findBySlug(String(req.params.slug), authReq.user?.userId);
     res.json({ success: true, data: course });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Course not found';
@@ -181,9 +182,10 @@ router.get('/slug/:slug', async (req: Request, res: Response): Promise<void> => 
  * GET /api/courses/:id
  * Get course details (public)
  */
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', optionalAuthenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
   try {
-    const course = await courseService.findById(String(req.params.id));
+    const course = await courseService.findById(String(req.params.id), authReq.user?.userId);
     res.json({ success: true, data: course });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Course not found';

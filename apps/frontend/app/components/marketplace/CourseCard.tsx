@@ -345,7 +345,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
   // ── Event handlers ────────────────────────────────────────────────────────
 
   /** Prefetch course detail on hover for near-instant navigation */
-  const handleMouseEnter = () => router.prefetch(`/course/${course.slug}`);
+  const handleMouseEnter = () => router.prefetch(`/course/${course.slug || course.id}`);
 
   const handleTutorClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -397,7 +397,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
       `}
     >
       <Link
-        href={`/course/${course.slug}`}
+        href={`/course/${course.slug || course.id}`}
         onMouseEnter={handleMouseEnter}
         className={`
           group block bg-white rounded-2xl border shadow-sm w-full h-full relative
@@ -555,10 +555,9 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
 
           {/* Instructor row — links to tutor profile page */}
           {leadInstructor && (
-            <Link
-              href={`/tutors/${leadInstructor.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2 py-2 mb-2 border-b border-gray-50 group/tutor"
+            <button
+              onClick={handleTutorClick}
+              className="w-full flex items-center gap-2 py-2 mb-2 border-b border-gray-50 group/tutor focus:outline-none"
             >
               <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-gray-200 flex-shrink-0 bg-gray-100">
                 {leadInstructor.profileImage ? (
@@ -581,7 +580,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
               {allInstructors.length > 1 && (
                 <span className="text-[10px] text-gray-400 flex-shrink-0">+{allInstructors.length - 1}</span>
               )}
-            </Link>
+            </button>
           )}
 
           {/* Seat progress bar — ONSITE / LIVE only */}

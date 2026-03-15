@@ -12,6 +12,8 @@ import { LessonsTab } from "./tabs/LessonsTab";
 import { LiveScheduleTab } from "./tabs/LiveScheduleTab";
 import { OnsiteScheduleTab } from "./tabs/OnsiteScheduleTab";
 
+import { courseApi, userApi } from "@/app/lib/api";
+
 export default function EditCoursePage() {
     const params = useParams();
     const router = useRouter();
@@ -26,27 +28,23 @@ export default function EditCoursePage() {
     const [activeTab, setActiveTab] = useState<"overview" | "schedule">("overview");
 
     const fetchData = async () => {
+        if (!courseId) return;
         setLoading(true);
         try {
-            const headers = {
-                'Content-Type': 'application/json'
-            };
+            const [courseRes, instRes] = await Promise.all([
+                courseApi.getById(courseId),
+                userApi.list()
+            ]);
 
-            const courseRes = await fetch(`http://localhost:4000/api/courses/${courseId}`, { headers, credentials: 'include' });
-            const courseData = await courseRes.json();
-
-            const instRes = await fetch(`http://localhost:4000/api/users/instructors`, { headers, credentials: 'include' });
-            const instData = await instRes.json();
-
-            if (courseData.success) {
-                setCourse(courseData.data);
+            if (courseRes.success && courseRes.data) {
+                setCourse(courseRes.data);
             } else {
-                toast.error("ไม่พบข้อมูลคอร์ส");
+                toast.error(courseRes.error || "ไม่พบข้อมูลคอร์ส");
                 router.push("/admin/courses");
             }
 
-            if (instData.success) {
-                setInstructors(instData.data);
+            if (instRes.success && instRes.data) {
+                setInstructors(instRes.data);
             }
         } catch (error) {
             console.error("Fetch Error:", error);
@@ -65,8 +63,8 @@ export default function EditCoursePage() {
 
     return (
         <AdminFormLayout
-            title={`แก้ไข: ${course.title}`}
-            description="จัดการข้อมูล เนื้อหา และตารางเรียน"
+            title="แก้ไขคอร์สเรียน 🛠️"
+            description={`กำลังปรับปรุงข้อมูลสำหรับ: ${course.title}`}
             breadcrumbs={[
                 { label: 'แดชบอร์ด', href: '/admin' },
                 { label: 'จัดการคอร์ส', href: '/admin/courses' },

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { FileText, Video, User, Save, File, DollarSign, Folder } from "lucide-react";
-import { courseApi, categoryApi, levelApi } from "@/app/lib/api";
+import { courseApi, categoryApi, levelApi, userApi, gumletApi } from "@/app/lib/api";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
 import { NumberInput } from "@/app/components/ui/NumberInput";
@@ -61,25 +61,53 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     }, []);
 
     const [form, setForm] = useState<any>({
-        title: course.title || "",
-        description: course.description || "",
-        price: course.price || 0,
-        originalPrice: course.originalPrice || null,
-        promotionalPrice: course.promotionalPrice || null,
-        instructorId: course.instructorId || "",
-        courseType: course.courseType || "ONLINE",
-        categoryId: course.categoryId || null,
-        levelId: course.levelId || null,
-        demoVideoUrl: course.demoVideoUrl || "",
-        gumletVideoId: course.gumletVideoId || "",
-        videoProvider: course.videoProvider || "YOUTUBE",
-        duration: course.duration || null,
-        materialUrl: course.materialUrl || "",
-        published: course.published ?? false,
-        isBestSeller: course.isBestSeller ?? false,
-        isRecommended: course.isRecommended ?? false,
-        accessDurationDays: course.accessDurationDays ?? 365,
+        title: "",
+        description: "",
+        price: 0,
+        originalPrice: null,
+        promotionalPrice: null,
+        instructorId: "",
+        courseType: "ONLINE",
+        categoryId: null,
+        levelId: null,
+        demoVideoUrl: "",
+        gumletVideoId: "",
+        videoProvider: "YOUTUBE",
+        duration: null,
+        materialUrl: "",
+        published: false,
+        isBestSeller: false,
+        isRecommended: false,
+        accessDurationDays: 365,
+        maxSeats: null,
     });
+
+    // 🌟 Sync form when course prop changes (essential for Edit mode)
+    useEffect(() => {
+        if (course) {
+            setForm({
+                title: course.title || "",
+                description: course.description || "",
+                price: course.price || 0,
+                originalPrice: course.originalPrice || null,
+                promotionalPrice: course.promotionalPrice || null,
+                instructorId: course.instructorId || "",
+                courseType: course.courseType || "ONLINE",
+                categoryId: course.categoryId || null,
+                levelId: course.levelId || null,
+                demoVideoUrl: course.demoVideoUrl || "",
+                gumletVideoId: course.gumletVideoId || "",
+                videoProvider: course.videoProvider || "YOUTUBE",
+                duration: course.duration || null,
+                materialUrl: course.materialUrl || "",
+                published: course.published ?? false,
+                isBestSeller: course.isBestSeller ?? false,
+                isRecommended: course.isRecommended ?? false,
+                accessDurationDays: course.accessDurationDays ?? 365,
+                maxSeats: course.maxSeats || null,
+            });
+        }
+    }, [course]);
 
     const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
     const [rootCategoryId, setRootCategoryId] = useState<string>("");
@@ -184,28 +212,15 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
             setUploadingGumlet(true);
             setGumletProgress(0);
 
-            let token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
-            if (!token) {
-                const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
-                if (match) token = match[2];
-            }
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const res = await gumletApi.getUploadUrl();
 
-            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
-                method: 'POST',
-                credentials: 'include',
-                headers
-            });
-            const data = await res.json();
-
-            if (!data.success || !data.upload_url) {
-                toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+            if (!res.success || !res.data) {
+                toast.error(res.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
                 setUploadingGumlet(false);
                 return;
             }
 
-            const { upload_url, asset_id } = data;
+            const { upload_url, asset_id } = res.data;
 
             return new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -341,7 +356,11 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 onUpdate(); // รีเฟรชข้อมูลในหน้าหลัก
                 router.refresh(); // clear Next.js cache so UI shows updated data
             } else {
-                toast.error(res.error || "บันทึกไม่สำเร็จ");
+                if (res.details && Array.isArray(res.details)) {
+                    toast.error(`Validation Failed: ${res.details[0].message}`);
+                } else {
+                    toast.error(res.error || "บันทึกไม่สำเร็จ");
+                }
             }
         } catch (error) {
             console.error("Update Error:", error);

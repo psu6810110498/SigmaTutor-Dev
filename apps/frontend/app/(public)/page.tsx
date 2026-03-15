@@ -91,6 +91,14 @@ function AnimatedStat({ value, label }: { value: string; label: string }) {
 
 // ─── Main page ────────────────────────────────────────────
 export default function HomePage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400">กำลังโหลด...</div>}>
+      <HomeContent />
+    </React.Suspense>
+  );
+}
+
+function HomeContent() {
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ทั้งหมด');

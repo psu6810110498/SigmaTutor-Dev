@@ -84,8 +84,9 @@ export default function CourseDetailPage() {
   );
 
   useEffect(() => {
-    if (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) setActiveMedia('video');
-    else if (course?.demoVideoUrl) setActiveMedia('video');
+    // Default to 'image' to prevent heavy iframe loading on mountain (Lazy load)
+    // User will manually click the Video Thumbnail or Play overlay to switch
+    setActiveMedia('image');
   }, [course]);
 
   // Reviews
@@ -124,12 +125,9 @@ export default function CourseDetailPage() {
     if (!course || !user) return;
     const checkEnrollment = async () => {
       try {
-        const res = await fetch('http://localhost:4000/api/courses/enrolled', {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-          const enrolled = data.data.some((c: any) => c.id === course.id || c.courseId === course.id);
+        const res = await courseApi.getEnrolled();
+        if (res.success && Array.isArray(res.data)) {
+          const enrolled = res.data.some((c: any) => c.id === course.id || c.courseId === course.id);
           setIsEnrolled(enrolled);
         }
       } catch (err) {
@@ -353,17 +351,30 @@ export default function CourseDetailPage() {
                   />
                 )
               ) : (
-                course.thumbnailLg || course.thumbnail ? (
-                  <img
-                    src={course.thumbnailLg || course.thumbnail!}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-                    <BookOpen size={64} />
-                  </div>
-                )
+                <div className="w-full h-full relative cursor-pointer" onClick={() => {
+                  if (((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl)) {
+                    setActiveMedia('video');
+                  }
+                }}>
+                  {course.thumbnailLg || course.thumbnail ? (
+                    <img
+                      src={course.thumbnailLg || course.thumbnail!}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
+                      <BookOpen size={64} />
+                    </div>
+                  )}
+                  {((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors z-10 group">
+                      <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <PlayCircle size={32} />
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {/* Type Badge */}
               <span
@@ -388,7 +399,18 @@ export default function CourseDetailPage() {
                       <Video className="text-white opacity-50" size={24} />
                     </div>
                   ) : course.demoVideoUrl ? (
-                    <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                    (() => {
+                      const videoId = course.demoVideoUrl.includes('v=') 
+                        ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] 
+                        : course.demoVideoUrl.split('/').pop()?.split('?')[0];
+                      return (
+                        <img 
+                          src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} 
+                          className="w-full h-full object-cover" 
+                          alt="Video thumbnail" 
+                        />
+                      );
+                    })()
                   ) : null}
                 </button>
 
@@ -572,23 +594,43 @@ export default function CourseDetailPage() {
                             {expandedLessons.has(lesson.id) && (
                               <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
                                 {lesson.content || 'ไม่มีรายละเอียดเนื้อหา'}
-                                {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
-                                      className="w-full h-full"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                      title={lesson.title}
-                                    />
-                                  </div>
-                                ) : lesson.youtubeUrl && (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
-                                      className="w-full h-full"
-                                      allowFullScreen
-                                    />
+                                {isEnrolled || lesson.isFree ? (
+                                  <>
+                                    {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
+                                          className="w-full h-full"
+                                          allow="autoplay; fullscreen; picture-in-picture"
+                                          allowFullScreen
+                                          title={lesson.title}
+                                        />
+                                      </div>
+                                    ) : lesson.youtubeUrl && (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
+                                          className="w-full h-full"
+                                          allowFullScreen
+                                        />
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="mt-3 p-6 bg-gray-900 rounded-xl border border-gray-800 flex flex-col items-center justify-center text-center shadow-inner">
+                                    <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 mb-3">
+                                      <Lock size={24} />
+                                    </div>
+                                    <p className="text-white font-medium mb-1">เนื้อหาสงวนสิทธิ์เฉพาะผู้เรียนคอร์สนี้</p>
+                                    <p className="text-gray-400 text-xs mb-4">
+                                      กรุณาเข้าสู่ระบบและสมัครเรียนเพื่อรับชมวิดีโอและเอกสารในบทเรียนนี้
+                                    </p>
+                                    <button
+                                      onClick={() => router.push('/checkout')}
+                                      className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
+                                    >
+                                      สั่งซื้อคอร์สเพื่อปลดล็อคเนื้อหา
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -608,7 +650,7 @@ export default function CourseDetailPage() {
                     <div className="space-y-2">
                       {course.schedules.map((sched: any, i: number) => {
                         const FREE_PREVIEW_COUNT = 2;
-                        const isLocked = i >= FREE_PREVIEW_COUNT;
+                        const isLocked = i >= FREE_PREVIEW_COUNT && !isEnrolled;
                         return (
                           <div
                             key={sched.id}
@@ -702,7 +744,7 @@ export default function CourseDetailPage() {
                       })}
                     </div>
                     {/* Paywall Message */}
-                    {course.schedules.length > 2 && (
+                    {course.schedules.length > 2 && !isEnrolled && (
                       <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl text-center">
                         <Lock size={20} className="mx-auto mb-2 text-orange-500" />
                         <p className="text-sm font-bold text-gray-800">
@@ -711,12 +753,12 @@ export default function CourseDetailPage() {
                         <p className="text-xs text-gray-500 mt-1">
                           ต้องชำระเงินซื้อคอร์สก่อน ถึงจะดูเนื้อหาทั้ง {course.schedules.length} บทได้
                         </p>
-                        <Link
-                          href="/checkout"
+                        <button
+                          onClick={() => router.push('/checkout')}
                           className="inline-block mt-3 px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
                         >
                           <ShoppingCart size={14} className="inline mr-1" /> ซื้อคอร์สเพื่อปลดล็อค
-                        </Link>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -751,12 +793,12 @@ export default function CourseDetailPage() {
                           </div>
 
                           {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm truncate">
+                          <div className="flex-1 min-w-0 pr-4">
+                            <p className="font-medium text-gray-900 text-sm break-words whitespace-pre-wrap">
                               {sched.topic}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {formatDate(sched.date)} · {sched.startTime} – {sched.endTime}
+                              {formatDate(sched.date)} · ({sched.startTime} – {sched.endTime})
                             </p>
                           </div>
 
