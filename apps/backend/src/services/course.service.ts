@@ -636,6 +636,17 @@ export class CourseService {
       earliestExpiryInSeconds,
     };
   }
+
+  async getCourseStudents(courseId: string) {
+    const enrollments = await this.db.enrollment.findMany({
+      where: { courseId, status: 'ACTIVE' },
+      include: {
+        user: { select: { name: true, email: true, phone: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return enrollments;
+  }
 }
 
 export const courseService = new CourseService();

@@ -45,6 +45,7 @@ interface CourseContextType {
   removeFromWishlist: (id: string) => void;
   isInCart: (id: string) => boolean;
   isInWishlist: (id: string) => boolean;
+  isOwned: (id: string) => boolean;
   clearCart: () => void; // ✅ เพิ่มจากระบบ Payment ของเพื่อน
 }
 
@@ -55,6 +56,7 @@ import { useAuth } from './AuthContext';
 export function CourseProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [wishlistItems, setWishlistItems] = useState<CartItem[]>([]);
+  const [ownedCourseIds, setOwnedCourseIds] = useState<Set<string>>(new Set());
   const { user } = useAuth(); // ดึงข้อมูล user ปัจจุบัน
 
   // โหลดตะกร้าและ Wishlist เริ่มต้น
@@ -97,10 +99,11 @@ export function CourseProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
 
         if (data.success && Array.isArray(data.data)) {
-          const ownedCourseIds = new Set(data.data.map((course: any) => course.id));
+          const ownedIds = new Set<string>(data.data.map((course: any) => course.id));
+          setOwnedCourseIds(ownedIds);
 
           setCartItems(prevItems => {
-            const filteredItems = prevItems.filter(item => !ownedCourseIds.has(item.id));
+            const filteredItems = prevItems.filter(item => !ownedIds.has(item.id));
             if (filteredItems.length !== prevItems.length) {
               // อัปเดต LocalStorage ทันทีเมื่อมีการนำคอร์สออก
               localStorage.setItem('sigma_cart', JSON.stringify(filteredItems));
@@ -117,6 +120,10 @@ export function CourseProvider({ children }: { children: ReactNode }) {
   }, [user]); // ทำงานเมื่อ user เปลี่ยนแปลง (รวมถึงตอนล็อกอินสำเร็จ)
 
   const addToCart = (item: CartItem) => {
+    if (ownedCourseIds.has(item.id)) {
+      alert("คุณลงทะเบียนเรียนคอร์สนี้แล้ว ไม่สามารถเพิ่มลงตะกร้าได้");
+      return;
+    }
     if (!cartItems.find((c) => c.id === item.id)) {
       setCartItems([...cartItems, item]);
     }
@@ -138,6 +145,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
 
   const isInCart = (id: string) => cartItems.some((item) => item.id === id);
   const isInWishlist = (id: string) => wishlistItems.some((item) => item.id === id);
+  const isOwned = (id: string) => ownedCourseIds.has(id);
 
   const clearCart = () => {
     setCartItems([]);
@@ -155,6 +163,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
         removeFromWishlist,
         isInCart,
         isInWishlist,
+        isOwned,
         clearCart,
       }}
     >

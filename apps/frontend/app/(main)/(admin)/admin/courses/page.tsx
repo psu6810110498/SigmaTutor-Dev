@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 import { categoryApi, levelApi } from '@/app/lib/api';
 import { Course, Category, Level } from '@/app/lib/types';
 import {
@@ -19,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  Download,
 } from 'lucide-react';
 import { useToast } from '@/app/components/ui/Toast';
 import { ConfirmDialog } from '@/app/components/ui/ConfirmDialog';
@@ -208,6 +210,44 @@ export default function AdminCoursesPage() {
   };
 
   const totalPages = Math.ceil(total / limit);
+
+  // ── Export to Excel ──────────────────────────────────────
+  const handleExportExcel = async (courseId: string, courseTitle: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/courses/${courseId}/students`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const res = await response.json();
+
+      if (!res.success) {
+        toast.error(res.error || 'ไม่สามารถดึงข้อมูลนักเรียนได้');
+        return;
+      }
+
+      const rows = (res.data as any[]).map((en) => ({
+        ชื่อ: en.user?.name ?? '',
+        อีเมล: en.user?.email ?? '',
+        เบอร์โทร: en.user?.phone ?? '',
+        วันที่ลงทะเบียน: en.createdAt ? new Date(en.createdAt).toLocaleDateString('th-TH') : '',
+      }));
+
+      if (rows.length === 0) {
+        toast.error('ไม่มีนักเรียนที่ลงทะเบียนในคอร์สนี้');
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+      const safeTitle = courseTitle.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50);
+      XLSX.writeFile(workbook, `${safeTitle}_students.xlsx`);
+      toast.success(`ดาวน์โหลดข้อมูลนักเรียน ${rows.length} คนเรียบร้อย`);
+    } catch (error) {
+      console.error('Export Excel Error:', error);
+      toast.error('เกิดข้อผิดพลาดในการส่งออกข้อมูล');
+    }
+  };
 
   // ── Course Type Label ────────────────────────────────────
   const courseTypeLabel = (type: string) => {
@@ -518,6 +558,13 @@ export default function AdminCoursesPage() {
                             <Edit size={16} />
                           </button>
                         </Link>
+                        <button
+                          onClick={() => handleExportExcel(course.id, course.title)}
+                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          title="Export นักเรียน (.xlsx)"
+                        >
+                          <Download size={16} />
+                        </button>
                         <button
                           onClick={() => setDeletingId(course.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"

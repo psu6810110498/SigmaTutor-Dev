@@ -17,6 +17,8 @@ import type {
   ReviewQueryParams,
   Banner,
   BannerPosition,
+  AdminDashboardStats,
+  AdminDashboardFilters,
 } from './types';
 
 // ── Config ────────────────────────────────────────────────
@@ -272,6 +274,25 @@ export const tutorApi = {
     return request<TutorPublicProfile>(`/tutors/${id}`, {
       next: { revalidate: 3600 },
     } as RequestInit);
+  },
+};
+
+// ============================================================
+// Admin Dashboard API
+// ============================================================
+
+export const dashboardApi = {
+  /** GET /dashboard/admin/stats — High-level metrics for admin dashboard */
+  getAdminStats(filters?: AdminDashboardFilters) {
+    const query = filters
+      ? '?' +
+        new URLSearchParams(
+          Object.entries(filters)
+            .filter(([, v]) => v !== undefined && v !== '')
+            .map(([k, v]) => [k, String(v)])
+        ).toString()
+      : '';
+    return request<AdminDashboardStats>(`/dashboard/admin/stats${query}`);
   },
 };
 
@@ -555,17 +576,27 @@ export const reviewApi = {
     });
   },
 
-
   /** GET /reviews/admin/courses — Admin: Get courses with review aggregate stats */
   adminCourseList() {
-    return request<{ id: string; title: string; slug: string; thumbnail?: string | null; totalReviews: number; averageRating: number }[]>(
-      '/reviews/admin/courses',
-      { headers: headers(true) }
-    );
+    return request<
+      {
+        id: string;
+        title: string;
+        slug: string;
+        thumbnail?: string | null;
+        totalReviews: number;
+        averageRating: number;
+      }[]
+    >('/reviews/admin/courses', { headers: headers(true) });
   },
 
   /** GET /reviews/admin — Admin: Get all reviews */
-  adminList(params: { page?: number; limit?: number; courseId?: string; sort?: 'latest' | 'oldest' | 'highest' | 'lowest' }) {
+  adminList(params: {
+    page?: number;
+    limit?: number;
+    courseId?: string;
+    sort?: 'latest' | 'oldest' | 'highest' | 'lowest';
+  }) {
     const query =
       '?' +
       new URLSearchParams(

@@ -417,17 +417,17 @@ export default function LearningPage() {
                     {/* Video Player */}
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
                         {/* 1. Lesson has Gumlet */}
-                        {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId)) && currentLesson?.gumletVideoId ? (
+                        {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId?.trim())) && currentLesson?.gumletVideoId?.trim() ? (
                             <iframe
-                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId}`}
+                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId.trim()}`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
-                                title={currentLesson?.title || 'Gumlet Video'}
+                                title={currentLesson?.topic || currentLesson?.title || 'Gumlet Video'}
                             />
-                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId)) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
+                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId?.trim())) && (currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim())) ? (
                             (() => {
-                                const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl;
+                                const rawUrl = currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim();
                                 const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
                                 return (
                                     <iframe
@@ -437,17 +437,17 @@ export default function LearningPage() {
                                     />
                                 );
                             })()
-                        ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId)) && course?.gumletVideoId) ? (
+                        ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId?.trim())) && course?.gumletVideoId?.trim()) ? (
                             <iframe
-                                src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
+                                src={`https://play.gumlet.io/embed/${course.gumletVideoId.trim()}`}
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                                 title="Course Demo Video"
                             />
-                        ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
+                        ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl?.trim()) ? (
                             (() => {
-                                const rawUrl = course.demoVideoUrl;
+                                const rawUrl = course.demoVideoUrl.trim();
                                 const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
                                 return (
                                     <iframe
@@ -458,7 +458,7 @@ export default function LearningPage() {
                                 );
                             })()
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-100 gap-3 z-10 w-full h-full">
                                 <PlayCircle size={48} className="opacity-50 text-slate-300" />
                                 <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
                             </div>

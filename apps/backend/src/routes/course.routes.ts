@@ -254,6 +254,29 @@ router.delete(
  * POST /api/courses/:id/upload
  * Upload course thumbnail (ADMIN only)
  */
+/**
+ * GET /api/courses/:id/students
+ * Get all ACTIVE enrolled students for a course (ADMIN / INSTRUCTOR)
+ */
+router.get(
+  '/:id/students',
+  authenticate,
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const students = await courseService.getCourseStudents(String(req.params.id));
+      res.json({ success: true, data: students });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get students';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * POST /api/courses/:id/upload
+ * Upload course thumbnail (ADMIN only)
+ */
 router.post(
   '/:id/upload',
   authenticate,
