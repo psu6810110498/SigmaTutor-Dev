@@ -256,6 +256,13 @@ export interface ReviewQueryParams {
 
 // ── Admin Dashboard ─────────────────────────────────────
 
+export interface AdminDashboardFilters {
+  startDate?: string;
+  endDate?: string;
+  courseId?: string;
+  tutorId?: string;
+}
+
 export interface AdminDashboardTotals {
   courses: number;
   students: number;

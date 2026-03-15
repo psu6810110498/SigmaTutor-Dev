@@ -16,6 +16,7 @@ import type {
   Banner,
   BannerPosition,
   AdminDashboardStats,
+  AdminDashboardFilters,
 } from './types';
 
 // ── Config ────────────────────────────────────────────────
@@ -257,8 +258,16 @@ export const tutorApi = {
 
 export const dashboardApi = {
   /** GET /dashboard/admin/stats — High-level metrics for admin dashboard */
-  getAdminStats() {
-    return request<AdminDashboardStats>('/dashboard/admin/stats');
+  getAdminStats(filters?: AdminDashboardFilters) {
+    const query = filters
+      ? '?' +
+        new URLSearchParams(
+          Object.entries(filters)
+            .filter(([, v]) => v !== undefined && v !== '')
+            .map(([k, v]) => [k, String(v)])
+        ).toString()
+      : '';
+    return request<AdminDashboardStats>(`/dashboard/admin/stats${query}`);
   },
 };
 

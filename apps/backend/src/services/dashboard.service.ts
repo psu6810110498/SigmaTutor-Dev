@@ -1,45 +1,112 @@
 import { prisma } from '@sigma/db';
 
+export interface DashboardFilters {
+  startDate?: string;
+  endDate?: string;
+  courseId?: string;
+  tutorId?: string;
+}
+
 export class DashboardService {
-  async getAdminStats() {
+  async getAdminStats(filters?: DashboardFilters) {
+    // 1. Build Base Where Clauses
+    const dateCondition: any = {};
+    if (filters?.startDate) {
+      const start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      dateCondition.gte = start;
+    }
+    if (filters?.endDate) {
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      dateCondition.lte = end;
+    }
+    const hasDateFilter = Object.keys(dateCondition).length > 0;
+
+    const courseWhere: any = {};
+    if (hasDateFilter) courseWhere.createdAt = dateCondition;
+    if (filters?.courseId) courseWhere.id = filters.courseId;
+    if (filters?.tutorId) courseWhere.teacherId = filters.tutorId;
+
+    const paymentWhere: any = { status: 'COMPLETED' };
+    if (hasDateFilter) paymentWhere.createdAt = dateCondition;
+    if (filters?.courseId) paymentWhere.courseId = filters.courseId;
+    if (filters?.tutorId) paymentWhere.course = { teacherId: filters.tutorId };
+
+    const enrollmentWhere: any = {};
+    if (hasDateFilter) enrollmentWhere.createdAt = dateCondition;
+    if (filters?.courseId) enrollmentWhere.courseId = filters.courseId;
+    if (filters?.tutorId) enrollmentWhere.course = { teacherId: filters.tutorId };
+
+    const reviewWhere: any = {};
+    if (hasDateFilter) reviewWhere.createdAt = dateCondition;
+    if (filters?.courseId) reviewWhere.courseId = filters.courseId;
+    if (filters?.tutorId) reviewWhere.course = { teacherId: filters.tutorId };
+
+    const userWhere: any = { role: 'USER' };
+    if (hasDateFilter) userWhere.createdAt = dateCondition;
+    if (filters?.courseId || filters?.tutorId) {
+      userWhere.enrollments = { some: {} };
+      if (filters?.courseId) userWhere.enrollments.some.courseId = filters.courseId;
+      if (filters?.tutorId) userWhere.enrollments.some.course = { teacherId: filters.tutorId };
+    }
+
+    // 2. Fetch Totals
     const [totalCourses, totalStudents, totalRevenueAggregate, totalEnrollments] =
       await Promise.all([
-        prisma.course.count(),
-        prisma.user.count({ where: { role: 'USER' } }),
+        prisma.course.count({ where: courseWhere }),
+        prisma.user.count({ where: userWhere }),
         prisma.payment.aggregate({
           _sum: { amount: true },
-          where: { status: 'COMPLETED' },
+          where: paymentWhere,
         }),
-        prisma.enrollment.count(),
+        prisma.enrollment.count({ where: enrollmentWhere }),
       ]);
 
     const totalRevenue = totalRevenueAggregate._sum.amount || 0;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 3. Daily Stats (Adaptive Range)
+    let dailyEndDate = new Date();
+    dailyEndDate.setHours(23, 59, 59, 999);
+    let dailyStartDate = new Date(dailyEndDate);
+    dailyStartDate.setDate(dailyEndDate.getDate() - 6);
+    dailyStartDate.setHours(0, 0, 0, 0);
 
-    const days = 7;
+    if (filters?.startDate) {
+      dailyStartDate = new Date(filters.startDate);
+      dailyStartDate.setHours(0, 0, 0, 0);
+    }
+    // If end date is provided, limit the end. Keep start date explicitly if provided, else offset by 6 days.
+    if (filters?.endDate) {
+      dailyEndDate = new Date(filters.endDate);
+      dailyEndDate.setHours(23, 59, 59, 999);
+      if (!filters.startDate) {
+        dailyStartDate = new Date(dailyEndDate);
+        dailyStartDate.setDate(dailyEndDate.getDate() - 6);
+        dailyStartDate.setHours(0, 0, 0, 0);
+      }
+    }
+
+    const diffDays = Math.max(1, Math.ceil((dailyEndDate.getTime() - dailyStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const actualDays = Math.min(diffDays, 90); // Cap at 90 days to avoid huge queries
+
     const dailyStats = await Promise.all(
-      Array.from({ length: days }).map(async (_v, index) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() - (days - 1 - index));
-
-        const start = new Date(date);
-        const end = new Date(date);
+      Array.from({ length: actualDays }).map(async (_v, index) => {
+        const start = new Date(dailyStartDate);
+        start.setDate(dailyStartDate.getDate() + index);
+        const end = new Date(start);
         end.setDate(end.getDate() + 1);
+
+        const currentPaymentWhere = { ...paymentWhere, createdAt: { gte: start, lt: end } };
+        const currentEnrollmentWhere = { ...enrollmentWhere, createdAt: { gte: start, lt: end } };
 
         const [revenueAgg, enrollmentsCount] = await Promise.all([
           prisma.payment.aggregate({
             _sum: { amount: true },
-            where: {
-              status: 'COMPLETED',
-              createdAt: { gte: start, lt: end },
-            },
+            where: currentPaymentWhere,
           }),
           prisma.enrollment.count({
-            where: {
-              createdAt: { gte: start, lt: end },
-            },
+            where: currentEnrollmentWhere,
           }),
         ]);
 
@@ -51,10 +118,10 @@ export class DashboardService {
       })
     );
 
-    // Top 5 courses by revenue (completed payments only)
+    // 4. Top Courses By Revenue
     const topCoursesByRevenue = await prisma.payment.groupBy({
       by: ['courseId'],
-      where: { status: 'COMPLETED' },
+      where: paymentWhere,
       _sum: { amount: true },
       orderBy: { _sum: { amount: 'desc' } },
       take: 5,
@@ -74,9 +141,15 @@ export class DashboardService {
       })
     );
 
-    // Payment status distribution
+    // 5. Payment Status Distribution
+    const paymentStatusBaseWhere: any = {};
+    if (hasDateFilter) paymentStatusBaseWhere.createdAt = dateCondition;
+    if (filters?.courseId) paymentStatusBaseWhere.courseId = filters.courseId;
+    if (filters?.tutorId) paymentStatusBaseWhere.course = { teacherId: filters.tutorId };
+
     const paymentStatusRaw = await prisma.payment.groupBy({
       by: ['status'],
+      where: paymentStatusBaseWhere,
       _count: { id: true },
     });
 
@@ -85,21 +158,18 @@ export class DashboardService {
       count: item._count.id,
     }));
 
-    // New students over last 7 days
+    // 6. New Students Daily
     const newStudentsDaily = await Promise.all(
-      Array.from({ length: days }).map(async (_v, index) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() - (days - 1 - index));
-
-        const start = new Date(date);
-        const end = new Date(date);
+      Array.from({ length: actualDays }).map(async (_v, index) => {
+        const start = new Date(dailyStartDate);
+        start.setDate(dailyStartDate.getDate() + index);
+        const end = new Date(start);
         end.setDate(end.getDate() + 1);
 
+        const currentUserWhere = { ...userWhere, createdAt: { gte: start, lt: end } };
+
         const count = await prisma.user.count({
-          where: {
-            role: 'USER',
-            createdAt: { gte: start, lt: end },
-          },
+          where: currentUserWhere,
         });
 
         return {
@@ -109,11 +179,11 @@ export class DashboardService {
       })
     );
 
-    // Monthly metrics for last 12 months
+    // 7. Monthly Metrics (Last 12 months based on endDate or today)
     const monthKeys: string[] = [];
     const monthLabels: { [key: string]: { start: Date; end: Date } } = {};
 
-    const monthCursor = new Date(today);
+    const monthCursor = new Date(dailyEndDate);
     monthCursor.setDate(1);
 
     for (let i = 11; i >= 0; i--) {
@@ -128,17 +198,21 @@ export class DashboardService {
 
     const firstMonthStart = monthLabels[monthKeys[0]].start;
 
+    const monthlyPaymentWhere = { ...paymentWhere, createdAt: { gte: firstMonthStart, lte: dailyEndDate } };
+    const monthlyUserWhere = { ...userWhere, createdAt: { gte: firstMonthStart, lte: dailyEndDate } };
+    const monthlyCourseWhere = { ...courseWhere, createdAt: { gte: firstMonthStart, lte: dailyEndDate } };
+
     const [paymentsLastYear, usersLastYear, coursesLastYear] = await Promise.all([
       prisma.payment.findMany({
-        where: { status: 'COMPLETED', createdAt: { gte: firstMonthStart } },
+        where: monthlyPaymentWhere,
         select: { amount: true, createdAt: true },
       }),
       prisma.user.findMany({
-        where: { role: 'USER', createdAt: { gte: firstMonthStart } },
+        where: monthlyUserWhere,
         select: { createdAt: true },
       }),
       prisma.course.findMany({
-        where: { createdAt: { gte: firstMonthStart } },
+        where: monthlyCourseWhere,
         select: { createdAt: true },
       }),
     ]);
@@ -192,8 +266,9 @@ export class DashboardService {
       value: monthlyNewCoursesMap.get(key) || 0,
     }));
 
-    // Rating distribution & top rated courses
+    // 8. Rating Distribution & Top Rated Courses
     const reviews = await prisma.review.findMany({
+      where: reviewWhere,
       select: {
         rating: true,
         courseId: true,
@@ -239,13 +314,22 @@ export class DashboardService {
         avgRating: agg.count > 0 ? agg.sum / agg.count : 0,
         reviewCount: agg.count,
       }))
-      .filter((c) => c.reviewCount >= 3)
+      .filter((c) => c.reviewCount >= 1) // Lowered to 1 so some data shows inside filters
       .sort((a, b) => b.avgRating - a.avgRating)
       .slice(0, 5);
 
-    // Tutor-level aggregates: revenue, students, courses, rating
+    // 9. Tutor-level aggregates
+    const teachersWhere: any = {};
+    if (filters?.tutorId) teachersWhere.id = filters.tutorId;
+
+    const tutorCoursesWhere: any = {};
+    if (filters?.tutorId) tutorCoursesWhere.teacherId = filters.tutorId;
+    if (filters?.courseId) tutorCoursesWhere.id = filters.courseId;
+    if (hasDateFilter) tutorCoursesWhere.createdAt = dateCondition;
+
     const [teachers, tutorCourses, tutorPayments, tutorReviews] = await Promise.all([
       prisma.teacher.findMany({
+        where: teachersWhere,
         select: {
           id: true,
           name: true,
@@ -253,13 +337,14 @@ export class DashboardService {
         },
       }),
       prisma.course.findMany({
+        where: tutorCoursesWhere,
         select: {
           id: true,
           teacherId: true,
         },
       }),
       prisma.payment.findMany({
-        where: { status: 'COMPLETED' },
+        where: paymentWhere,
         select: {
           amount: true,
           userId: true,
@@ -271,6 +356,7 @@ export class DashboardService {
         },
       }),
       prisma.review.findMany({
+        where: reviewWhere,
         select: {
           rating: true,
           course: {
@@ -295,7 +381,6 @@ export class DashboardService {
 
     const tutorMap = new Map<string, TutorAggregate>();
 
-    // Seed from teachers
     for (const t of teachers) {
       tutorMap.set(t.id, {
         tutorId: t.id,
@@ -309,7 +394,6 @@ export class DashboardService {
       });
     }
 
-    // Courses per tutor
     for (const c of tutorCourses) {
       if (!c.teacherId) continue;
       const agg = tutorMap.get(c.teacherId);
@@ -317,7 +401,6 @@ export class DashboardService {
       agg.courseCount += 1;
     }
 
-    // Revenue & students per tutor
     for (const p of tutorPayments) {
       const teacherId = p.course?.teacherId;
       if (!teacherId) continue;
@@ -329,7 +412,6 @@ export class DashboardService {
       }
     }
 
-    // Ratings per tutor
     for (const r of tutorReviews) {
       const teacherId = r.course?.teacherId;
       if (!teacherId) continue;
@@ -349,7 +431,6 @@ export class DashboardService {
         studentCount: t.studentIds.size,
         avgRating: t.ratingCount > 0 ? t.ratingSum / t.ratingCount : 0,
       }))
-      // Order by revenue desc by default
       .sort((a, b) => b.revenue - a.revenue);
 
     return {
