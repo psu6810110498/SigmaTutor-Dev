@@ -64,7 +64,7 @@ export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.id as string;
-  const { addToCart, isInCart, removeFromCart } = useCourse();
+  const { addToCart, isInCart, removeFromCart, isOwned } = useCourse();
   const { user } = useAuth();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -1048,18 +1048,32 @@ export default function CourseDetailPage() {
               <>
                 <button
                   onClick={() => {
+                    const owned = isOwned(course.id);
+                    if (owned) {
+                      alert("คุณลงทะเบียนเรียนคอร์สนี้แล้ว ไม่สามารถเพิ่มลงตะกร้าได้");
+                      return;
+                    }
+
                     if (isInCart(course.id)) {
                       removeFromCart(course.id);
                     } else {
                       addToCart(toCartItem(course));
                     }
                   }}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${isInCart(course.id)
-                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                    : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
-                    }`}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${
+                    isOwned(course.id)
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed hidden'
+                      : isInCart(course.id)
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
+                  }`}
+                  disabled={isOwned(course.id)}
                 >
-                  {isInCart(course.id) ? (
+                  {isOwned(course.id) ? (
+                    <span className="flex items-center justify-center gap-2">
+                       คุณเป็นเจ้าของคอร์สนี้แล้ว
+                    </span>
+                  ) : isInCart(course.id) ? (
                     <>
                       <span className="flex items-center justify-center gap-2 group-hover:hidden">
                         <CheckCircle size={16} /> อยู่ในตะกร้าแล้ว
@@ -1076,15 +1090,25 @@ export default function CourseDetailPage() {
                 </button>
                 <button
                   onClick={() => {
+                    const owned = isOwned(course.id);
+                    if (owned) {
+                       router.push(`/courses/${course.id}/learn`);
+                       return;
+                    }
+
                     if (!isInCart(course.id)) {
                       addToCart(toCartItem(course));
                     }
                     // Use setTimeout to ensure context state is flushed slightly before routing
                     setTimeout(() => router.push('/checkout'), 50);
                   }}
-                  className="block w-full py-3 rounded-xl text-sm font-bold text-center border-2 border-primary text-primary hover:bg-primary/5 transition-colors"
+                  className={`block w-full py-3 rounded-xl text-sm font-bold text-center border-2 transition-colors ${
+                    isOwned(course.id) 
+                      ? 'bg-primary text-white hover:bg-primary-dark border-primary hidden'
+                      : 'border-primary text-primary hover:bg-primary/5'
+                  }`}
                 >
-                  ซื้อเลย
+                  {isOwned(course.id) ? 'เข้าสู่บทเรียน' : 'ซื้อเลย'}
                 </button>
               </>
             )}
