@@ -1,32 +1,23 @@
 model CourseSchedule {
-  id            String @id @default(cuid())
-  sessionNumber Int? // ครั้งที่ 1, 2, 3...
-
-  // ✅ ปรับให้เป็น Optional (?) เพื่อให้ไม่ต้องบังคับกรอกวันที่/เวลา
-  date      DateTime?
-  startTime DateTime?
-  endTime   DateTime?
-
-  topic String // หัวข้อเนื้อหาย่อย
-
-  // ─── ส่วนที่ต้องเพิ่มใหม่ตามโจทย์ ──────────────────────────
-  chapterTitle  String? // ✅ เพิ่มใหม่: ชื่อบทเรียน (เช่น บทที่ 1)
-  videoUrl      String? // ✅ เพิ่มใหม่: ลิงก์วิดีโอเนื้อหา
-  materialUrl   String? // ✅ เพิ่มใหม่: ลิงก์ไฟล์ประกอบบทเรียน
-  gumletVideoId String? // ✅ Gumlet Video ID
-  videoProvider VideoProvider @default(YOUTUBE) // ✅ ตัวระบุว่าใช้วิดีโอจากค่ายไหน
-  // ────────────────────────────────────────────────────────
-
-  location String? // สถานที่เรียน (Onsite)
-  zoomLink String? // ลิงก์ Zoom per session (Online-Live)
-  isOnline Boolean        @default(false)
-  status   ScheduleStatus @default(ON_SCHEDULE)
-
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String         @id @default(cuid())
+  sessionNumber Int?
+  date          DateTime?
+  startTime     DateTime?
+  endTime       DateTime?
+  topic         String
+  location      String?
+  isOnline      Boolean        @default(false)
+  status        ScheduleStatus @default(ON_SCHEDULE)
+  courseId      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  chapterTitle  String?
+  materialUrl   String?
+  videoUrl      String?
+  gumletVideoId String?
+  videoProvider VideoProvider  @default(YOUTUBE)
+  zoomLink      String?
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([courseId])
   @@map("course_schedules")

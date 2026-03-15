@@ -14,12 +14,13 @@ export const reorderChapterSchema = z.object({
 export const createLessonSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     type: z.enum(['VIDEO', 'FILE', 'QUIZ']).default('VIDEO'),
-    content: z.string().optional().nullable(),
-    youtubeUrl: z.string().optional().nullable(),
-    gumletVideoId: z.string().optional().nullable(),
+    content: z.string().optional().nullable().or(z.literal('')),
+    youtubeUrl: z.string().optional().nullable().or(z.literal('')),
+    gumletVideoId: z.string().optional().nullable().or(z.literal('')),
     videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
-    duration: z.number().int().optional(), // Duration in minutes
+    duration: z.number().int().optional().nullable(), // Duration in minutes
     isFree: z.boolean().optional().default(false),
+    materialUrl: z.string().optional().nullable().or(z.literal('')), // ✅ URL ไฟล์ PDF/เอกสาร
     order: z.number().int().optional(),
 });
 export const updateLessonSchema = createLessonSchema.partial();

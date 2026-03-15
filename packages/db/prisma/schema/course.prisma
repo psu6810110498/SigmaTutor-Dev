@@ -1,72 +1,57 @@
-// Course models
-
 model Course {
-  id               String        @id @default(cuid())
-  title            String
-  slug             String        @unique
-  shortDescription String?
-  description      String?
-  price            Float // From Main (Float is better for price)
-  originalPrice    Float? // Aligning with price
-  promotionalPrice Float? // Discounted Price
-  status           CourseStatus  @default(DRAFT)
-  courseType       CourseType    @default(ONLINE)
-  demoVideoUrl     String? // สำหรับใส่ลิงก์ MP4 หรือ Youtube
-  gumletVideoId    String? // สำหรับใส่ ID วิดีโอ Gumlet รีวิวคอร์ส
-  videoProvider    VideoProvider @default(YOUTUBE) // ค่ายวิดีโอ (นำมาจาก chapter.prisma ที่มี enum ไว้แล้ว)
-  materialUrl      String? // สำหรับใส่ลิงก์ไฟล์ PDF
-
-  thumbnail   String?
-  thumbnailSm String?
-  thumbnailLg String?
-
-  // Relations (Head)
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id])
-  levelId    String?
-  level      Level?    @relation(fields: [levelId], references: [id])
-
-  // Relations (Main)
-  // ใน Model Course
-  teacherId String? // changed from instructorId
-  teacher   Teacher? @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade) // ✅ เติมชื่อ "TeacherCourses" และ onDelete
-
-  // Head Fields
-  courseCode      String? // เพิ่มช่องรหัสคอร์ส
-  duration        String?
-  videoCount      Int       @default(0)
-  maxSeats        Int?
-  enrollStartDate DateTime?
-  enrollEndDate   DateTime?
-  location        String?
-  mapUrl          String?
-  zoomLink        String?
-  meetingId       String? // เพิ่มช่องรหัสห้องประชุม
-  priceRange      String? // เพิ่มช่องช่วงราคา
-  accessDurationDays Int?         @default(365) // อายุการเข้าถึงคอร์ส (วัน)
-  published       Boolean   @default(false)
-  tags            String[]  @default([])
-  isBestSeller    Boolean   @default(false)
-  isRecommended   Boolean   @default(false)
-
-  // Child Relations
-  chapters    Chapter[] // From HEAD
-  schedules   CourseSchedule[] // From HEAD
-  enrollments Enrollment[] // From Main
-  payments    Payment[] // From Main
-  progress    UserProgress[] // Track student progress in this course
-  reviews     Review[]
-  promotions  Promotion[]      @relation("CoursePromotions")
-  coupons     Coupon[]         @relation("CourseCoupons")
-  // ผู้สอนหลายคนต่อคอร์ส (many-to-many ผ่าน join table)
-  teachers    CourseTeacher[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String           @id @default(cuid())
+  title              String
+  slug               String           @unique
+  description        String?
+  price              Float
+  originalPrice      Float?
+  promotionalPrice   Float?
+  status             CourseStatus     @default(DRAFT)
+  courseType         CourseType       @default(ONLINE)
+  demoVideoUrl       String?
+  materialUrl        String?
+  thumbnail          String?
+  thumbnailSm        String?
+  thumbnailLg        String?
+  categoryId         String?
+  levelId            String?
+  duration           String?
+  videoCount         Int              @default(0)
+  maxSeats           Int?
+  enrollStartDate    DateTime?
+  enrollEndDate      DateTime?
+  location           String?
+  mapUrl             String?
+  zoomLink           String?
+  published          Boolean          @default(false)
+  tags               String[]         @default([])
+  isBestSeller       Boolean          @default(false)
+  isRecommended      Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  courseCode         String?
+  meetingId          String?
+  priceRange         String?
+  shortDescription   String?
+  gumletVideoId      String?
+  videoProvider      VideoProvider    @default(YOUTUBE)
+  teacherId          String?
+  accessDurationDays Int?             @default(365)
+  enrollments        Enrollment[]
+  payments           Payment[]
+  chapters           Chapter[]
+  schedules          CourseSchedule[]
+  teachers           CourseTeacher[]
+  category           Category?        @relation(fields: [categoryId], references: [id])
+  level              Level?           @relation(fields: [levelId], references: [id])
+  teacher            Teacher?         @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade)
+  reviews            Review[]
+  progress           UserProgress[]
+  coupons            Coupon[]         @relation("CourseCoupons")
+  promotions         Promotion[]      @relation("CoursePromotions")
 
   @@index([teacherId])
   @@index([status])
-  // Composite indexes for marketplace filter combinations
   @@index([status, categoryId])
   @@index([status, levelId])
   @@index([status, courseType])
@@ -79,11 +64,10 @@ model Enrollment {
   userId    String
   courseId  String
   status    EnrollmentStatus @default(ACTIVE)
-  expiresAt DateTime?  // วันหมดอายุการเข้าถึงคอร์ส
   createdAt DateTime         @default(now())
-
-  user   User   @relation(fields: [userId], references: [id])
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade) // ✅ เติมจุดนี้
+  expiresAt DateTime?
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id])
 
   @@unique([userId, courseId])
 }
@@ -95,28 +79,23 @@ model Payment {
   amount    Float
   status    PaymentStatus @default(PENDING)
   stripeId  String?
+  createdAt DateTime      @default(now())
   couponId  String?
   coupon    Coupon?       @relation("PaymentCoupon", fields: [couponId], references: [id])
-  createdAt DateTime      @default(now())
-
-  user   User   @relation(fields: [userId], references: [id])
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade) // ✅ เติมจุดนี้
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([courseId])
   @@index([stripeId])
 }
 
-// Join table: ผู้สอนหลายคนต่อคอร์ส
 model CourseTeacher {
   id        String            @id @default(cuid())
   courseId  String
   teacherId String
-  // บทบาทของผู้สอนในคอร์สนั้น
   role      CourseTeacherRole @default(LEAD)
-  // ลำดับการแสดงผล (0 = ขึ้นก่อน)
   order     Int               @default(0)
-
   course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   teacher   Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
@@ -125,10 +104,27 @@ model CourseTeacher {
   @@map("course_teachers")
 }
 
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  lessonId    String?
+  scheduleId  String?
+  isCompleted Boolean  @default(true)
+  completedAt DateTime @default(now())
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@unique([userId, scheduleId])
+  @@index([userId, courseId])
+  @@map("user_progress")
+}
+
 enum CourseTeacherRole {
-  LEAD       // ผู้สอนหลัก
-  ASSISTANT  // ผู้ช่วยสอน
-  GUEST      // ผู้สอนรับเชิญ
+  LEAD
+  ASSISTANT
+  GUEST
 }
 
 enum CourseStatus {
@@ -154,26 +150,4 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
-}
-
-// Track user completion of lessons and schedules
-model UserProgress {
-  id       String @id @default(cuid())
-  userId   String
-  courseId String
-
-  // Track either a Lesson or a CourseSchedule
-  lessonId   String?
-  scheduleId String?
-
-  isCompleted Boolean  @default(true)
-  completedAt DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, lessonId])
-  @@unique([userId, scheduleId])
-  @@index([userId, courseId])
-  @@map("user_progress")
 }

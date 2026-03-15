@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import {
     BookOpen, Plus, Trash2, ChevronDown, ChevronRight,
-    GripVertical, Save, Loader2, Video, FileText, Lock, Unlock, Clock
+    GripVertical, Save, Loader2, Video, FileText, Lock, Unlock, Clock,
+    Upload, CheckCircle2, X, File
 } from "lucide-react";
 import type { Course, Chapter, Lesson } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
@@ -32,6 +33,11 @@ function calcChapterDuration(lessons: Lesson[]): number {
     return lessons.reduce((sum, l) => sum + (l.duration || 0), 0);
 }
 
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 // ── Lesson Form ──────────────────────────────────────────────────────────────
 
 interface LessonFormProps {
@@ -53,9 +59,124 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
         gumletVideoId: lesson?.gumletVideoId || "",
         videoProvider: lesson?.videoProvider || "YOUTUBE" as "YOUTUBE" | "GUMLET",
         content: lesson?.content || "",
+        materialUrl: (lesson as any)?.materialUrl || "",
     });
 
+    // Video upload state
+    const [videoUploading, setVideoUploading] = useState(false);
+    const [videoProgress, setVideoProgress] = useState(0);
+    const [videoFileName, setVideoFileName] = useState<string | null>(null);
+
+    // PDF upload state
+    const [pdfUploading, setPdfUploading] = useState(false);
+    const [pdfProgress, setPdfProgress] = useState(0);
+    const [pdfFileName, setPdfFileName] = useState<string | null>(
+        lesson?.content ? lesson.content.split('/').pop() || null : null
+    );
+
     const set = (key: string, value: unknown) => setForm(f => ({ ...f, [key]: value }));
+
+    // ── Gumlet MP4 Upload ───────────────────────────────────────────────────
+    async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || !file.type.startsWith("video/")) {
+            toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น");
+            return;
+        }
+        setVideoUploading(true);
+        setVideoProgress(0);
+        setVideoFileName(file.name);
+        try {
+            // (1) ขอ upload URL จาก backend
+            const urlRes = await fetch(`${API}/gumlet/upload-url`, {
+                method: "POST",
+                ...getCredentials(),
+            });
+            const urlData = await urlRes.json();
+            if (!urlData.success || !urlData.upload_url) {
+                toast.error(urlData.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+                return;
+            }
+            const { upload_url, asset_id } = urlData;
+
+            // (2) อัปโหลดตรงไปยัง Gumlet ด้วย XHR + progress
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("PUT", upload_url, true);
+                xhr.setRequestHeader("Content-Type", file.type);
+                xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable) setVideoProgress(Math.round((ev.loaded / ev.total) * 100));
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        set("gumletVideoId", asset_id);
+                        set("videoProvider", "GUMLET");
+                        toast.success("อัปโหลดวิดีโอสำเร็จ! ระบบกำลัง Encode...");
+                        resolve();
+                    } else {
+                        reject(new Error("Upload failed"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network error"));
+                xhr.send(file);
+            });
+        } catch {
+            toast.error("อัปโหลดวิดีโอไม่สำเร็จ");
+            setVideoFileName(null);
+        } finally {
+            setVideoUploading(false);
+        }
+    }
+
+    // ── R2 PDF Upload ───────────────────────────────────────────────────────
+    async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || file.type !== "application/pdf") {
+            toast.error("กรุณาเลือกไฟล์ PDF เท่านั้น");
+            return;
+        }
+        if (file.size > 50 * 1024 * 1024) {
+            toast.error("ไฟล์ PDF ใหญ่เกิน 50MB");
+            return;
+        }
+        setPdfUploading(true);
+        setPdfProgress(0);
+        setPdfFileName(file.name);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        await new Promise<void>((resolve) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${API}/upload/lesson-material`, true);
+            xhr.withCredentials = true;
+            xhr.upload.onprogress = (ev) => {
+                if (ev.lengthComputable) setPdfProgress(Math.round((ev.loaded / ev.total) * 100));
+            };
+            xhr.onload = () => {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (xhr.status === 200 && data.success) {
+                        set("materialUrl", data.url);
+                        set("content", data.url);
+                        toast.success("อัปโหลด PDF สำเร็จ");
+                    } else {
+                        toast.error(data.error || "อัปโหลดไม่สำเร็จ");
+                        setPdfFileName(null);
+                    }
+                } catch {
+                    toast.error("เกิดข้อผิดพลาด");
+                    setPdfFileName(null);
+                }
+                resolve();
+            };
+            xhr.onerror = () => { toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ"); setPdfFileName(null); resolve(); };
+            xhr.send(formData);
+        });
+        setPdfUploading(false);
+    }
 
     async function handleSave() {
         if (!form.title.trim()) {
@@ -73,6 +194,7 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                 gumletVideoId: form.gumletVideoId || null,
                 videoProvider: form.gumletVideoId ? "GUMLET" : form.videoProvider,
                 content: form.content || null,
+                materialUrl: form.materialUrl || null,
             };
 
             const url = lesson ? `${API}/lessons/${lesson.id}` : `${API}/lessons`;
@@ -130,19 +252,68 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                         placeholder="0"
                     />
                 </div>
+
+                {/* ─── VIDEO ─────────────────────────────────── */}
                 {form.type === "VIDEO" && (
                     <>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">Gumlet Video ID</label>
-                            <input
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                value={form.gumletVideoId}
-                                onChange={e => set("gumletVideoId", e.target.value)}
-                                placeholder="Gumlet Video ID"
-                            />
+                        {/* Gumlet upload */}
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                🎬 วิดีโอ (Gumlet)
+                            </label>
+                            {form.gumletVideoId && !videoUploading ? (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
+                                    <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                                    <span className="text-green-700 flex-1 truncate font-medium">
+                                        {videoFileName || `ID: ${form.gumletVideoId}`}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { set("gumletVideoId", ""); set("videoProvider", "YOUTUBE"); setVideoFileName(null); }}
+                                        className="text-gray-400 hover:text-red-500"
+                                    ><X size={14} /></button>
+                                </div>
+                            ) : videoUploading ? (
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between text-xs text-gray-500">
+                                        <span className="truncate max-w-[200px]">{videoFileName}</span>
+                                        <span className="font-semibold">{videoProgress}%</span>
+                                    </div>
+                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-linear-to-r from-primary to-blue-400 rounded-full transition-all duration-300"
+                                            style={{ width: `${videoProgress}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-400">กำลังอัปโหลด...</p>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <input
+                                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                        value={form.gumletVideoId}
+                                        onChange={e => { set("gumletVideoId", e.target.value); if (e.target.value) set("videoProvider", "GUMLET"); }}
+                                        placeholder="กรอก Gumlet Video ID..."
+                                    />
+                                    <label className="relative shrink-0">
+                                        <input
+                                            type="file"
+                                            accept="video/mp4,video/*"
+                                            onChange={handleVideoUpload}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            disabled={videoUploading}
+                                        />
+                                        <span className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 text-primary text-sm font-medium rounded-lg hover:bg-primary/20 cursor-pointer transition-colors whitespace-nowrap">
+                                            <Upload size={14} /> อัปโหลด MP4
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">YouTube URL</label>
+
+                        {/* YouTube URL */}
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">YouTube URL (ทางเลือก)</label>
                             <input
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                                 value={form.youtubeUrl}
@@ -152,15 +323,64 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                         </div>
                     </>
                 )}
+
+                {/* ─── FILE ──────────────────────────────────── */}
                 {form.type === "FILE" && (
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">ลิงก์ไฟล์</label>
-                        <input
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            value={form.content}
-                            onChange={e => set("content", e.target.value)}
-                            placeholder="https://..."
-                        />
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                            📄 ไฟล์ PDF
+                        </label>
+                        {form.materialUrl && !pdfUploading ? (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm">
+                                <File size={15} className="text-orange-500 shrink-0" />
+                                <span className="text-orange-700 flex-1 truncate font-medium">
+                                    {pdfFileName || "ไฟล์ PDF"}
+                                </span>
+                                <a href={form.materialUrl} target="_blank" rel="noreferrer"
+                                    className="text-xs text-blue-500 hover:underline shrink-0">ดู</a>
+                                <button
+                                    type="button"
+                                    onClick={() => { set("materialUrl", ""); set("content", ""); setPdfFileName(null); }}
+                                    className="text-gray-400 hover:text-red-500"
+                                ><X size={14} /></button>
+                            </div>
+                        ) : pdfUploading ? (
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span className="truncate max-w-[200px]">{pdfFileName}</span>
+                                    <span className="font-semibold">{pdfProgress}%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-orange-400 to-orange-300 rounded-full transition-all duration-300"
+                                        style={{ width: `${pdfProgress}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-400">กำลังอัปโหลด PDF...</p>
+                            </div>
+                        ) : (
+                            <div className="flex gap-2">
+                                <input
+                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    value={form.content}
+                                    onChange={e => { set("content", e.target.value); set("materialUrl", e.target.value); }}
+                                    placeholder="https://... หรืออัปโหลดไฟล์ →"
+                                />
+                                <label className="relative shrink-0">
+                                    <input
+                                        type="file"
+                                        accept="application/pdf"
+                                        onChange={handlePdfUpload}
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        disabled={pdfUploading}
+                                    />
+                                    <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
+                                        <Upload size={14} /> อัปโหลด PDF
+                                    </span>
+                                </label>
+                            </div>
+                        )}
+                        <p className="text-[11px] text-gray-400 mt-1">รองรับ .pdf ขนาดไม่เกิน 50MB</p>
                     </div>
                 )}
             </div>
@@ -168,19 +388,18 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                 <button
                     type="button"
                     onClick={() => set("isFree", !form.isFree)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                        form.isFree
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${form.isFree
                             ? "bg-green-50 border-green-300 text-green-700"
                             : "bg-gray-100 border-gray-300 text-gray-500"
-                    }`}
+                        }`}
                 >
                     {form.isFree ? <Unlock size={13} /> : <Lock size={13} />}
                     {form.isFree ? "ทดลองเรียนฟรี" : "ต้องชำระเงิน"}
                 </button>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={onCancel} disabled={loading}>ยกเลิก</Button>
-                <Button size="sm" onClick={handleSave} disabled={loading}>
+                <Button variant="outline" size="sm" onClick={onCancel} disabled={loading || videoUploading || pdfUploading}>ยกเลิก</Button>
+                <Button size="sm" onClick={handleSave} disabled={loading || videoUploading || pdfUploading}>
                     {loading ? <Loader2 size={14} className="animate-spin mr-1" /> : <Save size={14} className="mr-1" />}
                     บันทึก
                 </Button>

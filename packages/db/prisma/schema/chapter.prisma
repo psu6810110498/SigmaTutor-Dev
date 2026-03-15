@@ -1,42 +1,34 @@
 model Chapter {
-  id    String @id @default(cuid())
-  title String
-  order Int    @default(0)
-
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  lessons Lesson[]
-
+  id        String   @id @default(cuid())
+  title     String
+  order     Int      @default(0)
+  courseId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
 
   @@index([courseId])
   @@map("chapters")
 }
 
 model Lesson {
-  id    String     @id @default(cuid())
-  title String
-  type  LessonType @default(VIDEO)
-
-  content String? // File URL or other content
-
-  // --- Video Hosting Fields ---
-  youtubeUrl    String? // YouTube URL/ID (ของเดิม เก็บไว้ก่อนกันแอปพัง)
-  gumletVideoId String? // 👈 ฟิลด์ใหม่: เก็บ Video ID ของ Gumlet 
-  videoProvider VideoProvider @default(YOUTUBE) // 👈 ฟิลด์ใหม่: ตัวระบุว่าใช้วิดีโอจากค่ายไหน
-
-  duration Int? // Duration in seconds
-
-  isFree        Boolean       @default(false) // ทดลองเรียนฟรี
+  id            String        @id @default(cuid())
+  title         String
+  type          LessonType    @default(VIDEO)
+  content       String?
+  youtubeUrl    String?
+  duration      Int?
   order         Int           @default(0)
+  chapterId     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  gumletVideoId String?
+  videoProvider VideoProvider @default(YOUTUBE)
+  isFree        Boolean       @default(false)
+  materialUrl   String?       // URL ไฟล์ PDF/เอกสารจาก R2
+  chapter       Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
-  chapterId String
-  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([chapterId])
   @@map("lessons")
@@ -48,7 +40,6 @@ enum LessonType {
   QUIZ
 }
 
-// 👈 สร้าง Enum ใหม่เพื่อความเป๊ะของข้อมูล (ป้องกันการพิมพ์ชื่อ Provider ผิด)
 enum VideoProvider {
   YOUTUBE
   GUMLET

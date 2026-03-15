@@ -226,20 +226,34 @@ export default function CreateCoursePage() {
             toast.error("กรุณาระบุจำนวนที่นั่งสำหรับคอร์สประเภทนี้");
             setSaving(false); return;
         }
-        if (form.courseType === "ONLINE") form.maxSeats = null;
 
         const payload: any = { ...form };
+        // ถ้าเป็น ONLINE ให้ maxSeats เป็น null เสมอ
+        if (payload.courseType === "ONLINE") payload.maxSeats = null;
+
         payload.instructorIds = selectedInstructors.sort((a, b) => a.order - b.order).map((s) => s.id);
         delete payload.instructorId;
+
+        // แปลง date strings → ISO string หรือ null
         ['enrollStartDate', 'enrollEndDate'].forEach(key => {
             if (payload[key]) { try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; } }
             else payload[key] = null;
         });
-        ['demoVideoUrl', 'gumletVideoId', 'location', 'materialUrl', 'mapUrl', 'zoomLink', 'meetingId'].forEach((key) => {
+
+        // แปลง empty string → null สำหรับ optional fields ทั้งหมด
+        // (ป้องกัน Zod url() / string() validation ล้มเหลว)
+        [
+            'demoVideoUrl', 'gumletVideoId', 'location', 'materialUrl',
+            'mapUrl', 'zoomLink', 'meetingId', 'courseCode', 'duration',
+            'priceRange', 'shortDescription',
+        ].forEach((key) => {
             if (payload[key] === "") payload[key] = null;
         });
+
         payload.description = payload.description || "";
-        payload.shortDescription = payload.shortDescription || "";
+        // shortDescription ต้องไม่ส่ง empty string ให้ Zod
+        if (!payload.shortDescription) payload.shortDescription = null;
+
         if (showLevelDropdown) {
             const found = levels.find(l => l.id === payload.levelId || l.name === payload.levelId);
             payload.levelId = found ? found.id : null;
@@ -261,13 +275,20 @@ export default function CreateCoursePage() {
                 toast.success("สร้างคอร์สสำเร็จ! เพิ่มบทเรียนได้เลย");
                 setActiveTab("content");
             } else {
-                toast.error(res.error || "สร้างคอร์สไม่สำเร็จ");
+                // แสดง field ที่ error จาก Zod details
+                if (res.details && res.details.length > 0) {
+                    const firstError = res.details[0];
+                    toast.error(`${res.error}: [${firstError.field}] ${firstError.message}`);
+                } else {
+                    toast.error(res.error || "สร้างคอร์สไม่สำเร็จ");
+                }
             }
         } catch (error) {
             toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
         } finally {
             setSaving(false);
         }
+
     };
 
     const completeness = useMemo(() => {

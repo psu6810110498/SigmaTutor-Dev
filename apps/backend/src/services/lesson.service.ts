@@ -10,6 +10,7 @@ export class LessonService {
         videoProvider?: 'YOUTUBE' | 'GUMLET';
         duration?: number;
         isFree?: boolean;
+        materialUrl?: string | null;
         order?: number;
     }) {
         let order = data.order;
@@ -36,6 +37,7 @@ export class LessonService {
         videoProvider?: 'YOUTUBE' | 'GUMLET';
         duration?: number;
         isFree?: boolean;
+        materialUrl?: string | null;
         order?: number;
     }) {
         return prisma.lesson.update({

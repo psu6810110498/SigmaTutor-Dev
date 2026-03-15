@@ -1,36 +1,27 @@
-// Teacher model
 model Teacher {
-  id           String  @id @default(cuid())
-  email        String  @unique
-  name         String?
-  profileImage String?
-  bio          String?
-  title        String?
-  nickname     String?
-
-  phone      String?
-  expertise  String?
-  education  String?  // legacy single-line education (kept for backward compat)
-  experience String?
-  socialLink String?  // legacy single social link (kept for backward compat)
-
-  // Rich profile fields
-  educationHistory String[] // e.g. ["จุฬาลงกรณ์มหาวิทยาลัย ปริญญาตรี 2015-2019"]
-  achievements     String[] // e.g. ["อดีตตัวแทนประเทศไทย", "อาจารย์มหาวิทยาลัย"]
-  quote            String?  // คำพูดของครูถึงนักเรียน
-
-  // Social media links
-  facebookUrl  String?
-  instagramUrl String?
-  tiktokUrl    String?
-  linkedinUrl  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  courses        Course[]        @relation("TeacherCourses")
-  courseTeachers CourseTeacher[]
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  profileImage     String?
+  bio              String?
+  title            String?
+  nickname         String?
+  phone            String?
+  expertise        String?
+  education        String?
+  experience       String?
+  socialLink       String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  educationHistory String[]        @default([])
+  achievements     String[]        @default([])
+  quote            String?
+  facebookUrl      String?
+  instagramUrl     String?
+  tiktokUrl        String?
+  linkedinUrl      String?
+  courseTeachers   CourseTeacher[]
+  courses          Course[]        @relation("TeacherCourses")
 
   @@index([email])
 }

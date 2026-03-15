@@ -461,14 +461,16 @@ export class CourseService {
     }));
   }
 
-  async getAdminCourses(query: CourseQueryInput & { instructorId?: string }) {
-    const { search, status, instructorId } = query;
+  async getAdminCourses(query: any) {
+    const { search, status, instructorId, categoryId, courseType } = query;
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
 
     const where: any = {
-      ...(status && status !== ('all' as any) && { status }),
-      ...(instructorId && { teacherId: instructorId }),
+      ...(status && status !== 'all' && { status }),
+      ...((instructorId || query.teacherId) && { teacherId: instructorId || query.teacherId }),
+      ...(categoryId && categoryId !== 'all' && { categoryId }),
+      ...(courseType && courseType !== 'all' && { courseType }),
       ...(search && { title: { contains: search, mode: 'insensitive' } }),
     };
 

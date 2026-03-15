@@ -9,9 +9,7 @@ model Promotion {
   isActive      Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-
-  // Relations
-  courses Course[] @relation("CoursePromotions")
+  courses       Course[]     @relation("CoursePromotions")
 
   @@map("promotions")
 }

@@ -1,14 +1,11 @@
 model Category {
-  id   String @id @default(cuid())
-  name String
-  slug String @unique
-
-  // Hierarchy
+  id       String     @id @default(cuid())
+  name     String
+  slug     String     @unique
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children Category[] @relation("CategoryHierarchy")
-
-  courses Course[]
+  courses  Course[]
 
   @@map("categories")
 }
