@@ -16,6 +16,7 @@ import tutorRoutes from './tutor.routes.js';
 import couponRoutes from './coupon.routes.js';
 import siteContentRoutes from './site-content.routes.js';
 import progressRoutes from './progress.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
 
 // ✅ ระบุ Type : express.Router เพื่อแก้ปัญหา inferred type
 const router: express.Router = express.Router();
@@ -39,5 +40,6 @@ router.use('/tutors', tutorRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/site-content', siteContentRoutes);
 router.use('/progress', progressRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 export default router;
