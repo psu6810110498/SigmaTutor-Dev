@@ -25,7 +25,9 @@
     "@types/node": "^25.3.3",
     "dotenv": "^17.3.1",
     "prettier": "^3.4.2",
-    "turbo": "^2.8.2"
+    "ts-node": "^10.9.2",
+    "turbo": "^2.8.2",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0",
