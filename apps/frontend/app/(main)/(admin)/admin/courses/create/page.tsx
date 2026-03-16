@@ -68,7 +68,7 @@ export default function CreateCoursePage() {
     const showLevelDropdown = levelOptions.length > 0;
 
     // ── Form State ──
-    const [form, setForm] = useState<any>({
+    const [form, setForm] = useState<Partial<CreateCourseInput> & Record<string, any>>({
         title: "",
         courseCode: "",
         shortDescription: "",
@@ -114,7 +114,7 @@ export default function CreateCoursePage() {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.form) setForm(prev => ({ ...prev, ...parsed.form }));
+                if (parsed.form) setForm((prev: Record<string, any>) => ({ ...prev, ...parsed.form }));
                 if (parsed.sessions) setSessions(parsed.sessions);
                 if (parsed.rootCategoryId) setRootCategoryId(parsed.rootCategoryId);
                 if (parsed.activeQuickFilter) setActiveQuickFilter(parsed.activeQuickFilter);
@@ -141,7 +141,7 @@ export default function CreateCoursePage() {
     };
 
     const handleDurationChange = (type: 'd' | 'h' | 'm', val: string) => {
-        const current = parseDuration(form.duration);
+        const current = parseDuration(form.duration || null);
         current[type] = val;
         const parts = [];
         if (current.d && current.d !== '0') parts.push(`${current.d} วัน`);
@@ -150,20 +150,20 @@ export default function CreateCoursePage() {
         updateForm('duration', parts.length > 0 ? parts.join(' ') : null);
     };
 
-    const parsedDuration = parseDuration(form.duration);
+    const parsedDuration = parseDuration(form.duration || null);
 
     const handleQuickFilter = (label: string) => {
         setActiveQuickFilter(label);
         updateForm("levelId", null);
         if (label === "ทั้งหมด") {
             setRootCategoryId("");
-            setForm(prev => ({ ...prev, categoryId: null }));
+            setForm((prev: Record<string, any>) => ({ ...prev, categoryId: null }));
             return;
         }
         const found = rootCategories.find(c => c.name === label);
         if (found) {
             setRootCategoryId(found.id);
-            setForm(prev => ({ ...prev, categoryId: null }));
+            setForm((prev: Record<string, any>) => ({ ...prev, categoryId: null }));
         }
     };
 
@@ -268,7 +268,7 @@ export default function CreateCoursePage() {
 
     const handleSubmit = async () => {
         setSaving(true);
-        if (!form.title.trim() || !form.instructorId) {
+        if (!form.title?.trim() || !form.instructorId) {
             toast.error("กรุณากรอกชื่อคอร์สและเลือกผู้สอน");
             setSaving(false); return;
         }
@@ -332,9 +332,9 @@ export default function CreateCoursePage() {
 
     const completeness = useMemo(() => {
         let filled = 0;
-        if (form.title.trim()) filled++;
+        if (form.title?.trim()) filled++;
         if (form.description) filled++;
-        if (form.price > 0) filled++;
+        if ((form.price ?? 0) > 0) filled++;
         if (form.instructorId) filled++;
         if (thumbnailFile) filled++;
         return Math.round((filled / 5) * 100);
@@ -580,7 +580,7 @@ export default function CreateCoursePage() {
                     </SectionCard>
 
                     <SectionCard title="ตารางเรียน" icon={CalendarDays}>
-                        <ScheduleInput courseType={form.courseType as any} value={sessions} onChange={setSessions} />
+                        <ScheduleInput value={sessions} onChange={setSessions} />
                     </SectionCard>
                 </div>
 

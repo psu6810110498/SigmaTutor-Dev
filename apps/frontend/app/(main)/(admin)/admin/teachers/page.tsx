@@ -186,16 +186,16 @@ export default function AdminTeachersPage() {
                                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                                    size="sm"
+                                                    className="h-8 w-8 !p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                                                     onClick={() => router.push(`/admin/teachers/${teacher.id}/edit`)}
                                                 >
                                                     <Edit size={14} />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                    size="sm"
+                                                    className="h-8 w-8 !p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
                                                     onClick={() => handleDelete(teacher.id)}
                                                 >
                                                     <Trash2 size={14} />
