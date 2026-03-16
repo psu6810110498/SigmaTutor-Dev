@@ -682,7 +682,7 @@ export default function CourseDetailPage() {
                                   </span>
                                 ) : (
                                   <>
-                                    {(sched.videoUrl || sched.gumletVideoId) && (
+                                    {course.courseType !== 'ONSITE' && (sched.videoUrl || sched.gumletVideoId) && (
                                       <span className="text-xs flex items-center gap-1">
                                         <Video size={14} /> วิดีโอ
                                       </span>
@@ -706,25 +706,30 @@ export default function CourseDetailPage() {
                                 {sched.chapterTitle && (
                                   <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
                                 )}
-                                {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
-                                      className="w-full h-full"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
-                                ) : sched.videoUrl && (
-                                  <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
-                                      className="w-full h-full"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
+                                {/* Hide video for ONSITE — only available in the learning platform */}
+                                {course.courseType !== 'ONSITE' && (
+                                  <>
+                                    {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
+                                          className="w-full h-full"
+                                          allow="autoplay; fullscreen; picture-in-picture"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    ) : sched.videoUrl && (
+                                      <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
+                                          className="w-full h-full"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                                 {sched.materialUrl && (
                                   <a
@@ -736,7 +741,7 @@ export default function CourseDetailPage() {
                                     <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
                                   </a>
                                 )}
-                                {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
+                                {!sched.materialUrl && !sched.chapterTitle && (course.courseType === 'ONSITE' || (!sched.videoUrl && !sched.gumletVideoId)) && (
                                   <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
                                 )}
                               </div>
