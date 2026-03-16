@@ -52,8 +52,6 @@ services:
       cd /app/apps/backend &&
       pnpm start"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -98,7 +96,6 @@ services:
       start_period: 30s
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
