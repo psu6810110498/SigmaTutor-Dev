@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch, FiBookOpen, FiPlay, FiMapPin, FiAward } from 'react-icons/fi';
 import Link from 'next/link';
 import { courseApi } from '@/app/lib/api';
@@ -39,21 +39,13 @@ interface EnrolledCourse {
   progress: number;
 }
 
-const dayMap: Record<string, string> = {
-  'Monday': 'จ.', 'Tuesday': 'อ.', 'Wednesday': 'พ.',
-  'Thursday': 'พฤ.', 'Friday': 'ศ.', 'Saturday': 'ส.', 'Sunday': 'อา.'
-};
 
-const fullDayMap: Record<string, string> = {
-  'Monday': 'วันจันทร์', 'Tuesday': 'วันอังคาร', 'Wednesday': 'วันพุธ',
-  'Thursday': 'วันพฤหัสบดี', 'Friday': 'วันศุกร์', 'Saturday': 'วันเสาร์', 'Sunday': 'วันอาทิตย์'
-};
 
 export default function DashboardPage() {
   // ✅ ดึงข้อมูล user และ loading จากสมองส่วนกลาง
   const { user, loading } = useAuth();
 
-  const [today, setToday] = useState<DayOfWeek>('Monday');
+
   const [upcomingSchedules, setUpcomingSchedules] = useState<UpcomingSchedule[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
@@ -72,24 +64,15 @@ export default function DashboardPage() {
     } catch (e) { console.error(e); }
   };
 
-  useEffect(() => {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const currentDayName = days[new Date().getDay()] as DayOfWeek;
-    setToday(currentDayName);
-  }, []);
+
 
   // ✅ ดึงตารางเรียนวัันนี้จาก API
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
         const res = await courseApi.getUpcomingSchedules();
-        if (res.success && res.data) {
+         if (res.success && res.data) {
           setUpcomingSchedules(res.data);
-          if (res.data.length > 0) {
-              const scheduleDate = new Date(res.data[0].date);
-              const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-              setToday(days[scheduleDate.getDay()] as DayOfWeek);
-          }
         }
       } catch (error) {
         console.error('Failed to fetch upcoming schedules:', error);
@@ -394,12 +377,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {upcomingSchedules.length > 0 && <div className="mt-2"><Link href="/my-planner/add" className="w-full border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 text-gray-500 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-all group">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-              <FiPlus size={18} />
-            </div>
-            <span className="text-sm font-bold">เพิ่มแผนการเรียนส่วนตัว</span>
-          </Link></div>}
         </div>
       </div>
 
@@ -448,6 +425,16 @@ export default function DashboardPage() {
             </Link>
           </div>
         )}
+
+        {/* Add Plan Button - always visible below the cards */}
+        <div className="mt-4">
+          <Link href="/my-planner/add" className="w-full border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 text-gray-500 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-all group">
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
+              <FiPlus size={18} />
+            </div>
+            <span className="text-sm font-bold">เพิ่มแผนการเรียนส่วนตัว</span>
+          </Link>
+        </div>
       </div>
 
       {/* --- Section 2: คอร์สที่ลงทะเบียน --- */}
@@ -501,33 +488,247 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* --- Section 3: Weekly Schedule --- */}
-      <div>
-        <div className="flex items-center mb-4 border-l-4 border-orange-500 pl-3">
+      {/* --- Section 3: Weekly Schedule Timeline --- */}
+      <WeeklyTimeline
+        upcomingSchedules={upcomingSchedules}
+        selfStudySessions={selfStudySessions}
+      />
+
+
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// WeeklyTimeline Component
+// ═════════════════════════════════════════════════════════════
+const WEEK_DAYS_SHORT = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
+
+function getWeekDates(): Date[] {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+type TimelineCard = {
+  id: string;
+  typeLabel: string;
+  time: string;
+  courseTitle: string;
+  location: string | null;
+  zoomLink: string | null;
+  color: 'purple' | 'orange' | 'blue';
+};
+
+function WeeklyTimeline({
+  upcomingSchedules,
+  selfStudySessions,
+}: {
+  upcomingSchedules: UpcomingSchedule[];
+  selfStudySessions: any[];
+}) {
+  const weekDates = useMemo(() => getWeekDates(), []);
+  const todayStr = new Date().toDateString();
+
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+  };
+
+  // Map schedules to each day
+  const cardsByDay = useMemo(() => {
+    const map: Record<number, TimelineCard[]> = {};
+    for (let i = 0; i < 7; i++) map[i] = [];
+
+    // Official schedules
+    upcomingSchedules.forEach((s) => {
+      if (s.type === 'SELF_STUDY') return;
+      const d = new Date(s.date || s.startTime);
+      const idx = weekDates.findIndex((wd) => wd.toDateString() === d.toDateString());
+      if (idx === -1) return;
+
+      const color: TimelineCard['color'] =
+        s.courseType === 'ONLINE_LIVE' ? 'blue' : s.courseType === 'ONSITE' ? 'orange' : 'purple';
+      const typeLabel =
+        s.courseType === 'ONLINE_LIVE' ? 'Live' : s.courseType === 'ONSITE' ? 'Onsite' : 'VDO';
+
+      map[idx].push({
+        id: s.id,
+        typeLabel,
+        time: s.startTime,
+        courseTitle: s.courseTitle,
+        location: s.location,
+        zoomLink: s.zoomLink,
+        color,
+      });
+    });
+
+    // Self-study sessions
+    selfStudySessions.forEach((s: any) => {
+      const d = new Date(s.startTime);
+      const idx = weekDates.findIndex((wd) => wd.toDateString() === d.toDateString());
+      if (idx === -1) return;
+      map[idx].push({
+        id: s.id,
+        typeLabel: 'VDO',
+        time: s.startTime,
+        courseTitle: s.courseTitle || s.topic || 'เรียนเอง',
+        location: null,
+        zoomLink: null,
+        color: 'purple',
+      });
+    });
+
+    // Sort each day by time
+    for (let i = 0; i < 7; i++) {
+      map[i].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    }
+
+    return map;
+  }, [upcomingSchedules, selfStudySessions, weekDates]);
+
+  const cardStyles: Record<string, { border: string; bg: string; text: string; badge: string }> = {
+    purple: { border: 'border-t-purple-400', bg: 'bg-purple-50/60', text: 'text-purple-600', badge: 'bg-purple-100 text-purple-600' },
+    orange: { border: 'border-t-orange-400', bg: 'bg-orange-50/60', text: 'text-orange-600', badge: 'bg-orange-100 text-orange-600' },
+    blue:   { border: 'border-t-blue-400',   bg: 'bg-blue-50/60',   text: 'text-blue-600',   badge: 'bg-blue-100 text-blue-600' },
+  };
+
+  const renderLocationIndicator = (card: TimelineCard) => {
+    if (card.color === 'orange' && card.location) {
+      return (
+        <span className="flex items-center gap-0.5 text-orange-500">
+          <FiMapPin size={9} />
+          <span className="truncate max-w-[70px]">{card.location}</span>
+        </span>
+      );
+    }
+    if (card.color === 'blue') {
+      return (
+        <span className="flex items-center gap-0.5 text-blue-500">
+          <FiVideo size={9} />
+          <span>Zoom</span>
+        </span>
+      );
+    }
+    // VDO / Self-study
+    return (
+      <span className="flex items-center gap-0.5 text-purple-500">
+        <FiBookOpen size={9} />
+        <span>เรียนเอง</span>
+      </span>
+    );
+  };
+
+  return (
+    <div className="mb-10">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center border-l-4 border-orange-500 pl-3">
           <h2 className="text-lg font-bold text-gray-800">ตารางเรียนรายสัปดาห์</h2>
         </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 overflow-x-auto">
-          <div className="grid grid-cols-7 gap-3 min-w-[800px]">
-            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-              <div key={day} className={`text-center mb-2 pb-2 border-b-2 ${day === today ? 'border-blue-500' : 'border-transparent'}`}>
-                <span className={`text-sm font-bold block ${day === today ? 'text-blue-600' : 'text-gray-400'}`}>
-                  {dayMap[day]}
-                </span>
-              </div>
-            ))}
-            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-              <div key={day} className={`space-y-2 min-h-[150px] p-2 rounded-lg ${day === today ? 'bg-blue-50/20' : 'bg-gray-50/30'} flex flex-col items-center justify-center`}>
-                <div className="w-full h-full flex items-center justify-center opacity-10">
-                  <span className="text-xl font-bold text-gray-300">-</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Link
+          href="/my-planner"
+          className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
+        >
+          ดูปฏิทินเต็ม <FiArrowRight size={14} />
+        </Link>
       </div>
 
+      {/* Timeline Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 overflow-x-auto">
+        <div className="grid grid-cols-7 gap-0 min-w-[700px]">
+          {/* Row 1: Day names + Dates */}
+          {weekDates.map((d, i) => {
+            const isToday = d.toDateString() === todayStr;
+            return (
+              <div key={`head-${i}`} className="text-center mb-3">
+                <span className={`text-[11px] font-bold block ${isToday ? 'text-blue-600' : 'text-gray-400'}`}>
+                  {WEEK_DAYS_SHORT[i]}
+                </span>
+                <span
+                  className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold mt-0.5 ${
+                    isToday ? 'bg-blue-600 text-white' : 'text-gray-700'
+                  }`}
+                >
+                  {d.getDate()}
+                </span>
+              </div>
+            );
+          })}
 
+          {/* Row 2: Connected dots line */}
+          {weekDates.map((d, i) => {
+            const isToday = d.toDateString() === todayStr;
+            const hasCards = cardsByDay[i].length > 0;
+            return (
+              <div key={`dot-${i}`} className="flex items-center justify-center relative h-6">
+                {i > 0 && (
+                  <div className="absolute left-0 right-1/2 top-1/2 h-[2px] bg-gray-200 -translate-y-1/2" />
+                )}
+                {i < 6 && (
+                  <div className="absolute left-1/2 right-0 top-1/2 h-[2px] bg-gray-200 -translate-y-1/2" />
+                )}
+                <div
+                  className={`relative z-10 rounded-full transition-all ${
+                    isToday
+                      ? 'w-3.5 h-3.5 bg-blue-600 ring-4 ring-blue-100'
+                      : hasCards
+                        ? 'w-3 h-3 bg-purple-400'
+                        : 'w-2.5 h-2.5 bg-gray-300'
+                  }`}
+                />
+              </div>
+            );
+          })}
+
+          {/* Row 3: Mini-cards */}
+          {weekDates.map((d, i) => (
+            <div key={`cards-${i}`} className="flex flex-col items-stretch gap-2 mt-3 px-1 min-h-[70px]">
+              {cardsByDay[i].length > 0 ? (
+                cardsByDay[i].map((card) => {
+                  const s = cardStyles[card.color];
+                  return (
+                    <div
+                      key={card.id}
+                      className={`${s.bg} rounded-lg border border-gray-100 border-t-[3px] ${s.border} p-2 transition-all hover:shadow-sm`}
+                    >
+                      {/* Type badge + Time */}
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className={`${s.badge} text-[8px] font-bold px-1.5 py-0.5 rounded-full leading-none`}>
+                          {card.typeLabel}
+                        </span>
+                        <span className={`${s.text} text-[9px] font-semibold`}>
+                          {fmtTime(card.time)}
+                        </span>
+                      </div>
+                      {/* Course title */}
+                      <p className="text-[10px] font-bold text-gray-700 line-clamp-2 leading-tight mb-1">
+                        {card.courseTitle}
+                      </p>
+                      {/* Location / Link indicator */}
+                      <div className="text-[9px] font-medium">
+                        {renderLocationIndicator(card)}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex items-center justify-center flex-1">
+                  <span className="text-[10px] text-gray-300">—</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
