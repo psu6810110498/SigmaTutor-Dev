@@ -54,6 +54,7 @@ const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
   ],
   ONSITE: [
     { key: 'location', label: '📍 สถานที่เรียน' },
+    { key: 'lessons', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
 };

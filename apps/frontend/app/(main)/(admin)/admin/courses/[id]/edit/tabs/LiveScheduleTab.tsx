@@ -74,8 +74,10 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
     const [pdfUploading, setPdfUploading] = useState<Record<number, boolean>>({});
     const [pdfProgress, setPdfProgress] = useState<Record<number, number>>({});
     const [pdfFileName, setPdfFileName] = useState<Record<number, string | null>>({});
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
+        if (isInitialized) return;
         if (course.schedules && course.schedules.length > 0) {
             const mapped = course.schedules.map((s, i) => ({
                 id: s.id,
@@ -100,10 +102,12 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
             const names: Record<number, string | null> = {};
             mapped.forEach((s, i) => { names[i] = s.materialUrl ? s.materialUrl.split('/').pop() || null : null; });
             setPdfFileName(names);
+            setIsInitialized(true);
         } else {
             setSessions([emptySession(1)]);
+            setIsInitialized(true);
         }
-    }, [course]);
+    }, [course, isInitialized]);
 
     function updateSession(index: number, key: keyof LiveSession, value: string | number) {
         setSessions(prev => prev.map((s, i) => i === index ? { ...s, [key]: value } : s));
@@ -120,8 +124,9 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
 
     // ── R2 PDF Upload (per session) ─────────────────────────────────────
     async function handlePdfUpload(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+        e.preventDefault();
+        e.stopPropagation();
         const file = e.target.files?.[0];
-        e.target.value = "";
         if (!file || file.type !== "application/pdf") {
             toast.error("กรุณาเลือกไฟล์ PDF เท่านั้น");
             return;
@@ -213,7 +218,7 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">จัดการตารางเรียนสด ลิงก์ Zoom และวิดีโอย้อนหลัง</p>
                 </div>
-                <Button onClick={handleSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
+                <Button type="button" onClick={handleSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
                     {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />}
                     บันทึก
                 </Button>
@@ -336,18 +341,28 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
                                             onChange={e => { updateSession(index, "content", e.target.value); updateSession(index, "materialUrl", e.target.value); }}
                                             placeholder="https://... หรืออัปโหลดไฟล์ →"
                                         />
-                                        <label className="relative shrink-0">
+                                        <div className="relative shrink-0">
                                             <input
+                                                id={`live-pdf-${index}`}
                                                 type="file"
                                                 accept="application/pdf"
                                                 onChange={e => handlePdfUpload(index, e)}
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                className="hidden"
                                                 disabled={!!pdfUploading[index]}
                                             />
-                                            <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    document.getElementById(`live-pdf-${index}`)?.click();
+                                                }}
+                                                disabled={!!pdfUploading[index]}
+                                                className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200"
+                                            >
                                                 <Upload size={14} /> อัปโหลด PDF
-                                            </span>
-                                        </label>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                                 <p className="text-[11px] text-gray-400 mt-0.5">รองรับ .pdf ขนาดไม่เกิน 50MB</p>

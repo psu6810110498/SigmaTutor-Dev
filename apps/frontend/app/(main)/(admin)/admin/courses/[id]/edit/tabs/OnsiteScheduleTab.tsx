@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Loader2, MapPin, Plus, Trash2, Video, AlertCircle, Upload, File, X, CheckCircle2, Link } from "lucide-react";
+import { Save, Loader2, MapPin, Plus, Trash2, Video, AlertCircle, Upload, File, X, CheckCircle2 } from "lucide-react";
 import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { Button } from "@/app/components/ui/Button";
@@ -20,8 +20,6 @@ interface OnsiteSession {
     date: string;
     startTime: string;
     endTime: string;
-    location: string;
-    mapUrl: string;
     status: ScheduleStatus;
     // Replay video
     gumletVideoId: string;
@@ -68,8 +66,6 @@ function emptySession(sessionNumber: number): OnsiteSession {
         date: "",
         startTime: "",
         endTime: "",
-        location: "",
-        mapUrl: "",
         status: "ON_SCHEDULE",
         gumletVideoId: "",
         videoUrl: "",
@@ -82,14 +78,15 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [sessions, setSessions] = useState<OnsiteSession[]>([]);
-    const defaultLocation = course.location || "";
     const [videoSourceToggle, setVideoSourceToggle] = useState<Record<number, "YOUTUBE" | "GUMLET">>({});
     // PDF upload state per session index
     const [pdfUploading, setPdfUploading] = useState<Record<number, boolean>>({});
     const [pdfProgress, setPdfProgress] = useState<Record<number, number>>({});
     const [pdfFileName, setPdfFileName] = useState<Record<number, string | null>>({});
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
+        if (isInitialized) return;
         if (course.schedules && course.schedules.length > 0) {
             const mapped = course.schedules.map((s, i) => ({
                 id: s.id,
@@ -98,8 +95,6 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                 date: toDateInput(s.date),
                 startTime: toTimeInput(s.startTime),
                 endTime: toTimeInput(s.endTime),
-                location: s.location || "",
-                mapUrl: (s as any).mapUrl || "",
                 status: (s.status as ScheduleStatus) || "ON_SCHEDULE",
                 gumletVideoId: s.gumletVideoId || "",
                 videoUrl: s.videoUrl || "",
@@ -115,10 +110,12 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
             const names: Record<number, string | null> = {};
             mapped.forEach((s, i) => { names[i] = s.materialUrl ? s.materialUrl.split('/').pop() || null : null; });
             setPdfFileName(names);
+            setIsInitialized(true);
         } else {
             setSessions([emptySession(1)]);
+            setIsInitialized(true);
         }
-    }, [course]);
+    }, [course, isInitialized]);
 
     function updateSession<K extends keyof OnsiteSession>(index: number, key: K, value: OnsiteSession[K]) {
         setSessions(prev => prev.map((s, i) => i === index ? { ...s, [key]: value } : s));
@@ -126,7 +123,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
 
     function addSession() {
         const next = sessions.length + 1;
-        setSessions(prev => [...prev, { ...emptySession(next), location: defaultLocation }]);
+        setSessions(prev => [...prev, emptySession(next)]);
     }
 
     function removeSession(index: number) {
@@ -136,8 +133,9 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
 
     // ── R2 PDF Upload (per session) ─────────────────────────────────────
     async function handlePdfUpload(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+        e.preventDefault();
+        e.stopPropagation();
         const file = e.target.files?.[0];
-        e.target.value = "";
         if (!file || file.type !== "application/pdf") {
             toast.error("กรุณาเลือกไฟล์ PDF เท่านั้น");
             return;
@@ -192,8 +190,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                 date: combineDatetime(s.date, "00:00"),
                 startTime: combineDatetime(s.date, s.startTime || "00:00"),
                 endTime: combineDatetime(s.date, s.endTime || "00:00"),
-                location: s.location || null,
-                mapUrl: s.mapUrl || null,
+                location: null,
                 isOnline: false,
                 status: s.status,
                 gumletVideoId: s.gumletVideoId || null,
@@ -232,7 +229,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">จัดการตารางเรียนสถานที่จริง สถานะ และวิดีโอย้อนหลัง</p>
                 </div>
-                <Button onClick={handleSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
+                <Button type="button" onClick={handleSave} disabled={loading} className="px-8 shadow-lg shadow-primary/20">
                     {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Save className="mr-2" size={20} />}
                     บันทึก
                 </Button>
@@ -317,33 +314,6 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                                 </div>
                             </div>
 
-                            {/* Location */}
-                            <div className="md:col-span-2">
-                                <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 mb-1">
-                                    <MapPin size={11} /> สถานที่
-                                </label>
-                                <input
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                    value={session.location}
-                                    onChange={e => updateSession(index, "location", e.target.value)}
-                                    placeholder="เช่น ห้อง 201 อาคาร A"
-                                />
-                            </div>
-
-                            {/* Google Map Link */}
-                            <div className="md:col-span-2">
-                                <label className="flex items-center gap-1 text-xs font-semibold text-gray-600 mb-1">
-                                    <Link size={11} /> ลิงก์ Google Map
-                                </label>
-                                <input
-                                    type="url"
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                    value={session.mapUrl}
-                                    onChange={e => updateSession(index, "mapUrl", e.target.value)}
-                                    placeholder="https://maps.google.com/?q=..."
-                                />
-                            </div>
-
                             {/* ─── เอกสารประกอบการเรียน (PDF) ─────── */}
                             <div className="md:col-span-2 border border-gray-200 rounded-xl p-4 space-y-3 bg-white">
                                 <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
@@ -385,18 +355,28 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                                             onChange={e => { updateSession(index, "content", e.target.value); updateSession(index, "materialUrl", e.target.value); }}
                                             placeholder="https://... หรืออัปโหลดไฟล์ →"
                                         />
-                                        <label className="relative shrink-0">
+                                        <div className="relative shrink-0">
                                             <input
+                                                id={`onsite-pdf-${index}`}
                                                 type="file"
                                                 accept="application/pdf"
                                                 onChange={e => handlePdfUpload(index, e)}
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                className="hidden"
                                                 disabled={!!pdfUploading[index]}
                                             />
-                                            <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    document.getElementById(`onsite-pdf-${index}`)?.click();
+                                                }}
+                                                disabled={!!pdfUploading[index]}
+                                                className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200"
+                                            >
                                                 <Upload size={14} /> อัปโหลด PDF
-                                            </span>
-                                        </label>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                                 <p className="text-[11px] text-gray-400 mt-0.5">รองรับ .pdf ขนาดไม่เกิน 50MB</p>
