@@ -114,7 +114,7 @@ export default function CreateCoursePage() {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.form) setForm((prev: Record<string, any>) => ({ ...prev, ...parsed.form }));
+                if (parsed.form) setForm((prev: Partial<CreateCourseInput> & Record<string, any>) => ({ ...prev, ...parsed.form }));
                 if (parsed.sessions) setSessions(parsed.sessions);
                 if (parsed.rootCategoryId) setRootCategoryId(parsed.rootCategoryId);
                 if (parsed.activeQuickFilter) setActiveQuickFilter(parsed.activeQuickFilter);
