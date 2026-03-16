@@ -54,6 +54,7 @@ const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
   ],
   ONSITE: [
     { key: 'location', label: '📍 สถานที่เรียน' },
+    { key: 'schedule_table', label: '📅 ตารางเรียน' },
     { key: 'lessons', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
@@ -846,6 +847,73 @@ export default function CourseDetailPage() {
                   >
                     <MapPin size={14} /> ดูแผนที่ Google Maps
                   </a>
+                )}
+              </div>
+            )}
+
+            {/* === Schedule Table Tab (ONSITE) === */}
+            {activeTab === 'schedule_table' && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                  🗓️ ตารางเรียน
+                </h3>
+
+                {/* Notice box */}
+                <div className="flex items-start gap-2 mb-5 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700">
+                  <span className="mt-0.5">⚠️</span>
+                  <span>หากมีความจำเป็นต้องเลื่อนคลาส จะแจ้งล่วงหน้าอย่างน้อย 24 ชม.</span>
+                </div>
+
+                {/* Table */}
+                {course.schedules && course.schedules.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                          <th className="pb-3 pr-4 w-16">ครั้งที่</th>
+                          <th className="pb-3 pr-4">วันที่</th>
+                          <th className="pb-3 pr-4">เวลา</th>
+                          <th className="pb-3 pr-4">สถานที่</th>
+                          <th className="pb-3 pr-4">หัวข้อ</th>
+                          <th className="pb-3 text-right">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {course.schedules.map((sched: any, idx: number) => {
+                          const statusLabel: Record<string, string> = {
+                            ON_SCHEDULE: 'ตามกำหนด',
+                            POSTPONED: 'เลื่อน',
+                            CANCELLED: 'ยกเลิก',
+                          };
+                          const statusColor: Record<string, string> = {
+                            ON_SCHEDULE: 'bg-gray-100 text-gray-600',
+                            POSTPONED: 'bg-orange-100 text-orange-700',
+                            CANCELLED: 'bg-red-100 text-red-700',
+                          };
+                          const status = sched.status || 'ON_SCHEDULE';
+                          const startT = sched.startTime ? formatTime(sched.startTime) : '';
+                          const endT = sched.endTime ? formatTime(sched.endTime) : '';
+                          const timeStr = startT && endT ? `${startT} - ${endT}` : startT || '-';
+                          return (
+                            <tr key={sched.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 pr-4 font-semibold text-gray-700">{sched.sessionNumber ?? idx + 1}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{formatDate(sched.date)}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{timeStr}</td>
+                              <td className="py-3 pr-4 text-gray-600">{sched.location || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 pr-4 text-gray-800 font-medium">{sched.topic || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 text-right">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[status] || statusColor['ON_SCHEDULE']}`}>
+                                  {statusLabel[status] || status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
                 )}
               </div>
             )}

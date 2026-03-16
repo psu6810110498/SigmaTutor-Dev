@@ -24,9 +24,12 @@ interface OnsiteSession {
     // Replay video
     gumletVideoId: string;
     videoUrl: string;
+    videoProvider: "YOUTUBE" | "GUMLET";
     // PDF material
     materialUrl: string;
     content: string;
+    // Classroom/Location
+    location: string;
 }
 
 const API = "http://localhost:4000/api";
@@ -69,8 +72,10 @@ function emptySession(sessionNumber: number): OnsiteSession {
         status: "ON_SCHEDULE",
         gumletVideoId: "",
         videoUrl: "",
+        videoProvider: "YOUTUBE",
         materialUrl: "",
         content: "",
+        location: "",
     };
 }
 
@@ -98,8 +103,10 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                 status: (s.status as ScheduleStatus) || "ON_SCHEDULE",
                 gumletVideoId: s.gumletVideoId || "",
                 videoUrl: s.videoUrl || "",
+                videoProvider: (s.videoProvider as "YOUTUBE" | "GUMLET") || "YOUTUBE",
                 materialUrl: (s as any).materialUrl || "",
                 content: (s as any).content || "",
+                location: s.location || "",
             }));
             setSessions(mapped);
             // Initialize video source toggles from data
@@ -190,7 +197,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                 date: combineDatetime(s.date, "00:00"),
                 startTime: combineDatetime(s.date, s.startTime || "00:00"),
                 endTime: combineDatetime(s.date, s.endTime || "00:00"),
-                location: null,
+                location: s.location || null,
                 isOnline: false,
                 status: s.status,
                 gumletVideoId: s.gumletVideoId || null,
@@ -310,6 +317,21 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
                                         value={session.endTime}
                                         onChange={e => updateSession(index, "endTime", e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Location / Classroom */}
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-semibold text-gray-600 mb-1">สถานที่เรียน / ห้องเรียน</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                                    <input
+                                        type="text"
+                                        className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                        value={session.location}
+                                        onChange={e => updateSession(index, "location", e.target.value)}
+                                        placeholder="เช่น ห้อง 201 อาคาร A มหาวิทยาลัย..."
                                     />
                                 </div>
                             </div>
