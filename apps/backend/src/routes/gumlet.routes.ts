@@ -40,7 +40,7 @@ router.post(
         })
       });
 
-      const data: GumletUploadResponse = await response.json();
+      const data = (await response.json()) as GumletUploadResponse;
 
       if (!response.ok) {
         console.error('Gumlet API Error:', data);

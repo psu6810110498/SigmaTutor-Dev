@@ -24,9 +24,13 @@ export function getRedisClient(): Redis | null {
 
     try {
         const client = new Redis(REDIS_URL, {
-            maxRetriesPerRequest: 1,
+            maxRetriesPerRequest: null,
             enableReadyCheck: false,
             lazyConnect: true,
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 50, 2000);
+                return delay;
+            }
         });
 
         client.on('connect', () => {

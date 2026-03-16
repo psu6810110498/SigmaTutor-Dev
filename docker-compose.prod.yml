@@ -47,6 +47,7 @@ services:
     command: >
       sh -c "cd /app &&
       pnpm --filter @sigma/shared build &&
+      pnpm --filter @sigma/db build &&
       pnpm --filter @sigma/backend build &&
       pnpm --filter @sigma/db db:migrate:deploy &&
       cd /app/apps/backend &&
