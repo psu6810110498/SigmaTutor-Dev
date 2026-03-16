@@ -112,6 +112,47 @@ export const courseApi = {
     return request<Course[]>(`/courses/enrolled`);
   },
 
+  /** GET /courses/my-schedules — User's daily timetable schedules */
+  getUpcomingSchedules() {
+    return request<any>(`/courses/my-schedules`);
+  },
+
+  /** GET /courses/enrolled-vod — User's enrolled VOD courses with chapters/lessons */
+  getEnrolledVod() {
+    return request<any>(`/courses/enrolled-vod`);
+  },
+
+  /** POST /courses/self-study — Create a self-study session */
+  createSelfStudy(data: { courseId: string; lessonId?: string; topic: string; startTime: string; endTime: string }) {
+    return request<any>('/courses/self-study', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** DELETE /courses/self-study/:id — Delete a self-study session */
+  deleteSelfStudy(id: string) {
+    return request<void>(`/courses/self-study/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
+
+  /** GET /courses/self-study — Get all self-study sessions (for calendar) */
+  getAllSelfStudy() {
+    return request<any>(`/courses/self-study`);
+  },
+
+  /** PUT /courses/self-study/:id — Update a self-study session */
+  updateSelfStudy(id: string, data: { topic?: string; startTime?: string; endTime?: string; lessonId?: string }) {
+    return request<any>(`/courses/self-study/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
+
   /** GET /courses/admin — Admin/Instructor dashboard listing */
   getAdmin(params?: any) {
     const query = params

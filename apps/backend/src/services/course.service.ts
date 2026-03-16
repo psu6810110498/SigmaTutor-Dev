@@ -300,6 +300,7 @@ export class CourseService {
     const categoryId = query.categoryId;
     const levelId = query.levelId;
     const tutorId = query.tutorId || query.instructorId;
+    const courseType = query.courseType;
     const minPrice = query.minPrice;
     const maxPrice = query.maxPrice;
 
@@ -329,6 +330,7 @@ export class CourseService {
         ],
       }),
       ...(levelId && { levelId }),
+      ...(courseType && { courseType }),
       // tutorId — ค้นหาทั้งจาก teacherId (legacy) และ teachers join table (multi-instructor)
       ...(tutorId && {
         OR: [
@@ -459,6 +461,248 @@ export class CourseService {
       status: en.status,
       progress: en.status === 'COMPLETED' ? 100 : 0,
     }));
+  }
+
+  /**
+   * Fetch all upcoming CourseSchedule sessions for the authenticated user based on their ENROLLED active courses.
+   * Focuses on ONSITE and ONLINE_LIVE course types.
+   */
+  async getMyUpcomingSchedules(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeEnrollments = await this.db.enrollment.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ],
+        course: {
+          courseType: { in: ['ONSITE', 'ONLINE_LIVE'] }
+        }
+      },
+      select: { courseId: true }
+    });
+
+    const enrolledCourseIds = activeEnrollments.map(e => e.courseId);
+
+    if (enrolledCourseIds.length === 0) {
+      return [];
+    }
+
+    // First find any schedules for *today* or strictly in the future.
+    let upcomingSchedules = await this.db.courseSchedule.findMany({
+      where: {
+        courseId: { in: enrolledCourseIds },
+        date: { gte: today },
+        status: { in: ['ON_SCHEDULE', 'POSTPONED'] } // Ignore CANCELLED
+      },
+      include: {
+        course: {
+          select: { title: true, courseType: true }
+        }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' }
+      ],
+      take: 10
+    });
+
+    if (upcomingSchedules.length === 0) {
+        return [];
+    }
+
+    const mappedOfficial = upcomingSchedules.map(schedule => ({
+      id: schedule.id,
+      type: 'OFFICIAL' as const,
+      courseId: schedule.courseId,
+      courseTitle: schedule.course.title,
+      courseType: schedule.course.courseType,
+      topic: schedule.topic,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      location: schedule.location,
+      zoomLink: schedule.zoomLink,
+      isOnline: schedule.isOnline,
+      status: schedule.status
+    }));
+
+    // 2) Fetch self-study sessions for this user
+    const selfStudySessions = await this.db.selfStudySession.findMany({
+      where: {
+        userId,
+        startTime: { gte: today }
+      },
+      include: {
+        course: { select: { title: true } },
+        lesson: { select: { title: true } }
+      },
+      orderBy: { startTime: 'asc' },
+      take: 10
+    });
+
+    const mappedSelfStudy = selfStudySessions.map(s => ({
+      id: s.id,
+      type: 'SELF_STUDY' as const,
+      courseId: s.courseId,
+      courseTitle: s.course.title,
+      courseType: 'ONLINE' as const,
+      topic: s.topic,
+      lessonTitle: s.lesson?.title || null,
+      date: s.startTime,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      location: null,
+      zoomLink: null,
+      isOnline: false,
+      status: 'ON_SCHEDULE'
+    }));
+
+    // 3) Merge and sort by startTime
+    const merged = [...mappedOfficial, ...mappedSelfStudy].sort((a, b) => {
+      const aTime = a.startTime ? new Date(a.startTime).getTime() : 0;
+      const bTime = b.startTime ? new Date(b.startTime).getTime() : 0;
+      return aTime - bTime;
+    });
+
+    return merged.slice(0, 10);
+  }
+
+  // ── Self-Study Session Management ───────────────────────────────
+
+  async createSelfStudySession(userId: string, data: {
+    courseId: string;
+    lessonId?: string;
+    topic: string;
+    startTime: string;
+    endTime: string;
+  }) {
+    // Verify user is enrolled in this VOD course
+    const enrollment = await this.db.enrollment.findFirst({
+      where: {
+        userId,
+        courseId: data.courseId,
+        status: 'ACTIVE',
+        course: { courseType: 'ONLINE' }
+      }
+    });
+
+    if (!enrollment) {
+      throw new Error('You are not enrolled in this VOD course');
+    }
+
+    return this.db.selfStudySession.create({
+      data: {
+        userId,
+        courseId: data.courseId,
+        lessonId: data.lessonId || null,
+        topic: data.topic,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+      }
+    });
+  }
+
+  async deleteSelfStudySession(userId: string, sessionId: string) {
+    const session = await this.db.selfStudySession.findFirst({
+      where: { id: sessionId, userId }
+    });
+
+    if (!session) {
+      throw new Error('Session not found or not owned by you');
+    }
+
+    return this.db.selfStudySession.delete({ where: { id: sessionId } });
+  }
+
+  async getEnrolledVodCourses(userId: string) {
+    const enrollments = await this.db.enrollment.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        course: { courseType: 'ONLINE' }
+      },
+      include: {
+        course: {
+          select: {
+            id: true,
+            title: true,
+            thumbnail: true,
+            chapters: {
+              select: {
+                id: true,
+                title: true,
+                order: true,
+                lessons: {
+                  select: {
+                    id: true,
+                    title: true,
+                    order: true,
+                  },
+                  orderBy: { order: 'asc' }
+                }
+              },
+              orderBy: { order: 'asc' }
+            }
+          }
+        }
+      }
+    });
+
+    return enrollments.map(e => e.course);
+  }
+
+  async getAllSelfStudySessions(userId: string) {
+    const sessions = await this.db.selfStudySession.findMany({
+      where: { userId },
+      include: {
+        course: { select: { title: true, thumbnail: true } },
+        lesson: { select: { title: true } }
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    return sessions.map(s => ({
+      id: s.id,
+      courseId: s.courseId,
+      courseTitle: s.course.title,
+      courseThumbnail: s.course.thumbnail,
+      lessonId: s.lessonId,
+      lessonTitle: s.lesson?.title || null,
+      topic: s.topic,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      createdAt: s.createdAt,
+    }));
+  }
+
+  async updateSelfStudySession(userId: string, sessionId: string, data: {
+    topic?: string;
+    startTime?: string;
+    endTime?: string;
+    lessonId?: string;
+  }) {
+    const session = await this.db.selfStudySession.findFirst({
+      where: { id: sessionId, userId }
+    });
+
+    if (!session) {
+      throw new Error('Session not found or not owned by you');
+    }
+
+    return this.db.selfStudySession.update({
+      where: { id: sessionId },
+      data: {
+        ...(data.topic && { topic: data.topic }),
+        ...(data.startTime && { startTime: new Date(data.startTime) }),
+        ...(data.endTime && { endTime: new Date(data.endTime) }),
+        ...(data.lessonId !== undefined && { lessonId: data.lessonId || null }),
+      }
+    });
   }
 
   async getAdminCourses(query: any) {

@@ -50,10 +50,13 @@ const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
   ],
   ONLINE_LIVE: [
     { key: 'schedule', label: '📅 ตารางเรียนสด' },
+    { key: 'live_content', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
   ONSITE: [
     { key: 'location', label: '📍 สถานที่เรียน' },
+    { key: 'schedule_table', label: '📅 ตารางเรียน' },
+    { key: 'lessons', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
 };
@@ -680,7 +683,7 @@ export default function CourseDetailPage() {
                                   </span>
                                 ) : (
                                   <>
-                                    {(sched.videoUrl || sched.gumletVideoId) && (
+                                    {course.courseType !== 'ONSITE' && (sched.videoUrl || sched.gumletVideoId) && (
                                       <span className="text-xs flex items-center gap-1">
                                         <Video size={14} /> วิดีโอ
                                       </span>
@@ -704,25 +707,30 @@ export default function CourseDetailPage() {
                                 {sched.chapterTitle && (
                                   <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
                                 )}
-                                {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
-                                      className="w-full h-full"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
-                                ) : sched.videoUrl && (
-                                  <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
-                                      className="w-full h-full"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
+                                {/* Hide video for ONSITE — only available in the learning platform */}
+                                {course.courseType !== 'ONSITE' && (
+                                  <>
+                                    {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
+                                          className="w-full h-full"
+                                          allow="autoplay; fullscreen; picture-in-picture"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    ) : sched.videoUrl && (
+                                      <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
+                                          className="w-full h-full"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                                 {sched.materialUrl && (
                                   <a
@@ -734,7 +742,7 @@ export default function CourseDetailPage() {
                                     <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
                                   </a>
                                 )}
-                                {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
+                                {!sched.materialUrl && !sched.chapterTitle && (course.courseType === 'ONSITE' || (!sched.videoUrl && !sched.gumletVideoId)) && (
                                   <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
                                 )}
                               </div>
@@ -768,63 +776,96 @@ export default function CourseDetailPage() {
               </div>
             )}
 
-            {/* === Schedule Tab (ONLINE_LIVE) === */}
+            {/* === Schedule Tab (ONLINE_LIVE) — table style === */}
             {activeTab === 'schedule' && course.schedules && (
-              <div className="space-y-3">
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2 text-lg">
+                  📅 ตารางเรียน Live
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">ลิงก์ Zoom จะแสดงหลังชำระเงินเรียนเรียบร้อยแล้ว</p>
+
                 {course.schedules.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
                 ) : (
-                  <>
-                    {course.schedules.map((sched, idx) => {
-                      const isPast = new Date(sched.date) < new Date();
-                      const isOnline = sched.isOnline || course.courseType === 'ONLINE_LIVE';
-                      return (
-                        <div
-                          key={sched.id}
-                          className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${isPast ? 'border-gray-100 opacity-60' : 'border-gray-200'
-                            }`}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                          <th className="pb-3 pr-4 w-16">ครั้งที่</th>
+                          <th className="pb-3 pr-4">วันที่</th>
+                          <th className="pb-3 pr-4">เวลา</th>
+                          <th className="pb-3 pr-4">หัวข้อการเรียน</th>
+                          <th className="pb-3 text-right">ลิงก์เข้าเรียน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {course.schedules.map((sched: any, idx: number) => {
+                          const startT = sched.startTime ? formatTime(sched.startTime) : '';
+                          const endT = sched.endTime ? formatTime(sched.endTime) : '';
+                          const timeStr = startT && endT ? `${startT} - ${endT}` : startT || '-';
+                          return (
+                            <tr key={sched.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 pr-4 font-semibold text-gray-700">
+                                <span className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 font-bold text-sm flex items-center justify-center">
+                                  {sched.sessionNumber ?? idx + 1}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{formatDate(sched.date)}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{timeStr}</td>
+                              <td className="py-3 pr-4 text-gray-800 font-medium">{sched.topic || '-'}</td>
+                              <td className="py-3 text-right">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium cursor-not-allowed select-none">
+                                  <Lock size={12} /> ชำระเงินเพื่อดู
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === Course Content Tab (ONLINE_LIVE) — topics + PDF only, no video === */}
+            {activeTab === 'live_content' && course.schedules && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                  📚 เนื้อหาบทเรียน
+                </h3>
+                {course.schedules.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีเนื้อหา</p>
+                ) : (
+                  <div className="space-y-2">
+                    {course.schedules.map((sched: any, idx: number) => (
+                      <div key={sched.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                        <button
+                          onClick={() => toggleLesson(sched.id)}
+                          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                         >
-                          {/* Session Number */}
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${isPast ? 'bg-gray-100 text-gray-400' : 'bg-violet-50 text-violet-600'
-                              }`}
-                          >
-                            {idx + 1}
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center text-sm font-bold">
+                              {sched.sessionNumber ?? idx + 1}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 text-left">{sched.topic || `ครั้งที่ ${idx + 1}`}</span>
                           </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0 pr-4">
-                            <p className="font-medium text-gray-900 text-sm break-words whitespace-pre-wrap">
-                              {sched.topic}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {formatDate(sched.date)} · ({sched.startTime} – {sched.endTime})
-                            </p>
+                          <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
+                            {expandedLessons.has(sched.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </div>
-
-                          {/* Platform badge (no link exposed) */}
-                          <div className="flex-shrink-0">
-                            {isPast ? (
-                              <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-                                เรียนแล้ว
-                              </span>
-                            ) : isOnline ? (
-                              <span className="text-xs text-violet-600 bg-violet-50 px-2 py-1 rounded-lg font-medium">
-                                📡 Zoom
-                              </span>
+                        </button>
+                        {expandedLessons.has(sched.id) && (
+                          <div className="px-4 pb-4 pt-3 border-t border-gray-50 bg-gray-50/50">
+                            {sched.chapterTitle ? (
+                              <p className="text-xs text-gray-500 font-medium">{sched.chapterTitle}</p>
                             ) : (
-                              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-lg font-medium">
-                                📍 {sched.location || 'สถานที่เรียน'}
-                              </span>
+                              <p className="text-xs text-gray-400">ไม่มีรายละเอียดเพิ่มเติม</p>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                    <p className="text-xs text-gray-400 text-center pt-2">
-                      🔒 ลิงก์ Zoom จะส่งให้ทางอีเมลหลังชำระเงิน
-                    </p>
-                  </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -845,6 +886,73 @@ export default function CourseDetailPage() {
                   >
                     <MapPin size={14} /> ดูแผนที่ Google Maps
                   </a>
+                )}
+              </div>
+            )}
+
+            {/* === Schedule Table Tab (ONSITE) === */}
+            {activeTab === 'schedule_table' && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                  🗓️ ตารางเรียน
+                </h3>
+
+                {/* Notice box */}
+                <div className="flex items-start gap-2 mb-5 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700">
+                  <span className="mt-0.5">⚠️</span>
+                  <span>หากมีความจำเป็นต้องเลื่อนคลาส จะแจ้งล่วงหน้าอย่างน้อย 24 ชม.</span>
+                </div>
+
+                {/* Table */}
+                {course.schedules && course.schedules.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                          <th className="pb-3 pr-4 w-16">ครั้งที่</th>
+                          <th className="pb-3 pr-4">วันที่</th>
+                          <th className="pb-3 pr-4">เวลา</th>
+                          <th className="pb-3 pr-4">สถานที่</th>
+                          <th className="pb-3 pr-4">หัวข้อ</th>
+                          <th className="pb-3 text-right">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {course.schedules.map((sched: any, idx: number) => {
+                          const statusLabel: Record<string, string> = {
+                            ON_SCHEDULE: 'ตามกำหนด',
+                            POSTPONED: 'เลื่อน',
+                            CANCELLED: 'ยกเลิก',
+                          };
+                          const statusColor: Record<string, string> = {
+                            ON_SCHEDULE: 'bg-gray-100 text-gray-600',
+                            POSTPONED: 'bg-orange-100 text-orange-700',
+                            CANCELLED: 'bg-red-100 text-red-700',
+                          };
+                          const status = sched.status || 'ON_SCHEDULE';
+                          const startT = sched.startTime ? formatTime(sched.startTime) : '';
+                          const endT = sched.endTime ? formatTime(sched.endTime) : '';
+                          const timeStr = startT && endT ? `${startT} - ${endT}` : startT || '-';
+                          return (
+                            <tr key={sched.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 pr-4 font-semibold text-gray-700">{sched.sessionNumber ?? idx + 1}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{formatDate(sched.date)}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{timeStr}</td>
+                              <td className="py-3 pr-4 text-gray-600">{sched.location || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 pr-4 text-gray-800 font-medium">{sched.topic || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 text-right">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[status] || statusColor['ON_SCHEDULE']}`}>
+                                  {statusLabel[status] || status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
                 )}
               </div>
             )}
@@ -1044,11 +1152,8 @@ export default function CourseDetailPage() {
                   { step: '2', title: 'รอยืนยัน', desc: 'ทีมงานจะยืนยันภายใน 24 ชม.' },
                   {
                     step: '3',
-                    title: 'รับลิงก์',
-                    desc:
-                      course.courseType === 'ONLINE_LIVE'
-                        ? 'รับลิงก์ Zoom ทางอีเมล'
-                        : 'รับรายละเอียดสถานที่เรียน',
+                    title: 'เข้าคอร์สของฉัน',
+                    desc: 'Login และไปที่หน้า Dashboard เพื่อดูลิงก์',
                   },
                   { step: '4', title: 'เริ่มเรียน!', desc: 'เข้าเรียนตามตารางที่กำหนด' },
                 ].map((s) => (
@@ -1142,7 +1247,6 @@ export default function CourseDetailPage() {
             ) : (
               <>
                 <button
-                  disabled={availability?.isFull}
                   onClick={() => {
                     const owned = isOwned(course.id);
                     if (owned) {

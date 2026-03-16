@@ -26,7 +26,8 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
 
   const menuItems = [
     { name: 'แดชบอร์ด', icon: FiGrid, href: '/dashboard' },
-    { name: 'คอร์สของฉัน', icon: FiBook, href: '/my-courses' }, // ✅ แก้ไขชื่อเมนูตรงนี้
+    { name: 'คอร์สของฉัน', icon: FiBook, href: '/my-courses' },
+    { name: 'แผนการเรียน', icon: FiBell, href: '/my-planner' },
     { name: 'ข้อมูลส่วนตัว', icon: FiUser, href: '/profile' },
   ];
 

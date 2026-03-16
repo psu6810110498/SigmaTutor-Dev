@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { FileText, Video, User, Save, File, DollarSign, Folder } from "lucide-react";
+import { FileText, Video, User, Save, File, DollarSign, Folder, MapPin } from "lucide-react";
 import { courseApi, categoryApi, levelApi, userApi, gumletApi } from "@/app/lib/api";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
@@ -80,6 +80,8 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         isRecommended: false,
         accessDurationDays: 365,
         maxSeats: null,
+        location: "",
+        mapUrl: "",
     });
 
     // 🌟 Sync form when course prop changes (essential for Edit mode)
@@ -105,6 +107,8 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 isRecommended: course.isRecommended ?? false,
                 accessDurationDays: course.accessDurationDays ?? 365,
                 maxSeats: course.maxSeats || null,
+                location: course.location || "",
+                mapUrl: course.mapUrl || "",
             });
         }
     }, [course]);
@@ -329,7 +333,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
             }
 
             // Cleanup empty strings
-            ['demoVideoUrl', 'gumletVideoId', 'materialUrl'].forEach((key) => {
+            ['demoVideoUrl', 'gumletVideoId', 'materialUrl', 'location', 'mapUrl'].forEach((key) => {
                 if (payload[key as keyof typeof payload] === "") payload[key as keyof typeof payload] = null;
             });
 
@@ -665,6 +669,34 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                         </div>
                     </div>
                 </SectionCard>
+
+                {/* สถานที่เรียน — only for ONSITE */}
+                {form.courseType === 'ONSITE' && (
+                    <SectionCard title="สถานที่เรียน" icon={MapPin}>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อสถานที่</label>
+                                <input
+                                    type="text"
+                                    value={form.location || ""}
+                                    onChange={(e) => updateForm("location", e.target.value)}
+                                    placeholder="เช่น ห้อง 201 อาคาร A มหาวิทยาลัย..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ลิงก์ Google Map</label>
+                                <input
+                                    type="url"
+                                    value={form.mapUrl || ""}
+                                    onChange={(e) => updateForm("mapUrl", e.target.value)}
+                                    placeholder="https://maps.google.com/?q=..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                        </div>
+                    </SectionCard>
+                )}
             </div>
         </div>
     );

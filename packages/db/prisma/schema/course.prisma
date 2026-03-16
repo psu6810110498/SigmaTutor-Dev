@@ -49,6 +49,7 @@ model Course {
   progress           UserProgress[]
   coupons            Coupon[]         @relation("CourseCoupons")
   promotions         Promotion[]      @relation("CoursePromotions")
+  selfStudySessions  SelfStudySession[]
 
   @@index([teacherId])
   @@index([status])

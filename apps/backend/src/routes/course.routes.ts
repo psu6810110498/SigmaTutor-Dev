@@ -164,6 +164,113 @@ router.get('/my-courses', authenticate, async (req: Request, res: Response): Pro
 });
 
 /**
+ * GET /api/courses/my-schedules
+ * Returns upcoming schedules for the authenticated user isolated to the closest learning day.
+ */
+router.get('/my-schedules', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const mySchedules = await courseService.getMyUpcomingSchedules(userId);
+    res.json({ success: true, data: mySchedules });
+  } catch (error) {
+    console.error('Error fetching upcoming schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+  }
+});
+
+/**
+ * GET /api/courses/enrolled-vod
+ * Get user's enrolled ONLINE (VOD) courses with chapters/lessons
+ */
+router.get('/enrolled-vod', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const courses = await courseService.getEnrolledVodCourses(userId);
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch VOD courses';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/courses/self-study
+ * Create a self-study session
+ */
+router.post('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const session = await courseService.createSelfStudySession(userId, req.body);
+    res.status(201).json({ success: true, data: session });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create self-study session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * DELETE /api/courses/self-study/:id
+ * Delete a self-study session
+ */
+router.delete('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    await courseService.deleteSelfStudySession(userId, req.params.id);
+    res.json({ success: true, message: 'Session deleted' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * GET /api/courses/self-study
+ * Get all self-study sessions for authenticated user (for calendar view)
+ */
+router.get('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const sessions = await courseService.getAllSelfStudySessions(userId);
+    res.json({ success: true, data: sessions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch self-study sessions';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * PUT /api/courses/self-study/:id
+ * Update a self-study session
+ */
+router.put('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const session = await courseService.updateSelfStudySession(userId, req.params.id, req.body);
+    res.json({ success: true, data: session });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
  * GET /api/courses/slug/:slug
  * Get course details by slug (public)
  */

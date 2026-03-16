@@ -123,7 +123,7 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                         reject(new Error("Upload failed"));
                     }
                 };
-                xhr.onerror = () => reject(new Error("Network error"));
+                xhr.onerror = () => { toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อ"); setVideoFileName(null); reject(new Error("Network error")); };
                 xhr.send(file);
             });
         } catch {
@@ -136,8 +136,9 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
 
     // ── R2 PDF Upload ───────────────────────────────────────────────────────
     async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        e.preventDefault();
+        e.stopPropagation();
         const file = e.target.files?.[0];
-        e.target.value = "";
         if (!file || file.type !== "application/pdf") {
             toast.error("กรุณาเลือกไฟล์ PDF เท่านั้น");
             return;
@@ -288,18 +289,28 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                                 onChange={e => { set("content", e.target.value); set("materialUrl", e.target.value); }}
                                 placeholder="https://... หรืออัปโหลดไฟล์ →"
                             />
-                            <label className="relative shrink-0">
+                            <div className="relative shrink-0">
                                 <input
+                                    id={`lesson-pdf-${lesson?.id || "new"}`}
                                     type="file"
                                     accept="application/pdf"
                                     onChange={handlePdfUpload}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    className="hidden"
                                     disabled={pdfUploading}
                                 />
-                                <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        document.getElementById(`lesson-pdf-${lesson?.id || "new"}`)?.click();
+                                    }}
+                                    disabled={pdfUploading}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200"
+                                >
                                     <Upload size={14} /> อัปโหลด PDF
-                                </span>
-                            </label>
+                                </button>
+                            </div>
                         </div>
                     )}
                     <p className="text-[11px] text-gray-400 mt-0.5">รองรับ .pdf ขนาดไม่เกิน 50MB</p>
@@ -654,9 +665,11 @@ export function LessonsTab({ course, onUpdate }: LessonsTabProps) {
     const [newChapterTitle, setNewChapterTitle] = useState("");
     const [creatingChapter, setCreatingChapter] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     // Fetch chapters with lessons on mount
     useEffect(() => {
+        if (isInitialized) return;
         async function fetchChapters() {
             setLoading(true);
             try {
@@ -669,10 +682,11 @@ export function LessonsTab({ course, onUpdate }: LessonsTabProps) {
                 console.error(e);
             } finally {
                 setLoading(false);
+                setIsInitialized(true);
             }
         }
         fetchChapters();
-    }, [course.id]);
+    }, [course.id, isInitialized]);
 
     const totalMinutes = chapters.reduce((sum, ch) => sum + calcChapterDuration(ch.lessons || []), 0);
     const totalVideos = chapters.reduce((sum, ch) => sum + (ch.lessons || []).filter(l => l.type === "VIDEO").length, 0);
