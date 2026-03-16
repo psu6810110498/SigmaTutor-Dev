@@ -28,6 +28,7 @@ model Lesson {
   isFree        Boolean       @default(false)
   materialUrl   String?       // URL ไฟล์ PDF/เอกสารจาก R2
   chapter       Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  selfStudySessions SelfStudySession[]
 
 
   @@index([chapterId])

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch, FiBookOpen, FiPlay, FiMapPin, FiAward } from 'react-icons/fi';
 import Link from 'next/link';
 import { courseApi } from '@/app/lib/api';
+
 // ✅ แก้ไขพาร์ทการ Import ให้ถูกต้องตามโครงสร้างโฟลเดอร์ของคุณ
 import { useAuth } from '../../../context/AuthContext';
 
@@ -12,10 +13,12 @@ type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'S
 
 interface UpcomingSchedule {
   id: string;
+  type?: 'OFFICIAL' | 'SELF_STUDY';
   courseId: string;
   courseTitle: string;
-  courseType: 'ONLINE_LIVE' | 'ONSITE';
+  courseType: 'ONLINE_LIVE' | 'ONSITE' | 'ONLINE';
   topic: string;
+  lessonTitle?: string | null;
   date: string;
   startTime: string;
   endTime: string;
@@ -55,6 +58,19 @@ export default function DashboardPage() {
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const [enrolledLoading, setEnrolledLoading] = useState(true);
+
+  const [selfStudySessions, setSelfStudySessions] = useState<any[]>([]);
+
+  // Refresh schedules callback (used after adding a self-study session)
+  const refreshSchedules = async () => {
+    try {
+      const data = await courseApi.getUpcomingSchedules();
+      if (data.success) setUpcomingSchedules(data.data);
+      // Also refresh self-study sessions
+      const ssData = await courseApi.getAllSelfStudy();
+      if (ssData.success) setSelfStudySessions(ssData.data);
+    } catch (e) { console.error(e); }
+  };
 
   useEffect(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -113,6 +129,19 @@ export default function DashboardPage() {
       setEnrolledLoading(false);
     }
   }, [user]);
+
+  // ✅ ดึงแผนการเรียนส่วนตัว
+  useEffect(() => {
+    if (user) {
+      courseApi.getAllSelfStudy().then(res => {
+        if (res.success) setSelfStudySessions(res.data);
+      });
+    }
+  }, [user]);
+
+  const upcomingSelfStudyForCards = selfStudySessions
+    .filter((s: any) => new Date(s.startTime).getTime() >= Date.now())
+    .slice(0, 3);
 
   // ✅ แยกข้อมูลตารางเรียน
   const todayStr = new Date().toDateString();
@@ -246,6 +275,43 @@ export default function DashboardPage() {
     );
   };
 
+  const renderSelfStudyRow = (schedule: any) => {
+    const formatTime = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+    };
+    const formatShortDate = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+    }
+
+    return (
+      <div key={schedule.id} className="bg-white rounded-xl shadow-sm border border-purple-100 p-3 flex flex-col md:flex-row items-center justify-between gap-4 hover:border-purple-200 transition-colors relative pl-4">
+          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-purple-400" />
+          
+          <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
+             <div className="text-sm text-gray-500 min-w-[120px] font-medium border-r border-gray-100 pr-3">
+                {formatShortDate(schedule.date)} | {formatTime(schedule.startTime)}
+             </div>
+             
+             <div className="flex items-center gap-2">
+                 <div className="font-bold text-gray-800 truncate max-w-[200px] md:max-w-xs text-sm">
+                    {schedule.courseTitle}
+                 </div>
+                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border shrink-0 bg-purple-50 text-purple-600 border-purple-100">
+                    เรียนเอง
+                 </span>
+             </div>
+          </div>
+          <div className="w-full md:w-auto shrink-0 flex justify-end">
+              <span className="text-xs font-bold text-purple-500 flex items-center gap-1">
+                  <FiBookOpen size={12}/> {schedule.topic}
+              </span>
+          </div>
+      </div>
+    );
+  };
+
   // ✅ แสดงสถานะ Loading ระหว่างรอข้อมูลจาก Google เพื่อป้องกันชื่อขึ้น undefined
   if (loading) {
     return (
@@ -310,7 +376,9 @@ export default function DashboardPage() {
               <p className="text-gray-400">กำลังโหลดตารางเรียน...</p>
             </div>
           ) : upcomingSchedules.length > 0 ? (
-            upcomingSchedules.slice(0, 3).map(renderFutureRow)
+            upcomingSchedules.slice(0, 3).map((schedule) =>
+              schedule.type === 'SELF_STUDY' ? renderSelfStudyRow(schedule) : renderFutureRow(schedule)
+            )
           ) : (
             <div className="bg-white rounded-2xl p-8 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center min-h-[200px]">
               <div className="w-16 h-16 bg-blue-50 text-blue-300 rounded-full flex items-center justify-center mb-4">
@@ -326,13 +394,60 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {upcomingSchedules.length > 0 && <div className="mt-2"><button className="w-full border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all group">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+          {upcomingSchedules.length > 0 && <div className="mt-2"><Link href="/my-planner/add" className="w-full border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 text-gray-500 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-all group">
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
               <FiPlus size={18} />
             </div>
             <span className="text-sm font-bold">เพิ่มแผนการเรียนส่วนตัว</span>
-          </button></div>}
+          </Link></div>}
         </div>
+      </div>
+
+      {/* --- Section 1.7: แผนการเรียนส่วนตัว (Purple Cards) --- */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center border-l-4 border-purple-500 pl-3">
+            <h2 className="text-lg font-bold text-gray-800">แผนการเรียนส่วนตัว</h2>
+          </div>
+          <Link href="/my-planner" className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1">
+            ดูทั้งหมด <FiArrowRight size={14} />
+          </Link>
+        </div>
+
+        {upcomingSelfStudyForCards.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {upcomingSelfStudyForCards.map((s: any) => (
+              <div key={s.id} className="bg-white rounded-[20px] p-5 border border-purple-200 border-l-[6px] border-l-purple-500 bg-gradient-to-r from-purple-50/50 to-white group transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center shrink-0">
+                    <FiBookOpen size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 inline-flex items-center gap-1">
+                        <FiPlay size={8} /> เรียนเอง
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-[14px] text-gray-900 line-clamp-1">{s.courseTitle}</h4>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mb-2 line-clamp-1">{s.topic}</p>
+                <div className="flex items-center gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1"><FiCalendar size={11}/> {new Date(s.startTime).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
+                  <span className="flex items-center gap-1 text-purple-600 font-medium"><FiClock size={11}/> {new Date(s.startTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-6 border border-dashed border-purple-200 text-center flex flex-col items-center justify-center min-h-[120px]">
+            <FiBookOpen className="text-purple-200 mb-2" size={28} />
+            <p className="text-gray-400 text-sm mb-3">ยังไม่มีแผนการเรียน</p>
+            <Link href="/my-planner/add" className="px-4 py-2 text-purple-600 text-xs font-bold bg-purple-50 hover:bg-purple-100 rounded-lg transition">
+              <FiPlus className="inline mr-1" size={14} /> เพิ่มแผนเรียนแรกของคุณ
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* --- Section 2: คอร์สที่ลงทะเบียน --- */}
@@ -411,6 +526,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }

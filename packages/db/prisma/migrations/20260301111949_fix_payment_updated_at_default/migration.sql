@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Payment" ALTER COLUMN "updatedAt" SET DEFAULT CURRENT_TIMESTAMP;

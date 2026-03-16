@@ -19,6 +19,7 @@ model User {
   sessions       Session[]
   reviews        Review[]
   progress       UserProgress[]
+  selfStudySessions SelfStudySession[]
 
   @@index([email])
 }
