@@ -300,6 +300,7 @@ export class CourseService {
     const categoryId = query.categoryId;
     const levelId = query.levelId;
     const tutorId = query.tutorId || query.instructorId;
+    const courseType = query.courseType;
     const minPrice = query.minPrice;
     const maxPrice = query.maxPrice;
 
@@ -329,6 +330,7 @@ export class CourseService {
         ],
       }),
       ...(levelId && { levelId }),
+      ...(courseType && { courseType }),
       // tutorId — ค้นหาทั้งจาก teacherId (legacy) และ teachers join table (multi-instructor)
       ...(tutorId && {
         OR: [
