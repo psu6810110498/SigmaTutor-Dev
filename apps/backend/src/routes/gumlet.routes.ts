@@ -3,6 +3,12 @@ import { authenticate, requireRole } from '../middleware/auth.middleware.js';
 
 const router: Router = Router();
 
+type GumletUploadResponse = {
+  upload_url?: string;
+  asset_id?: string;
+  [key: string]: unknown;
+};
+
 /**
  * POST /api/gumlet/upload-url
  * Generates a signed direct upload URL from Gumlet API
@@ -17,7 +23,9 @@ router.post(
       const collectionId = process.env.GUMLET_COLLECTION_ID;
 
       if (!apiKey || !collectionId) {
-        res.status(500).json({ success: false, error: 'Gumlet API Key or Collection ID is not configured.' });
+        res
+          .status(500)
+          .json({ success: false, error: 'Gumlet API Key or Collection ID is not configured.' });
         return;
       }
 
@@ -25,20 +33,22 @@ router.post(
       const response = await fetch('https://api.gumlet.com/v1/video/assets/upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           format: 'MP4', // Requesting mp4 upload
-          collection_id: collectionId
-        })
+          collection_id: collectionId,
+        }),
       });
 
-      const data = await response.json() as any;
+      const data = (await response.json()) as GumletUploadResponse;
 
       if (!response.ok) {
         console.error('Gumlet API Error:', data);
-        res.status(response.status).json({ success: false, error: 'Failed to generate Gumlet upload URL' });
+        res
+          .status(response.status)
+          .json({ success: false, error: 'Failed to generate Gumlet upload URL' });
         return;
       }
 
@@ -46,11 +56,13 @@ router.post(
       res.json({
         success: true,
         upload_url: data.upload_url,
-        asset_id: data.asset_id
+        asset_id: data.asset_id,
       });
     } catch (error) {
       console.error('Gumlet Upload URL Route Error:', error);
-      res.status(500).json({ success: false, error: 'Internal server error while generating upload URL' });
+      res
+        .status(500)
+        .json({ success: false, error: 'Internal server error while generating upload URL' });
     }
   }
 );

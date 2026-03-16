@@ -1,22 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: sigma-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-sigma_db}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - sigma-network
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sigma_db}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     container_name: sigma-redis
@@ -45,12 +27,14 @@ services:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
       DIRECT_URL: ${DIRECT_URL:-${DATABASE_URL}}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -58,16 +42,17 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       R2_ENDPOINT: ${R2_ENDPOINT:-}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      GUMLET_API_KEY: ${GUMLET_API_KEY:-}
+      GUMLET_COLLECTION_ID: ${GUMLET_COLLECTION_ID:-}
     command: >
       sh -c "cd /app &&
       pnpm --filter @sigma/shared build &&
+      pnpm --filter @sigma/db build &&
       pnpm --filter @sigma/backend build &&
       pnpm --filter @sigma/db db:migrate:deploy &&
       cd /app/apps/backend &&
       pnpm start"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -86,11 +71,13 @@ services:
     container_name: sigma-frontend
     restart: unless-stopped
     ports:
-      - '${FRONTEND_PORT:-80}:3000'
+      - '${FRONTEND_PORT:-3000}:3000'
     environment:
       NODE_ENV: production
       PORT: 3000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     command: >
       sh -c "cd /app &&
       pnpm --filter @sigma/shared build &&
@@ -110,7 +97,6 @@ services:
       start_period: 30s
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:

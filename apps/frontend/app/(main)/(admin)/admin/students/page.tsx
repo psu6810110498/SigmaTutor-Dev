@@ -168,12 +168,12 @@ export default function AdminStudentsPage() {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Link href={`/admin/students/${student.id}`}>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 !p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
                                                         <Eye size={14} />
                                                     </Button>
                                                 </Link>
                                                 <Link href={`/admin/students/${student.id}/edit`}>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 !p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
                                                         <Edit size={14} />
                                                     </Button>
                                                 </Link>

@@ -76,6 +76,7 @@ export default function CreateCoursePage() {
 
     const showLevelDropdown = levelOptions.length > 0;
 
+    // ── Form State ──
     const [form, setForm] = useState<any>({
         title: "",
         courseCode: "",
@@ -158,7 +159,7 @@ export default function CreateCoursePage() {
     };
 
     const handleDurationChange = (type: 'd' | 'h' | 'm', val: string) => {
-        const current = parseDuration(form.duration);
+        const current = parseDuration(form.duration || null);
         current[type] = val;
         const parts = [];
         if (current.d && current.d !== '0') parts.push(`${current.d} วัน`);
@@ -167,14 +168,21 @@ export default function CreateCoursePage() {
         updateForm('duration', parts.length > 0 ? parts.join(' ') : null);
     };
 
-    const parsedDuration = parseDuration(form.duration);
+    const parsedDuration = parseDuration(form.duration || null);
 
     const handleQuickFilter = (label: string) => {
         setActiveQuickFilter(label);
         updateForm("levelId", null);
-        if (label === "ทั้งหมด") { setRootCategoryId(""); setForm((prev: any) => ({ ...prev, categoryId: null })); return; }
+        if (label === "ทั้งหมด") {
+            setRootCategoryId("");
+            setForm((prev: any) => ({ ...prev, categoryId: null }));
+            return;
+        }
         const found = rootCategories.find(c => c.name === label);
-        if (found) { setRootCategoryId(found.id); setForm((prev: any) => ({ ...prev, categoryId: null })); }
+        if (found) {
+            setRootCategoryId(found.id);
+            setForm((prev: any) => ({ ...prev, categoryId: null }));
+        }
     };
 
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,7 +226,7 @@ export default function CreateCoursePage() {
 
     const handleSubmit = async () => {
         setSaving(true);
-        if (!form.title.trim() || selectedInstructors.length === 0) {
+        if (!form.title?.trim() || selectedInstructors.length === 0) {
             toast.error("กรุณากรอกชื่อคอร์สและเลือกผู้สอนอย่างน้อย 1 คน");
             setSaving(false); return;
         }
@@ -293,9 +301,9 @@ export default function CreateCoursePage() {
 
     const completeness = useMemo(() => {
         let filled = 0;
-        if (form.title.trim()) filled++;
+        if (form.title?.trim()) filled++;
         if (form.description) filled++;
-        if (form.price > 0) filled++;
+        if ((form.price ?? 0) > 0) filled++;
         if (selectedInstructors.length > 0) filled++;
         if (thumbnailFile) filled++;
         return Math.round((filled / 5) * 100);
@@ -586,6 +594,7 @@ export default function CreateCoursePage() {
                                 </div>
                             </SectionCard>
                         </div>
+
                     </div>
                 )}
 
