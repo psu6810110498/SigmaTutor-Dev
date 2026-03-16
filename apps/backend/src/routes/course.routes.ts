@@ -164,6 +164,28 @@ router.get('/my-courses', authenticate, async (req: Request, res: Response): Pro
 });
 
 /**
+ * GET /api/courses/my-schedules
+ * Returns upcoming schedules for the authenticated user isolated to the closest learning day.
+ */
+router.get('/my-schedules', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const mySchedules = await courseService.getMyUpcomingSchedules(userId);
+    res.json({ success: true, data: mySchedules });
+  } catch (error) {
+    console.error('Error fetching upcoming schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+  }
+});
+
+/**
  * GET /api/courses/slug/:slug
  * Get course details by slug (public)
  */

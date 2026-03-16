@@ -112,6 +112,11 @@ export const courseApi = {
     return request<Course[]>(`/courses/enrolled`);
   },
 
+  /** GET /courses/my-schedules — User's daily timetable schedules */
+  getUpcomingSchedules() {
+    return request<any>(`/courses/my-schedules`);
+  },
+
   /** GET /courses/admin — Admin/Instructor dashboard listing */
   getAdmin(params?: any) {
     const query = params

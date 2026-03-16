@@ -1,25 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch, FiBookOpen, FiPlay } from 'react-icons/fi';
+import { FiClock, FiVideo, FiPlus, FiArrowRight, FiCalendar, FiSearch, FiBookOpen, FiPlay, FiMapPin, FiAward } from 'react-icons/fi';
 import Link from 'next/link';
+import { courseApi } from '@/app/lib/api';
 // ✅ แก้ไขพาร์ทการ Import ให้ถูกต้องตามโครงสร้างโฟลเดอร์ของคุณ
 import { useAuth } from '../../../context/AuthContext';
 
 // --- Types ---
 type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
 
-interface ScheduleCourse {
-  id: number;
-  title: string;
-  code: string;
-  day: DayOfWeek;
+interface UpcomingSchedule {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  courseType: 'ONLINE_LIVE' | 'ONSITE';
+  topic: string;
+  date: string;
   startTime: string;
   endTime: string;
-  color: string;
-  instructor: string;
-  progress: number;
-  isLive?: boolean;
+  location: string | null;
+  zoomLink: string | null;
+  isOnline: boolean;
+  status: string;
 }
 
 interface EnrolledCourse {
@@ -32,9 +35,6 @@ interface EnrolledCourse {
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   progress: number;
 }
-
-// --- Mock Data (ว่างไว้ก่อน) ---
-const myCourses: ScheduleCourse[] = [];
 
 const dayMap: Record<string, string> = {
   'Monday': 'จ.', 'Tuesday': 'อ.', 'Wednesday': 'พ.',
@@ -51,7 +51,8 @@ export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   const [today, setToday] = useState<DayOfWeek>('Monday');
-  const [todaysPlan, setTodaysPlan] = useState<ScheduleCourse[]>([]);
+  const [upcomingSchedules, setUpcomingSchedules] = useState<UpcomingSchedule[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const [enrolledLoading, setEnrolledLoading] = useState(true);
 
@@ -59,11 +60,33 @@ export default function DashboardPage() {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const currentDayName = days[new Date().getDay()] as DayOfWeek;
     setToday(currentDayName);
-
-    const plan = myCourses.filter(course => course.day === currentDayName);
-    plan.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    setTodaysPlan(plan);
   }, []);
+
+  // ✅ ดึงตารางเรียนวัันนี้จาก API
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      try {
+        const res = await courseApi.getUpcomingSchedules();
+        if (res.success && res.data) {
+          setUpcomingSchedules(res.data);
+          if (res.data.length > 0) {
+              const scheduleDate = new Date(res.data[0].date);
+              const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+              setToday(days[scheduleDate.getDay()] as DayOfWeek);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch upcoming schedules:', error);
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+    if (user) {
+      fetchSchedules();
+    } else {
+      setScheduleLoading(false);
+    }
+  }, [user]);
 
   // ✅ ดึงคอร์สที่ enrolled จาก API
   useEffect(() => {
@@ -91,6 +114,138 @@ export default function DashboardPage() {
     }
   }, [user]);
 
+  // ✅ แยกข้อมูลตารางเรียน
+  const todayStr = new Date().toDateString();
+  const isToday = (isoStr: string) => new Date(isoStr).toDateString() === todayStr;
+  const todaySchedules = upcomingSchedules.filter(s => isToday(s.date));
+  const todayOnsiteSchedules = todaySchedules.filter(s => s.courseType === 'ONSITE');
+  const todayLiveSchedules = todaySchedules.filter(s => s.courseType === 'ONLINE_LIVE');
+  const futureSchedules = upcomingSchedules.filter(s => !isToday(s.date));
+
+  const renderTodayCard = (schedule: any) => {
+    const formatTime = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+    };
+    const formatShortDate = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    const isLive = schedule.courseType === 'ONLINE_LIVE';
+
+    return (
+      <div key={schedule.id} className={`bg-white rounded-[20px] p-5 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 group transition-all overflow-hidden ${isLive ? 'border border-blue-200 border-l-[6px] border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white' : 'border border-orange-200 border-l-[6px] border-l-orange-400 bg-gradient-to-r from-orange-50/50 to-white'}`}>
+        {/* Left (Icon) + Middle (Info) Wrapper */}
+        <div className="flex items-start xl:items-center gap-4 pl-1">
+            {/* Icon */}
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isLive ? 'bg-blue-100 text-blue-500' : 'bg-orange-100 text-orange-500'}`}>
+                {isLive ? <FiVideo size={22} /> : <FiAward size={22} />}
+            </div>
+        
+            {/* Content Info */}
+            <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1.5">
+                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${isLive ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                       {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>}
+                       {isLive ? 'Live Zoom' : 'Onsite'}
+                   </span>
+                   {isLive ? (
+                       <span className="text-[11px] text-red-500 font-bold">
+                           อีก 20 นาที
+                       </span>
+                   ) : (
+                       <span className="text-xs text-gray-500 font-medium tracking-wide">
+                           {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
+                       </span>
+                   )}
+                </div>
+                <h4 className="font-bold text-[15px] text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1 mb-1">
+                    {schedule.courseTitle}
+                </h4>
+                
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                    {isLive ? (
+                        <>
+                           <span>{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}</span>
+                        </>
+                    ) : (
+                        <>
+                           <FiMapPin className="text-red-400 shrink-0" />
+                           <span className="truncate max-w-[200px] text-gray-500">{schedule.location || 'ไม่ระบุสถานที่'}</span>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        {/* Right section: Action Button */}
+        <div className="w-full xl:w-auto mt-2 xl:mt-0">
+          {isLive ? (
+            schedule.zoomLink ? (
+                <a href={schedule.zoomLink} target="_blank" rel="noopener noreferrer" className="w-full xl:w-auto flex items-center justify-center gap-2 text-[13px] font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors py-2 px-6 rounded-xl shadow-sm shadow-blue-200">
+                   <FiPlay size={14} />
+                   เข้าร่วม Zoom
+                </a>
+            ) : (
+                <button disabled className="w-full xl:w-auto flex items-center justify-center gap-2 text-[13px] font-bold text-gray-500 bg-gray-50 border border-gray-200 py-2 px-6 rounded-xl cursor-not-allowed">
+                   <FiVideo className="text-gray-400" size={14} />
+                   รอลิงก์เข้าเรียน
+                </button>
+            )
+          ) : (
+            <div className="w-full xl:w-auto flex items-center justify-center text-[13px] font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors py-2 px-6 rounded-xl cursor-pointer shadow-sm">
+               ดูรายละเอียด
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFutureRow = (schedule: any) => {
+    const formatTime = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+    };
+    const formatShortDate = (isoString: string) => {
+        const d = new Date(isoString);
+        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+    }
+    const isLive = schedule.courseType === 'ONLINE_LIVE';
+
+    return (
+      <div key={schedule.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex flex-col md:flex-row items-center justify-between gap-4 hover:border-blue-100 transition-colors relative pl-4">
+          <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isLive ? 'bg-blue-400' : 'bg-orange-400'}`} />
+          
+          <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
+             <div className="text-sm text-gray-500 min-w-[120px] font-medium border-r border-gray-100 pr-3">
+                {formatShortDate(schedule.date)} | {formatTime(schedule.startTime)}
+             </div>
+             
+             <div className="flex items-center gap-2">
+                 <div className="font-bold text-gray-800 truncate max-w-[200px] md:max-w-xs text-sm">
+                    {schedule.courseTitle}
+                 </div>
+                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border shrink-0 ${isLive ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                    {isLive ? 'Live สด' : 'Onsite'}
+                 </span>
+             </div>
+          </div>
+          <div className="w-full md:w-auto shrink-0 flex justify-end">
+             {isLive ? (
+                 <a href={schedule.zoomLink || '#'} target="_blank" className="text-xs font-bold text-blue-600 hover:text-blue-700 transition flex items-center gap-1">
+                     เข้าร่วม <FiArrowRight size={12}/>
+                 </a>
+             ) : (
+                 <span className="text-xs font-bold text-orange-500 flex items-center gap-1">
+                     <FiMapPin size={12}/> ดูสถานที่
+                 </span>
+             )}
+          </div>
+      </div>
+    );
+  };
+
   // ✅ แสดงสถานะ Loading ระหว่างรอข้อมูลจาก Google เพื่อป้องกันชื่อขึ้น undefined
   if (loading) {
     return (
@@ -104,54 +259,79 @@ export default function DashboardPage() {
     <div className="font-sans">
 
       {/* Header - ✅ ปรับให้แสดงชื่อ User จริง และแก้ปัญหา undefined */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">
-          สวัสดี, คุณ{user?.name || 'My Student'} 👋
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">
-          พร้อมสำหรับการเรียนรู้ในวันนี้หรือยัง?
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            สวัสดี, คุณ{user?.name || 'สมชาย'}! 👋
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            เรียนวันนี้ เก่งวันหน้า - มาพัฒนาตัวเองไปด้วยกัน!
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-purple-100 shadow-sm text-purple-600 text-sm font-bold">
+            <FiCalendar size={16} /> {new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
       </div>
+      {/* --- Section 1: Today's Classes --- */}
+      {todaySchedules.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <h2 className="text-xl font-bold text-gray-800">
+                 🔔 คลาสเรียนวันนี้
+              </h2>
+            </div>
+          </div>
 
-      {/* --- Section 1: Today's Plan --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+             <div className="flex flex-col gap-4">
+                 {todayOnsiteSchedules.length > 0 ? renderTodayCard(todayOnsiteSchedules[0]) : <div />}
+             </div>
+             <div className="flex flex-col gap-4">
+                 {todayLiveSchedules.length > 0 ? renderTodayCard(todayLiveSchedules[0]) : <div />}
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Section 1.5: Upcoming Classes --- */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center border-l-4 border-blue-600 pl-3">
-            <h2 className="text-lg font-bold text-gray-800">แผนการเรียนวันนี้ ({fullDayMap[today]})</h2>
+            <h2 className="text-lg font-bold text-gray-800">
+               คลาสที่กำลังจะมาถึง
+            </h2>
           </div>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-            {new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {todaysPlan.length > 0 ? (
-            todaysPlan.map((course) => (
-              <div key={course.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <h4 className="font-bold">{course.title}</h4>
-              </div>
-            ))
+        <div className="flex flex-col space-y-3">
+          {scheduleLoading ? (
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center animate-pulse min-h-[150px] flex items-center justify-center">
+              <p className="text-gray-400">กำลังโหลดตารางเรียน...</p>
+            </div>
+          ) : upcomingSchedules.length > 0 ? (
+            upcomingSchedules.slice(0, 3).map(renderFutureRow)
           ) : (
-            <div className="col-span-full md:col-span-2 bg-white rounded-2xl p-8 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center min-h-[200px]">
+            <div className="bg-white rounded-2xl p-8 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center min-h-[200px]">
               <div className="w-16 h-16 bg-blue-50 text-blue-300 rounded-full flex items-center justify-center mb-4">
                 <FiCalendar size={32} />
               </div>
-              <h3 className="text-gray-800 font-bold text-lg">วันนี้ไม่มีตารางเรียน</h3>
+              <h3 className="text-gray-800 font-bold text-lg">ไม่มีตารางเรียนเร็วๆนี้</h3>
               <p className="text-gray-500 text-sm mb-6 max-w-sm">
-                คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ หรือวันนี้เป็นวันหยุดพักผ่อนของคุณ
+                คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ หรือ ไม่มีคลาสเรียนที่กำลังจะมาถึง
               </p>
-              <Link href="/courses" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-200">
-                <FiSearch className="mr-2" /> ค้นหาคอร์สเรียนใหม่
+              <Link href="/explore" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center shadow-lg shadow-blue-200">
+                <FiSearch className="mr-2" /> ค้นหาคอร์สที่สนใจ
               </Link>
             </div>
           )}
 
-          <button className="border-2 border-dashed border-gray-200 rounded-2xl p-5 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-all min-h-[200px] group">
-            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-              <FiPlus size={24} />
+          {upcomingSchedules.length > 0 && <div className="mt-2"><button className="w-full border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all group">
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+              <FiPlus size={18} />
             </div>
-            <span className="text-sm font-medium">เพิ่มแผนการเรียนส่วนตัว</span>
-          </button>
+            <span className="text-sm font-bold">เพิ่มแผนการเรียนส่วนตัว</span>
+          </button></div>}
         </div>
       </div>
 

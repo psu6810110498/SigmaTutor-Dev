@@ -463,6 +463,74 @@ export class CourseService {
     }));
   }
 
+  /**
+   * Fetch all upcoming CourseSchedule sessions for the authenticated user based on their ENROLLED active courses.
+   * Focuses on ONSITE and ONLINE_LIVE course types.
+   */
+  async getMyUpcomingSchedules(userId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const activeEnrollments = await this.db.enrollment.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ],
+        course: {
+          courseType: { in: ['ONSITE', 'ONLINE_LIVE'] }
+        }
+      },
+      select: { courseId: true }
+    });
+
+    const enrolledCourseIds = activeEnrollments.map(e => e.courseId);
+
+    if (enrolledCourseIds.length === 0) {
+      return [];
+    }
+
+    // First find any schedules for *today* or strictly in the future.
+    let upcomingSchedules = await this.db.courseSchedule.findMany({
+      where: {
+        courseId: { in: enrolledCourseIds },
+        date: { gte: today },
+        status: { in: ['ON_SCHEDULE', 'POSTPONED'] } // Ignore CANCELLED
+      },
+      include: {
+        course: {
+          select: { title: true, courseType: true }
+        }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' }
+      ],
+      take: 10
+    });
+
+    if (upcomingSchedules.length === 0) {
+        return [];
+    }
+
+    return upcomingSchedules.map(schedule => ({
+      id: schedule.id,
+      courseId: schedule.courseId,
+      courseTitle: schedule.course.title,
+      courseType: schedule.course.courseType,
+      topic: schedule.topic,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      location: schedule.location,
+      zoomLink: schedule.zoomLink,
+      isOnline: schedule.isOnline,
+      status: schedule.status
+    }));
+  }
+
   async getAdminCourses(query: any) {
     const { search, status, instructorId, categoryId, courseType } = query;
     const page = Number(query.page) || 1;
