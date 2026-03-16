@@ -139,17 +139,23 @@ export class TutorService {
       this._getRichFields(id),
     ]);
 
-    const totalStudents = await prisma.enrollment.count({
-      where: {
-        status: 'ACTIVE',
-        course: {
-          OR: [
-            { teacherId: id },
-            { courseTeachers: { some: { teacherId: id } } },
-          ],
+    // นับจำนวนนักเรียน — graceful fallback เป็น 0 ถ้า Schema ไม่พร้อม
+    let totalStudents = 0;
+    try {
+      totalStudents = await prisma.enrollment.count({
+        where: {
+          status: 'ACTIVE',
+          course: {
+            OR: [
+              { teacherId: id },
+              { courseTeachers: { some: { teacherId: id } } },
+            ],
+          },
         },
-      },
-    });
+      });
+    } catch {
+      totalStudents = 0;
+    }
 
     return {
       ...tutor,
@@ -191,67 +197,81 @@ export class TutorService {
     }
   }
 
-  /** Aggregate review stats for a tutor across all their courses */
+  /** Aggregate review stats สำหรับครูคนนี้ — graceful fallback ถ้า query ล้มเหลว */
   private async _getReviewStats(tutorId: string) {
-    const courseFilter = {
-      course: {
-        OR: [
-          { teacherId: tutorId },
-          { courseTeachers: { some: { teacherId: tutorId } } },
-        ],
-      },
-    } as const;
-
-    const [aggregate, distribution] = await Promise.all([
-      prisma.review.aggregate({
-        where: { ...courseFilter, isHidden: false },
-        _avg: { rating: true },
-        _count: { id: true },
-      }),
-      prisma.review.groupBy({
-        by: ['rating'],
-        where: { ...courseFilter, isHidden: false },
-        _count: { id: true },
-        orderBy: { rating: 'asc' },
-      }),
-    ]);
-
-    const ratingDistribution = [1, 2, 3, 4, 5].map((star) => ({
-      star,
-      count: distribution.find((d) => d.rating === star)?._count?.id ?? 0,
-    }));
-
-    return {
-      averageRating: Number((aggregate._avg.rating ?? 0).toFixed(1)),
-      totalReviews: aggregate._count.id,
-      ratingDistribution,
-    };
-  }
-
-  /** Fetch 6 most recent visible reviews across all tutor courses */
-  private async _getRecentReviews(tutorId: string) {
-    return prisma.review.findMany({
-      where: {
-        isHidden: false,
+    try {
+      const courseFilter = {
         course: {
           OR: [
             { teacherId: tutorId },
             { courseTeachers: { some: { teacherId: tutorId } } },
           ],
         },
-      },
-      select: {
-        id: true,
-        rating: true,
-        comment: true,
-        createdAt: true,
-        helpful: true,
-        user: { select: { name: true, profileImage: true } },
-        course: { select: { id: true, title: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-    });
+      } as const;
+
+      const [aggregate, distribution] = await Promise.all([
+        prisma.review.aggregate({
+          where: { ...courseFilter, isHidden: false },
+          _avg: { rating: true },
+          _count: { id: true },
+        }),
+        prisma.review.groupBy({
+          by: ['rating'],
+          where: { ...courseFilter, isHidden: false },
+          _count: { id: true },
+          orderBy: { rating: 'asc' },
+        }),
+      ]);
+
+      const ratingDistribution = [1, 2, 3, 4, 5].map((star) => ({
+        star,
+        count: distribution.find((d) => d.rating === star)?._count?.id ?? 0,
+      }));
+
+      return {
+        averageRating: Number((aggregate._avg.rating ?? 0).toFixed(1)),
+        totalReviews: aggregate._count.id,
+        ratingDistribution,
+      };
+    } catch {
+      // ถ้า Schema ยังไม่ Migrate หรือ Query ล้มเหลว — คืนค่า default ปลอดภัย
+      return {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: [1, 2, 3, 4, 5].map((star) => ({ star, count: 0 })),
+      };
+    }
+  }
+
+  /** ดึง 6 รีวิวล่าสุดของครู — graceful fallback ถ้า query ล้มเหลว */
+  private async _getRecentReviews(tutorId: string) {
+    try {
+      return await prisma.review.findMany({
+        where: {
+          isHidden: false,
+          course: {
+            OR: [
+              { teacherId: tutorId },
+              { courseTeachers: { some: { teacherId: tutorId } } },
+            ],
+          },
+        },
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          helpful: true,
+          user: { select: { name: true, profileImage: true } },
+          course: { select: { id: true, title: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      });
+    } catch {
+      // ถ้า Schema ยังไม่ Migrate หรือ isHidden ไม่มี — คืน array ว่าง
+      return [];
+    }
   }
 }
 

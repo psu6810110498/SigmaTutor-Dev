@@ -77,6 +77,11 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
     const [sessions, setSessions] = useState<OnsiteSession[]>([]);
     const defaultLocation = course.location || "";
 
+    // Upload state tracking
+    const [uploading, setUploading] = useState<Record<number, boolean>>({});
+    const [progress, setProgress] = useState<Record<number, number>>({});
+    const [fileName, setFileName] = useState<Record<number, string>>({});
+
     useEffect(() => {
         if (course.schedules && course.schedules.length > 0) {
             setSessions(course.schedules.map((s, i) => ({
@@ -108,6 +113,62 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
     function removeSession(index: number) {
         if (sessions.length === 1) { toast.error("ต้องมีอย่างน้อย 1 ครั้ง"); return; }
         setSessions(prev => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, sessionNumber: i + 1 })));
+    }
+
+    async function handleVideoUpload(index: number, e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || !file.type.startsWith("video/")) {
+            toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น");
+            return;
+        }
+
+        setUploading(prev => ({ ...prev, [index]: true }));
+        setProgress(prev => ({ ...prev, [index]: 0 }));
+        setFileName(prev => ({ ...prev, [index]: file.name }));
+
+        try {
+            // (1) ขอ upload URL จาก backend
+            const urlRes = await fetch(`${API}/gumlet/upload-url`, {
+                method: "POST",
+                ...CREDS,
+            });
+            const urlData = await urlRes.json();
+            if (!urlData.success || !urlData.upload_url) {
+                toast.error(urlData.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+                setUploading(prev => ({ ...prev, [index]: false }));
+                return;
+            }
+            const { upload_url, asset_id } = urlData;
+
+            // (2) อัปโหลดตรงไปยัง Gumlet ด้วย XHR + progress
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("PUT", upload_url, true);
+                xhr.setRequestHeader("Content-Type", file.type);
+                xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable) {
+                        setProgress(prev => ({ ...prev, [index]: Math.round((ev.loaded / ev.total) * 100) }));
+                    }
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        updateSession(index, "gumletVideoId", asset_id);
+                        toast.success("อัปโหลดวิดีโอสำเร็จ! ระบบกำลัง Encode...");
+                        resolve();
+                    } else {
+                        reject(new Error("Upload failed"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network error"));
+                xhr.send(file);
+            });
+        } catch {
+            toast.error("อัปโหลดวิดีโอไม่สำเร็จ");
+            setFileName(prev => ({ ...prev, [index]: "" }));
+        } finally {
+            setUploading(prev => ({ ...prev, [index]: false }));
+        }
     }
 
     async function handleSave() {
@@ -259,26 +320,57 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 mb-2">
                                     <Video size={12} className="text-purple-500" /> วิดีโอย้อนหลัง (ไม่แสดงในหน้าคอร์ส)
                                 </label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs text-gray-500 mb-1">Gumlet Video ID</label>
-                                        <input
-                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
-                                            value={session.gumletVideoId}
-                                            onChange={e => updateSession(index, "gumletVideoId", e.target.value)}
-                                            placeholder="Gumlet Video ID"
-                                        />
+
+                                {uploading[index] ? (
+                                    <div className="space-y-1.5 p-3 border border-purple-200 bg-purple-50 rounded-lg">
+                                        <div className="flex justify-between text-xs text-gray-500">
+                                            <span className="truncate max-w-[200px]">{fileName[index]}</span>
+                                            <span className="font-semibold">{progress[index] || 0}%</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-purple-500 to-indigo-400 rounded-full transition-all duration-300"
+                                                style={{ width: `${progress[index] || 0}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-gray-400">กำลังอัปโหลดวิดีโอ...</p>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-500 mb-1">หรือ Video URL</label>
-                                        <input
-                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
-                                            value={session.videoUrl}
-                                            onChange={e => updateSession(index, "videoUrl", e.target.value)}
-                                            placeholder="https://..."
-                                        />
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">วิดีโอ (Gumlet)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    className="flex-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
+                                                    value={session.gumletVideoId}
+                                                    onChange={e => { updateSession(index, "gumletVideoId", e.target.value); }}
+                                                    placeholder="กรอก Gumlet Video ID"
+                                                />
+                                                <label className="relative shrink-0 flex items-center justify-center">
+                                                    <input
+                                                        type="file"
+                                                        accept="video/mp4,video/*"
+                                                        onChange={(e) => handleVideoUpload(index, e)}
+                                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                        disabled={uploading[index]}
+                                                    />
+                                                    <span className="flex items-center gap-1.5 px-3 py-2 bg-purple-100 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-200 cursor-pointer transition-colors whitespace-nowrap">
+                                                        <Plus size={14} /> อัปโหลด MP4
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">หรือ Video URL (YouTube)</label>
+                                            <input
+                                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 bg-purple-50/30"
+                                                value={session.videoUrl}
+                                                onChange={e => updateSession(index, "videoUrl", e.target.value)}
+                                                placeholder="https://..."
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>

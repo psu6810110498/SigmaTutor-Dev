@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: "SigmaTutor พาน้องไปถึงคณะในฝัน ด้วยติวเตอร์คุณภาพและระบบเรียนออนไลน์ที่ดีที่สุด",
 };
 
+// Revalidate ทุกชั่วโมง
 export const revalidate = 3600;
+
+// ── ข้อดีของ SigmaTutor ─────────────────────────────────────────────────────
 
 const WHY_US = [
   {
@@ -55,15 +58,39 @@ const WHY_US = [
   },
 ];
 
+// ── ดึงข้อมูล Stats จาก Backend ─────────────────────────────────────────────
+
+async function fetchPublicStats() {
+  try {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+    const res = await fetch(`${API_BASE}/stats/public`, {
+      next: { revalidate: 300 }, // Cache 5 นาที
+    });
+    if (!res.ok) throw new Error("Stats fetch failed");
+    const data = await res.json();
+    return data.data as { totalStudents: number; totalCourses: number; totalTeachers: number };
+  } catch {
+    // Fallback ถ้า API ล้มเหลว เพื่อป้องกัน Page Crash
+    return { totalStudents: 0, totalCourses: 0, totalTeachers: 0 };
+  }
+}
+
+// ── Page Component ───────────────────────────────────────────────────────────
+
 export default async function AboutPage() {
-  const res = await tutorApi.getAll();
-  const allTutors = res.success && res.data ? res.data : [];
-  const featuredTutors = allTutors.slice(0, 4);
+  // ดึงข้อมูลแบบ Parallel เพื่อประสิทธิภาพ
+  const [tutorRes, stats] = await Promise.all([
+    tutorApi.getAll(),
+    fetchPublicStats(),
+  ]);
+
+  const allTutors     = tutorRes.success && tutorRes.data ? tutorRes.data : [];
+  const featuredTutors = allTutors.slice(0, 6); // แสดง 6 ท่าน ใน 2×3 grid
 
   return (
     <main className="bg-white">
 
-      {/* ── Hero / Opening Story ── */}
+      {/* ── Hero / Opening Story ──────────────────────────────────── */}
       <section className="relative bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent" />
@@ -91,7 +118,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* ── Our Story ── */}
+      {/* ── Our Story ────────────────────────────────────────────────── */}
       <section className="bg-gray-50 py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -103,11 +130,11 @@ export default async function AboutPage() {
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
                   SigmaTutor ก่อตั้งโดยกลุ่มคนที่เคยเป็นนักเรียนเหมือนกัน เคยนั่งหน้าหนังสือจนดึก
-                  เคยสงสัยว่า "เรียนอย่างนี้ถูกทางไหม?" และเคยตั้งคำถามว่าทำไมการเข้าถึงครูดีๆ
+                  เคยสงสัยว่า &ldquo;เรียนอย่างนี้ถูกทางไหม?&rdquo; และเคยตั้งคำถามว่าทำไมการเข้าถึงครูดีๆ
                   ถึงยากแสนยากสำหรับคนส่วนใหญ่
                 </p>
                 <p>
-                  วันนั้นเราตัดสินใจสร้างแพลตฟอร์มที่เชื่อมนักเรียนกับครูที่ "ผ่านมาแล้วจริงๆ"
+                  วันนั้นเราตัดสินใจสร้างแพลตฟอร์มที่เชื่อมนักเรียนกับครูที่ &ldquo;ผ่านมาแล้วจริงๆ&rdquo;
                   โดยตรง ไม่มีคนกลาง ไม่มีราคาที่สูงเกินเอื้อม
                 </p>
               </div>
@@ -115,7 +142,7 @@ export default async function AboutPage() {
             <div className="relative">
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
                 <blockquote className="text-xl font-medium leading-relaxed italic">
-                  "ทุกความฝันในการสอบติดคณะที่ต้องการ เริ่มต้นจากการพบเจอครูที่ใช่"
+                  &ldquo;ทุกความฝันในการสอบติดคณะที่ต้องการ เริ่มต้นจากการพบเจอครูที่ใช่&rdquo;
                 </blockquote>
                 <p className="mt-4 text-blue-200 text-sm font-medium">— ทีมผู้ก่อตั้ง SigmaTutor</p>
               </div>
@@ -124,22 +151,27 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* ── Animated Stats ── */}
+      {/* ── Animated Stats — Real Data ──────────────────────────────── */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-700 py-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-blue-200 text-sm font-semibold tracking-widest uppercase mb-10">ตัวเลขที่พิสูจน์ตัวเอง</p>
-          <AnimatedStats />
+          <p className="text-center text-blue-200 text-sm font-semibold tracking-widest uppercase mb-10">
+            ตัวเลขที่พิสูจน์ตัวเอง
+          </p>
+          {/* ส่ง props ที่ดึงมาจาก API จริง */}
+          <AnimatedStats
+            totalStudents={stats.totalStudents}
+            totalCourses={stats.totalCourses}
+            totalTeachers={stats.totalTeachers}
+          />
         </div>
       </section>
 
-      {/* ── Why Us ── */}
+      {/* ── Why Us ────────────────────────────────────────────────────── */}
       <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <p className="text-blue-600 font-semibold text-sm tracking-wider uppercase mb-3">ทำไมต้องเลือก SigmaTutor</p>
-            <h2 className="text-4xl font-extrabold text-gray-900">
-              เราต่างจากที่อื่นอย่างไร?
-            </h2>
+            <h2 className="text-4xl font-extrabold text-gray-900">เราต่างจากที่อื่นอย่างไร?</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {WHY_US.map((item, i) => (
@@ -155,13 +187,13 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* ── Mission ── */}
+      {/* ── Mission ────────────────────────────────────────────────────── */}
       <section className="bg-slate-900 py-20 text-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-blue-400 font-semibold text-sm tracking-widest uppercase mb-4">พันธกิจของเรา</p>
           <h2 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6">
-            "ทำให้การศึกษาคุณภาพสูง<br />
-            เข้าถึงได้สำหรับทุกคน"
+            &ldquo;ทำให้การศึกษาคุณภาพสูง<br />
+            เข้าถึงได้สำหรับทุกคน&rdquo;
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed">
             เราเชื่อว่านักเรียนทุกคนสมควรได้รับโอกาสเดียวกัน ไม่ว่าจะอยู่จังหวัดไหน
@@ -170,22 +202,30 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* ── Featured Tutors ── */}
+      {/* ── Featured Tutors — 6 ท่าน Symmetric Grid ───────────────────── */}
       {featuredTutors.length > 0 && (
-        <section className="py-20 bg-gray-50">
+        <section className="py-24 bg-gray-50">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <p className="text-blue-600 font-semibold text-sm tracking-wider uppercase mb-3">ทีมผู้สอน</p>
               <h2 className="text-4xl font-extrabold text-gray-900">พบกับครูของเรา</h2>
-              <p className="text-gray-500 mt-3 text-base">แต่ละท่านคือผู้เชี่ยวชาญที่ผ่านเส้นทางมาแล้วจริงๆ</p>
+              <p className="text-gray-500 mt-3 text-base">
+                แต่ละท่านคือผู้เชี่ยวชาญที่ผ่านเส้นทางมาแล้วจริงๆ พร้อมส่งน้องถึงคณะในฝัน
+              </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+            {/* Grid 2 คอลัมน์บน Mobile, 3 คอลัมน์บน Desktop */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {featuredTutors.map((tutor) => (
                 <TutorCard key={tutor.id} tutor={tutor} />
               ))}
             </div>
-            <div className="text-center mt-10">
-              <Link href="/tutors" className="inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-sm">
+
+            <div className="text-center mt-12">
+              <Link
+                href="/tutors"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+              >
                 ดูครูทั้งหมด
                 <ArrowRight className="w-4 h-4" />
               </Link>
@@ -194,7 +234,7 @@ export default async function AboutPage() {
         </section>
       )}
 
-      {/* ── Final CTA ── */}
+      {/* ── Final CTA ─────────────────────────────────────────────────── */}
       <section className="bg-gradient-to-br from-blue-600 to-indigo-700 py-20 text-white text-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-extrabold mb-4">พร้อมเริ่มต้นแล้วหรือยัง?</h2>

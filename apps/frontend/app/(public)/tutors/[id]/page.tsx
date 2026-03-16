@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Star, BookOpen, Award, Quote,
   GraduationCap, Briefcase, Users, MessageSquare,
-  Facebook, Instagram, Youtube, Linkedin, Globe,
+  Facebook, Instagram, Linkedin, Globe, Trophy, Clock,
 } from "lucide-react";
 import { tutorApi } from "@/app/lib/api";
 import { OptimizedImage } from "@/app/components/ui/OptimizedImage";
@@ -19,6 +19,18 @@ function TikTokIcon({ className }: { className?: string }) {
       <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.69a8.18 8.18 0 0 0 4.79 1.53V6.77a4.85 4.85 0 0 1-1.03-.08z" />
     </svg>
   );
+}
+
+// ── Achievement Helper ───────────────────────────────────────────────────────
+
+// ตรวจสอบว่าเป็นผลงานระดับ Elite (โอลิมปิก, สอวน, ตัวแทนประเทศ)
+function isEliteAchievement(text: string): boolean {
+  return /สอวน|โอลิมปิก|olymp|ตัวแทนประเทศ|posn|iph[oO]|im[oO]|ich[oO]/i.test(text);
+}
+
+// ตรวจสอบว่าเป็นรายการด้านการศึกษา (มหาวิทยาลัย, ปริญญา)
+function isEducationEntry(text: string): boolean {
+  return /ปริญญา|university|มหาวิทยาลัย|โรงเรียน|วิทยาลัย|mwit|สจล|คปก|มหิดล|จุฬา|ธรรมศาสตร์|เกษตร/i.test(text);
 }
 
 export const revalidate = 3600;
@@ -253,20 +265,29 @@ export default async function TutorProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* Achievements */}
+            {/* Achievements — Elite Badge สีทอง, อื่น Badge ปกติ */}
             {(tutor.achievements?.length ?? 0) > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-yellow-500" />
+                  <Trophy className="w-4 h-4 text-yellow-500" />
                   ผลงาน / รางวัล
                 </h3>
                 <ul className="space-y-2">
-                  {tutor.achievements!.map((a, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="mt-0.5 text-yellow-500">🏆</span>
-                      <span>{a}</span>
-                    </li>
-                  ))}
+                  {tutor.achievements!.map((a, i) => {
+                    const elite = isEliteAchievement(a);
+                    return (
+                      <li key={i} className={`flex items-start gap-2 text-sm rounded-xl px-3 py-2 ${
+                        elite
+                          ? "bg-amber-50 border border-amber-200 text-amber-800"
+                          : "text-gray-700"
+                      }`}>
+                        <span className={`mt-0.5 flex-shrink-0 ${elite ? "text-amber-500" : "text-blue-400"}`}>
+                          {elite ? "🥇" : "✓"}
+                        </span>
+                        <span className={elite ? "font-medium" : ""}>{a}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -286,7 +307,7 @@ export default async function TutorProfilePage({ params }: Props) {
               </section>
             )}
 
-            {/* Education Timeline */}
+            {/* Education Timeline — Vertical with type-aware icons */}
             {(tutor.educationHistory?.length ?? 0) > 0 && (
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
                 <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -294,15 +315,39 @@ export default async function TutorProfilePage({ params }: Props) {
                   เส้นทางการศึกษา
                 </h2>
                 <div className="relative">
-                  {/* Timeline line */}
-                  <div className="absolute left-3 top-1 bottom-1 w-0.5 bg-indigo-100" />
-                  <ul className="space-y-5 pl-8">
-                    {tutor.educationHistory!.map((entry, i) => (
-                      <li key={i} className="relative">
-                        <div className="absolute -left-5 top-1 w-3 h-3 rounded-full bg-indigo-500 border-2 border-white shadow-sm" />
-                        <p className="text-sm text-gray-700 leading-relaxed">{entry}</p>
-                      </li>
-                    ))}
+                  {/* เส้น Timeline ตั้ง */}
+                  <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-linear-to-b from-indigo-400 to-indigo-100" />
+                  <ul className="space-y-6">
+                    {tutor.educationHistory!.map((entry, i) => {
+                      const isEdu   = isEducationEntry(entry);
+                      const isElite = isEliteAchievement(entry);
+                      return (
+                        <li key={i} className="flex gap-4 items-start">
+                          {/* จุด Timeline + Icon */}
+                          <div className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm border-2 border-white ${
+                            isElite  ? "bg-amber-400" :
+                            isEdu    ? "bg-indigo-500" :
+                                       "bg-blue-400"
+                          }`}>
+                            {isElite ? (
+                              <Trophy className="w-4 h-4 text-white" />
+                            ) : (
+                              <GraduationCap className="w-4 h-4 text-white" />
+                            )}
+                          </div>
+                          {/* เนื้อหา Entry */}
+                          <div className={`flex-1 pt-1.5 pb-4 border-b border-gray-50 last:border-0 ${
+                            isElite ? "" : ""
+                          }`}>
+                            <p className={`text-sm leading-relaxed ${
+                              isElite ? "text-amber-800 font-medium" : "text-gray-700"
+                            }`}>
+                              {entry}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </section>

@@ -112,7 +112,7 @@ export default function MyCoursesPage() {
                             {/* Action */}
                             <div className="flex items-center">
                                 <Link
-                                    href={course.courseType === 'ONLINE_LIVE' ? `/courses/${course.id}/live` : `/courses/${course.id}/learn`}
+                                    href={`/courses/${course.id}/learn`}
                                     className="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                                 >
                                     <FiPlay size={18} />
