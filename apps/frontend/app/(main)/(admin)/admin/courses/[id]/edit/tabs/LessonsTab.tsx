@@ -62,6 +62,11 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
         materialUrl: (lesson as any)?.materialUrl || "",
     });
 
+    // Video source toggle state (YouTube vs Gumlet)
+    const [videoSource, setVideoSource] = useState<"YOUTUBE" | "GUMLET">(
+        lesson?.gumletVideoId ? "GUMLET" : "YOUTUBE"
+    );
+
     // Video upload state
     const [videoUploading, setVideoUploading] = useState(false);
     const [videoProgress, setVideoProgress] = useState(0);
@@ -230,18 +235,7 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                         placeholder="เช่น 1.1 บทนำ"
                     />
                 </div>
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">ประเภท</label>
-                    <select
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
-                        value={form.type}
-                        onChange={e => set("type", e.target.value)}
-                    >
-                        <option value="VIDEO">วิดีโอ</option>
-                        <option value="FILE">ไฟล์/เอกสาร</option>
-                    </select>
-                </div>
-                <div>
+                <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-gray-600 mb-1">ความยาว (นาที)</label>
                     <input
                         type="number"
@@ -253,14 +247,113 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                     />
                 </div>
 
-                {/* ─── VIDEO ─────────────────────────────────── */}
-                {form.type === "VIDEO" && (
-                    <>
-                        {/* Gumlet upload */}
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                                🎬 วิดีโอ (Gumlet)
+                {/* ─── เอกสารประกอบการเรียน (always visible) ────── */}
+                <div className="md:col-span-2 border border-gray-200 rounded-xl p-4 space-y-3 bg-white">
+                    <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                        📄 เอกสารประกอบการเรียน
+                    </label>
+                    {form.materialUrl && !pdfUploading ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm">
+                            <File size={15} className="text-orange-500 shrink-0" />
+                            <span className="text-orange-700 flex-1 truncate font-medium">
+                                {pdfFileName || "ไฟล์ PDF"}
+                            </span>
+                            <a href={form.materialUrl} target="_blank" rel="noreferrer"
+                                className="text-xs text-blue-500 hover:underline shrink-0">ดู</a>
+                            <button
+                                type="button"
+                                onClick={() => { set("materialUrl", ""); set("content", ""); setPdfFileName(null); }}
+                                className="text-gray-400 hover:text-red-500"
+                            ><X size={14} /></button>
+                        </div>
+                    ) : pdfUploading ? (
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs text-gray-500">
+                                <span className="truncate max-w-[200px]">{pdfFileName}</span>
+                                <span className="font-semibold">{pdfProgress}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-orange-400 to-orange-300 rounded-full transition-all duration-300"
+                                    style={{ width: `${pdfProgress}%` }}
+                                />
+                            </div>
+                            <p className="text-xs text-gray-400">กำลังอัปโหลด PDF...</p>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2">
+                            <input
+                                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                value={form.content}
+                                onChange={e => { set("content", e.target.value); set("materialUrl", e.target.value); }}
+                                placeholder="https://... หรืออัปโหลดไฟล์ →"
+                            />
+                            <label className="relative shrink-0">
+                                <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    onChange={handlePdfUpload}
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    disabled={pdfUploading}
+                                />
+                                <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
+                                    <Upload size={14} /> อัปโหลด PDF
+                                </span>
                             </label>
+                        </div>
+                    )}
+                    <p className="text-[11px] text-gray-400 mt-0.5">รองรับ .pdf ขนาดไม่เกิน 50MB</p>
+                </div>
+
+                {/* ─── Video Details (always visible) ─────────── */}
+                <div className="md:col-span-2 border border-gray-200 rounded-xl p-4 space-y-3 bg-white">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                            🎬 ข้อมูลวิดีโอ
+                        </label>
+                        {/* Segmented Control: YouTube / Gumlet */}
+                        <div className="flex bg-gray-100 rounded-lg p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => setVideoSource("YOUTUBE")}
+                                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                                    videoSource === "YOUTUBE"
+                                        ? "bg-white text-primary shadow-sm"
+                                        : "text-gray-500 hover:text-gray-700"
+                                }`}
+                            >
+                                YouTube
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setVideoSource("GUMLET")}
+                                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                                    videoSource === "GUMLET"
+                                        ? "bg-white text-primary shadow-sm"
+                                        : "text-gray-500 hover:text-gray-700"
+                                }`}
+                            >
+                                Gumlet
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* YouTube input */}
+                    {videoSource === "YOUTUBE" && (
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">YouTube URL</label>
+                            <input
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                value={form.youtubeUrl}
+                                onChange={e => set("youtubeUrl", e.target.value)}
+                                placeholder="https://youtube.com/watch?v=..."
+                            />
+                        </div>
+                    )}
+
+                    {/* Gumlet input */}
+                    {videoSource === "GUMLET" && (
+                        <div>
                             {form.gumletVideoId && !videoUploading ? (
                                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
                                     <CheckCircle2 size={16} className="text-green-600 shrink-0" />
@@ -310,79 +403,8 @@ function LessonForm({ chapterId, lesson, onSave, onCancel }: LessonFormProps) {
                                 </div>
                             )}
                         </div>
-
-                        {/* YouTube URL */}
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">YouTube URL (ทางเลือก)</label>
-                            <input
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                value={form.youtubeUrl}
-                                onChange={e => set("youtubeUrl", e.target.value)}
-                                placeholder="https://youtube.com/watch?v=..."
-                            />
-                        </div>
-                    </>
-                )}
-
-                {/* ─── FILE ──────────────────────────────────── */}
-                {form.type === "FILE" && (
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                            📄 ไฟล์ PDF
-                        </label>
-                        {form.materialUrl && !pdfUploading ? (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm">
-                                <File size={15} className="text-orange-500 shrink-0" />
-                                <span className="text-orange-700 flex-1 truncate font-medium">
-                                    {pdfFileName || "ไฟล์ PDF"}
-                                </span>
-                                <a href={form.materialUrl} target="_blank" rel="noreferrer"
-                                    className="text-xs text-blue-500 hover:underline shrink-0">ดู</a>
-                                <button
-                                    type="button"
-                                    onClick={() => { set("materialUrl", ""); set("content", ""); setPdfFileName(null); }}
-                                    className="text-gray-400 hover:text-red-500"
-                                ><X size={14} /></button>
-                            </div>
-                        ) : pdfUploading ? (
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between text-xs text-gray-500">
-                                    <span className="truncate max-w-[200px]">{pdfFileName}</span>
-                                    <span className="font-semibold">{pdfProgress}%</span>
-                                </div>
-                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-orange-400 to-orange-300 rounded-full transition-all duration-300"
-                                        style={{ width: `${pdfProgress}%` }}
-                                    />
-                                </div>
-                                <p className="text-xs text-gray-400">กำลังอัปโหลด PDF...</p>
-                            </div>
-                        ) : (
-                            <div className="flex gap-2">
-                                <input
-                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                    value={form.content}
-                                    onChange={e => { set("content", e.target.value); set("materialUrl", e.target.value); }}
-                                    placeholder="https://... หรืออัปโหลดไฟล์ →"
-                                />
-                                <label className="relative shrink-0">
-                                    <input
-                                        type="file"
-                                        accept="application/pdf"
-                                        onChange={handlePdfUpload}
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                        disabled={pdfUploading}
-                                    />
-                                    <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-600 text-sm font-medium rounded-lg hover:bg-orange-100 cursor-pointer transition-colors whitespace-nowrap border border-orange-200">
-                                        <Upload size={14} /> อัปโหลด PDF
-                                    </span>
-                                </label>
-                            </div>
-                        )}
-                        <p className="text-[11px] text-gray-400 mt-1">รองรับ .pdf ขนาดไม่เกิน 50MB</p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
             <div className="flex items-center gap-2">
                 <button
