@@ -94,7 +94,7 @@ export function useCheckout() {
         setError(null);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
 
             const response = await fetch(`${apiUrl}/payments/create-checkout-session`, {
                 method: 'POST',

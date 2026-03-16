@@ -69,7 +69,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchEnrolledCourses = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
         const res = await fetch(`${apiUrl}/courses/my-courses`, {
           credentials: 'include',
         });

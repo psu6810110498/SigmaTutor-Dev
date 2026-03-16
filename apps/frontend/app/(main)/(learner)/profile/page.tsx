@@ -95,7 +95,7 @@ export default function CompleteProfilePage() {
     setStatus({ type: '', msg: '' });
 
     try {
-      const res = await fetch(`http://localhost:4000/api/users/${user?.id}`, {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${user?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

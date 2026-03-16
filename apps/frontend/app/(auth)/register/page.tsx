@@ -86,7 +86,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch('http://localhost:4000/api/auth/register', {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -335,7 +335,7 @@ export default function RegisterPage() {
               {/* Google Button (Standard Style) */}
               <button
                 type="button"
-                onClick={() => (window.location.href = 'http://localhost:4000/api/auth/google')}
+                onClick={() => (window.location.href = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/auth/google')}
                 className="w-full flex items-center justify-center gap-3 py-3.5 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-medium text-gray-700 active:scale-[0.98] shadow-sm"
               >
                 <FcGoogle className="text-xl" /> สมัครสมาชิกด้วย Google

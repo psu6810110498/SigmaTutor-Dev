@@ -34,7 +34,7 @@ export default function EditStudentPage() {
         const fetchStudentData = async () => {
             try {
                 // ดึงข้อมูลส่วนตัวจาก API ที่เราเพิ่งสร้าง
-                const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${params.id}`, {
                     method: 'GET',
                     credentials: 'include'
                 });
@@ -108,7 +108,7 @@ export default function EditStudentPage() {
                 }
             });
 
-            const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${params.id}`, {
                 method: 'PATCH',
                 credentials: 'include',
                 body: submitData

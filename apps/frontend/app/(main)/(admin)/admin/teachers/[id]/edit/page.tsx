@@ -26,7 +26,7 @@ export default function EditTeacherPage() {
     useEffect(() => {
         const fetchTeacherData = async () => {
             try {
-                const res = await fetch(`http://localhost:4000/api/users/instructors?t=${Date.now()}`, {
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/instructors?t=${Date.now()}`, {
                     method: 'GET',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' }
@@ -93,7 +93,7 @@ export default function EditTeacherPage() {
             if (profileImage) submitData.append('profileImage', profileImage);
             Object.entries(formData).forEach(([key, value]) => { submitData.append(key, value); });
 
-            const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${params.id}`, {
                 method: 'PATCH',
                 credentials: 'include',
                 body: submitData

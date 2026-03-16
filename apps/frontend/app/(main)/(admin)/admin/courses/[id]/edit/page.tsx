@@ -30,10 +30,10 @@ export default function EditCoursePage() {
                 'Content-Type': 'application/json'
             };
 
-            const courseRes = await fetch(`http://localhost:4000/api/courses/${courseId}`, { headers, credentials: 'include' });
+            const courseRes = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${courseId}`, { headers, credentials: 'include' });
             const courseData = await courseRes.json();
 
-            const instRes = await fetch(`http://localhost:4000/api/users/instructors`, { headers, credentials: 'include' });
+            const instRes = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/instructors`, { headers, credentials: 'include' });
             const instData = await instRes.json();
 
             if (courseData.success) {

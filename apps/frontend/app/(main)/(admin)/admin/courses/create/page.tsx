@@ -41,7 +41,7 @@ export default function CreateCoursePage() {
 
         const fetchInstructors = async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/users/instructors', { credentials: 'include' });
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/users/instructors', { credentials: 'include' });
                 const data = await res.json();
                 if (data.success) setInstructors(data.data);
             } catch (error) { console.error("Failed to fetch instructors:", error); }
@@ -174,7 +174,7 @@ export default function CreateCoursePage() {
         const formData = new FormData();
         formData.append("file", file);
         try {
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/upload/pdf', {
                 method: 'POST',
                 credentials: 'include',
                 body: formData
@@ -209,7 +209,7 @@ export default function CreateCoursePage() {
             setGumletProgress(0);
 
             // 1. Get Signed URL and Asset ID from our Backend
-            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/gumlet/upload-url', {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -298,7 +298,7 @@ export default function CreateCoursePage() {
         }
 
         try {
-            const response = await fetch('http://localhost:4000/api/courses', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
             });
             const res = await response.json();

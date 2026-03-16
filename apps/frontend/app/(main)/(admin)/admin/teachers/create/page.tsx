@@ -39,7 +39,7 @@ export default function CreateTeacherPage() {
             const uploadData = new FormData();
             uploadData.append("file", file);
 
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/upload/pdf', {
                 method: 'POST',
                 credentials: 'include',
                 body: uploadData
@@ -67,7 +67,7 @@ export default function CreateTeacherPage() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const res = await fetch('http://localhost:4000/api/users/instructors', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/users/instructors', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

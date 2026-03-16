@@ -32,7 +32,7 @@ export default function AdminTeachersPage() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:4000/api/users/instructors', {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/users/instructors', {
         credentials: 'include',
       });
       const data = await res.json();
@@ -56,7 +56,7 @@ export default function AdminTeachersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('คุณต้องการลบผู้สอนท่านนี้ใช่หรือไม่?')) return;
     try {
-      const res = await fetch(`http://localhost:4000/api/users/${id}`, {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
