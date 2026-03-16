@@ -3,6 +3,12 @@ import { authenticate, requireRole } from '../middleware/auth.middleware.js';
 
 const router: Router = Router();
 
+type GumletUploadResponse = {
+  upload_url?: string;
+  asset_id?: string;
+  [key: string]: unknown;
+};
+
 /**
  * POST /api/gumlet/upload-url
  * Generates a signed direct upload URL from Gumlet API
@@ -34,7 +40,7 @@ router.post(
         })
       });
 
-      const data = await response.json();
+      const data: GumletUploadResponse = await response.json();
 
       if (!response.ok) {
         console.error('Gumlet API Error:', data);

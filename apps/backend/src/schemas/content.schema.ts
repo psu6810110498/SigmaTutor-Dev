@@ -22,6 +22,9 @@ export const createLessonSchema = z.object({
     order: z.number().int().optional(),
 });
 export const updateLessonSchema = createLessonSchema.partial();
+export const reorderLessonSchema = z.object({
+    orders: z.array(z.object({ id: z.string(), order: z.number().int() })),
+});
 
 // ── Schedule (ปรับโฉมเป็นเนื้อหาบทเรียน) ───────────────────────────
 export const createScheduleSchema = z.object({
