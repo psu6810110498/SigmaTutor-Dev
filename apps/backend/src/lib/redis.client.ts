@@ -20,30 +20,34 @@ let redisClient: Redis | null = null;
  * Returns null if Redis is unreachable (graceful degradation).
  */
 export function getRedisClient(): Redis | null {
-    if (redisClient) return redisClient;
+  if (redisClient) return redisClient;
 
-    try {
-        const client = new Redis(REDIS_URL, {
-            maxRetriesPerRequest: 1,
-            enableReadyCheck: false,
-            lazyConnect: true,
-        });
+  try {
+    const client = new Redis(REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      lazyConnect: true,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+    });
 
-        client.on('connect', () => {
-            console.log('✅ Redis connected:', REDIS_URL);
-        });
+    client.on('connect', () => {
+      console.log('✅ Redis connected:', REDIS_URL);
+    });
 
-        client.on('error', (err: Error) => {
-            console.warn('⚠️  Redis error (rate limiting falls back to in-memory):', err.message);
-            redisClient = null; // reset so next call retries
-        });
+    client.on('error', (err: Error) => {
+      console.warn('⚠️  Redis error (rate limiting falls back to in-memory):', err.message);
+      redisClient = null; // reset so next call retries
+    });
 
-        redisClient = client;
-        return client;
-    } catch (err) {
-        console.warn('⚠️  Failed to initialise Redis client:', (err as Error).message);
-        return null;
-    }
+    redisClient = client;
+    return client;
+  } catch (err) {
+    console.warn('⚠️  Failed to initialise Redis client:', (err as Error).message);
+    return null;
+  }
 }
 
 /**
@@ -51,9 +55,9 @@ export function getRedisClient(): Redis | null {
  * Call this during application shutdown.
  */
 export async function closeRedisClient(): Promise<void> {
-    if (redisClient) {
-        await redisClient.quit();
-        redisClient = null;
-        console.log('🔌 Redis connection closed');
-    }
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+    console.log('🔌 Redis connection closed');
+  }
 }

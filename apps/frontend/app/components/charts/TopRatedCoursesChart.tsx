@@ -43,9 +43,9 @@ export function TopRatedCoursesChart({ data }: TopRatedCoursesChartProps) {
               boxShadow: '0 10px 30px rgba(15,23,42,0.08)',
               fontSize: 12,
             }}
-            formatter={(value: number, _name, props) => {
+            formatter={(value: any, _name: any, props: any) => {
               const count = (props.payload as any)?.reviewCount ?? 0;
-              return [`${value.toFixed(2)} / 5 (${count} รีวิว)`, 'คะแนนเฉลี่ย'];
+              return [`${Number(value).toFixed(2)} / 5 (${count} รีวิว)`, 'คะแนนเฉลี่ย'];
             }}
             labelFormatter={(label, payload) =>
               payload && payload[0]?.payload?.courseTitle
