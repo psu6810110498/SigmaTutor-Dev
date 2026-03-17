@@ -60,9 +60,9 @@ const STAGGER_DELAY_MS = 80;
 // ─── Course Type Config ──────────────────────────────────────────────────────
 
 const COURSE_TYPE_CONFIG = {
-  ONLINE:      { label: 'ออนไลน์', icon: Monitor, color: 'text-blue-600 bg-blue-50' },
-  ONLINE_LIVE: { label: 'Live สด',  icon: Video,   color: 'text-orange-600 bg-orange-50' },
-  ONSITE:      { label: 'ออนไซต์', icon: MapPin,   color: 'text-green-700 bg-green-50' },
+  ONLINE:      { label: 'ออนไลน์', icon: Monitor, color: 'text-blue-700 bg-blue-100 border border-blue-200' },
+  ONLINE_LIVE: { label: 'Live สด',  icon: Video,   color: 'text-orange-700 bg-orange-100 border border-orange-200' },
+  ONSITE:      { label: 'ออนไซต์', icon: MapPin,   color: 'text-green-800 bg-green-100 border border-green-200' },
 } as const;
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
@@ -160,8 +160,8 @@ function SeatBar({
 function CourseTypeBadge({ type }: { type: Course['courseType'] }) {
   const { label, icon: Icon, color } = COURSE_TYPE_CONFIG[type];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${color}`}>
-      <Icon size={10} />
+    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${color}`}>
+      <Icon size={12} />
       {label}
     </span>
   );
@@ -351,11 +351,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
     e.preventDefault();
     e.stopPropagation();
     if (!leadInstructor) return;
-    if (pathname === '/explore') {
-      toggleTutor(leadInstructor.id);
-    } else {
-      router.push(`/explore?tutorId=${leadInstructor.id}`);
-    }
+    router.push(`/tutors/${leadInstructor.id}`);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -400,12 +396,12 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
         href={`/course/${course.slug || course.id}`}
         onMouseEnter={handleMouseEnter}
         className={`
-          group block bg-white rounded-2xl border shadow-sm w-full h-full relative
+          group block bg-white rounded-3xl border shadow-sm w-full h-full relative
           flex flex-col overflow-hidden
-          transition-[transform,box-shadow] duration-250 ease-out
+          transition-[transform,box-shadow,border-color] duration-300 ease-out
           ${isFull
             ? 'border-gray-200 opacity-75 cursor-pointer'
-            : 'border-gray-100 hover:-translate-y-1 hover:shadow-xl'}
+            : 'border-transparent ring-1 ring-gray-100 hover:-translate-y-1.5 hover:shadow-2xl hover:ring-gray-200'}
         `}
       >
 
@@ -440,14 +436,14 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
 
           {/* Top-left promo badges */}
           {!isFull && (visibleBadges.length > 0 || showLowSeatBadge) && (
-            <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+            <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
               {visibleBadges.map(b => (
-                <span key={b.label} className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-sm ${b.color}`}>
+                <span key={b.label} className={`text-xs font-bold px-2.5 py-1 rounded shadow-sm ${b.color}`}>
                   {b.label}
                 </span>
               ))}
               {showLowSeatBadge && visibleBadges.length < 2 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded shadow-sm bg-orange-500 text-white">
+                <span className="text-xs font-bold px-2.5 py-1 rounded shadow-sm bg-orange-500 text-white">
                   จำกัดที่นั่ง
                 </span>
               )}
@@ -486,18 +482,18 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
               {course.category?.name ?? 'วิชาทั่วไป'}
             </span>
             {showRating ? (
-              <div className="flex items-center gap-1">
-                <Star size={10} className="text-amber-400 fill-amber-400" />
-                <span className="text-[11px] font-semibold text-gray-700">{displayRating.toFixed(1)}</span>
-                <span className="text-[10px] text-gray-400">({reviewCount})</span>
+              <div className="flex items-center gap-1.5">
+                <Star size={14} className="text-amber-400 fill-amber-400" />
+                <span className="text-xs font-bold text-gray-700">{displayRating.toFixed(1)}</span>
+                <span className="text-[11px] text-gray-400">({reviewCount})</span>
               </div>
             ) : reviewCount > 0 ? (
-              <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">รีวิวใหม่</span>
+              <span className="text-[11px] text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full font-medium">รีวิวใหม่</span>
             ) : null}
           </div>
 
           {/* Course title */}
-          <h3 className="font-bold text-gray-900 text-[13px] leading-snug line-clamp-2 min-h-[36px]">
+          <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-2 min-h-[48px] mt-1.5">
             {course.title}
           </h3>
         </div>
@@ -551,34 +547,34 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
         {/* ══════════════════════════════════════════════════════════════
             ZONE 4 · FOOTER
         ══════════════════════════════════════════════════════════════ */}
-        <div className="mt-auto px-3 pb-3 pt-2 border-t border-gray-100">
+        <div className="mt-auto px-3 pb-3 pt-2">
 
           {/* Instructor row — links to tutor profile page */}
           {leadInstructor && (
             <button
               onClick={handleTutorClick}
-              className="w-full flex items-center gap-2 py-2 mb-2 border-b border-gray-50 group/tutor focus:outline-none"
+              className="w-full flex items-center gap-2.5 p-2 mb-2 rounded-xl border border-transparent hover:bg-gray-50 hover:border-gray-100 group/tutor focus:outline-none transition-all"
             >
-              <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-gray-200 flex-shrink-0 bg-gray-100">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-gray-100 flex-shrink-0 bg-white shadow-sm">
                 {leadInstructor.profileImage ? (
                   <Image
                     src={leadInstructor.profileImage}
                     alt={leadInstructor.name ?? ''}
                     fill
                     className="object-cover"
-                    sizes="24px"
+                    sizes="32px"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-500 font-bold">
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-500 font-bold">
                     {leadInstructor.name?.charAt(0) ?? 'T'}
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-gray-500 truncate group-hover/tutor:text-blue-600 transition-colors leading-none">
+              <span className="text-[13px] font-semibold text-gray-700 truncate group-hover/tutor:text-blue-600 transition-colors leading-none">
                 {(leadInstructor as any).nickname ?? leadInstructor.name}
               </span>
               {allInstructors.length > 1 && (
-                <span className="text-[10px] text-gray-400 flex-shrink-0">+{allInstructors.length - 1}</span>
+                <span className="text-[11px] font-medium text-gray-500 flex-shrink-0 bg-gray-100/80 px-1.5 py-0.5 rounded-md">+{allInstructors.length - 1}</span>
               )}
             </button>
           )}
@@ -597,15 +593,15 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
           {/* Price + CTA */}
           <div className={showSeatBar ? 'mt-2' : ''}>
             {/* Price */}
-            <div className="flex items-end gap-1.5 mb-2">
-              <span className={`text-lg font-extrabold leading-none ${hasDiscount ? 'text-secondary' : 'text-gray-900'}`}>
-                ฿{displayPrice.toLocaleString()}
-              </span>
+            <div className="flex flex-col gap-0.5 mb-3 px-1">
               {hasDiscount && (
-                <span className="text-xs text-gray-400 line-through leading-relaxed">
+                <span className="text-sm font-medium text-gray-400 line-through leading-none decoration-gray-300">
                   ฿{course.price.toLocaleString()}
                 </span>
               )}
+              <span className={`text-[22px] font-black leading-none tracking-tight ${hasDiscount ? 'text-red-600 block' : 'text-gray-900'}`}>
+                ฿{displayPrice.toLocaleString()}
+              </span>
             </div>
 
             {/* CTA buttons: bigger on mobile (touch target), normal on desktop */}
@@ -616,7 +612,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
                 disabled={isFull}
                 title={alreadyInCart ? 'อยู่ในตะกร้าแล้ว' : 'เพิ่มลงตะกร้า'}
                 className={`
-                  shrink-0 w-11 sm:w-10 h-11 sm:h-9 flex items-center justify-center rounded-xl border transition-all
+                  shrink-0 w-12 sm:w-11 h-12 sm:h-11 flex items-center justify-center rounded-xl border transition-all
                   ${cartBounce ? 'scale-125' : 'scale-100'}
                   ${isFull
                     ? 'border-gray-200 text-gray-300 cursor-not-allowed'
@@ -625,7 +621,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
                     : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary hover:bg-primary/5'}
                 `}
               >
-                <ShoppingCart size={16} />
+                <ShoppingCart size={22} />
               </button>
 
               {/* Primary buy / reserve CTA with shimmer */}
@@ -635,8 +631,8 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
                 className={`
                   course-card-cta
                   flex-1 relative overflow-hidden
-                  flex items-center justify-center gap-1.5
-                  h-11 sm:h-9 rounded-xl text-sm font-bold
+                  flex items-center justify-center gap-2
+                  h-12 sm:h-11 rounded-xl text-base font-bold
                   transition-all duration-250
                   ${isFull
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -645,7 +641,7 @@ export default function CourseCard({ course, index = 0, priority = false }: Cour
                     : 'bg-primary hover:bg-primary/90 text-white shadow-sm hover:shadow-primary/30 hover:shadow-md'}
                 `}
               >
-                {!isFull && (isLimitedCourse ? <Zap size={14} /> : <ArrowRight size={14} />)}
+                {!isFull && (isLimitedCourse ? <Zap size={16} /> : <ArrowRight size={16} />)}
                 {ctaLabel}
               </button>
             </div>

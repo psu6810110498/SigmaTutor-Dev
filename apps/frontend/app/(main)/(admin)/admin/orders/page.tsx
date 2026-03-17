@@ -321,6 +321,7 @@ export default function AdminOrdersPage() {
             {debouncedSearch && <p className="text-xs mt-1">ลองค้นหาด้วยคำอื่น</p>}
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/80">
@@ -418,6 +419,7 @@ export default function AdminOrdersPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
 
         {/* Pagination */}

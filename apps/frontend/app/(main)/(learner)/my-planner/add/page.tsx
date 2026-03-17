@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiBookOpen, FiClock, FiCalendar, FiPlay, FiCheck } from 'react-icons/fi';
 import { courseApi } from '@/app/lib/api';
+import { toast } from 'react-hot-toast';
 
 type VodCourse = {
   id: string;
@@ -60,7 +61,31 @@ export default function AddStudyPlanPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedCourseId || !topic || !date || !startTime || !endTime) return;
+    if (!selectedCourseId) {
+      toast.error('กรุณาเลือกคอร์สเรียน');
+      return;
+    }
+    if (!topic) {
+      toast.error('กรุณาระบุหัวข้อที่จะเรียน');
+      return;
+    }
+    if (!date) {
+      toast.error('กรุณาระบุวันที่');
+      return;
+    }
+    if (!startTime) {
+      toast.error('กรุณาระบุเวลาเริ่มต้น');
+      return;
+    }
+    if (!endTime) {
+      toast.error('กรุณาระบุเวลาสิ้นสุด');
+      return;
+    }
+    
+    if (startTime >= endTime) {
+      toast.error('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -76,16 +101,19 @@ export default function AddStudyPlanPage() {
       });
 
       if (res.success) {
+        toast.success('บันทึกแผนการเรียนสำเร็จ');
         router.push('/my-planner');
+      } else {
+        toast.error(res.error || 'เกิดข้อผิดพลาด ไม่สามารถบันทึกแผนได้');
       }
-    } catch (error) {
+    } catch (error: Error | unknown) {
       console.error('Failed to create self-study session:', error);
+      const msg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดของระบบ กรุณาลองใหม่อีกครั้ง';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const isFormValid = selectedCourseId && topic && date && startTime && endTime;
 
   return (
     <div className="font-sans">
@@ -247,7 +275,7 @@ export default function AddStudyPlanPage() {
                   </Link>
                   <button
                     onClick={handleSubmit}
-                    disabled={submitting || !isFormValid}
+                    disabled={submitting}
                     className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold transition shadow-sm shadow-purple-200 flex items-center justify-center gap-2"
                   >
                     {submitting ? (

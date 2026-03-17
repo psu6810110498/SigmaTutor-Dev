@@ -1,5 +1,6 @@
 import { PublicNavbar } from "@/app/components/layouts/PublicNavbar";
 import { PublicFooter } from "@/app/components/layouts/PublicFooter";
+import { CookieConsentBanner } from "@/app/components/ui/CookieConsentBanner";
 
 export default function PublicLayout({
     children,
@@ -7,10 +8,11 @@ export default function PublicLayout({
     children: React.ReactNode;
 }) {
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             <PublicNavbar />
-            <main className="pt-20 min-h-screen">{children}</main>
+            <main className="flex-1 pt-20">{children}</main>
             <PublicFooter />
-        </>
+            <CookieConsentBanner />
+        </div>
     );
 }

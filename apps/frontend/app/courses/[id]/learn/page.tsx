@@ -11,6 +11,48 @@ import { SigmaLogo } from '@/app/components/icons/SigmaLogo';
 import { progressApi, reviewApi } from '@/app/lib/api';
 import type { Review } from '@/app/lib/types';
 
+const LiteYouTube = ({ vid, title }: { vid: string, title?: string }) => {
+    const [isPlaying, setIsPlaying] = React.useState(false);
+    
+    React.useEffect(() => {
+        setIsPlaying(false);
+    }, [vid]);
+
+    return isPlaying ? (
+        <iframe
+            src={`https://www.youtube.com/embed/${vid}?autoplay=1&rel=0`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title={title || 'YouTube Video'}
+        />
+    ) : (
+        <div 
+            className="w-full h-full relative cursor-pointer group bg-black flex items-center justify-center"
+            onClick={(e) => {
+                e.stopPropagation();
+                setIsPlaying(true);
+            }}
+        >
+            <img 
+                src={`https://img.youtube.com/vi/${vid}/maxresdefault.jpg`}
+                onError={(e) => {
+                    e.currentTarget.src = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+                }}
+                alt={title || "Video thumbnail"}
+                className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-12 bg-red-600/90 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-red-600 transition-all">
+                    <svg height="24" viewBox="0 0 24 24" width="24" className="text-white fill-current ml-1">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function LearningPage() {
     const params = useParams();
     const router = useRouter();
@@ -305,9 +347,9 @@ export default function LearningPage() {
                             หมดอายุเมื่อ {new Date(expiresAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </p>
                     )}
-                    <a href="/" className="inline-block px-6 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                    <Link href="/" className="inline-block px-6 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
                         กลับหน้าหลัก
-                    </a>
+                    </Link>
                 </div>
             </div>
         );
@@ -315,6 +357,16 @@ export default function LearningPage() {
 
     // คำนวณเปอร์เซ็นต์เรียนจบแบบ UI Fake
     let totalItems = 0;
+    
+    // Helper สำหรับฟอร์แมตเวลา
+    const formatTime = (isoString?: string) => {
+        if (!isoString) return '';
+        try {
+            return new Date(isoString).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return isoString;
+        }
+    };
     if (course.chapters?.length > 0) {
         course.chapters.forEach((ch: any) => totalItems += (ch.lessons?.length || 0));
     } else if (course.schedules?.length > 0) {
@@ -332,7 +384,7 @@ export default function LearningPage() {
         <div className="flex h-screen bg-slate-50 text-slate-700 font-sans overflow-hidden">
 
             {/* --- Sidebar ซ้ายสุด (Navigation) --- */}
-            <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-40 hidden md:flex font-sans">
+            <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-40 hidden lg:flex font-sans">
                 <div className="h-16 flex items-center px-8 border-b border-gray-50/50 shrink-0">
                     <SigmaLogo size="lg" showText={true} />
                 </div>
@@ -407,8 +459,11 @@ export default function LearningPage() {
                 </div>
             </aside>
 
-            {/* --- พื้นที่เนื้อหาหลัก (ตรงกลาง) --- */}
-            <div className="flex-1 flex flex-col overflow-y-auto w-full relative">
+            {/* Wrapper สำหรับเนื้อหาหลักและ Playlist ให้ Responsive */}
+            <div className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden w-full relative">
+
+                {/* --- พื้นที่เนื้อหาหลัก (ตรงกลาง) --- */}
+                <div className="flex-1 flex flex-col overflow-y-auto w-full relative">
                 {/* Header */}
                 <div className="h-16 flex items-center justify-between px-8 bg-white border-b border-slate-100 shrink-0">
                     <Link href="/my-courses" className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 transition-colors font-medium">
@@ -449,9 +504,9 @@ export default function LearningPage() {
                                     <div className="flex-1">
                                         <h3 className="font-bold text-lg text-slate-900">{sched.topic || `บทเรียนที่ ${idx + 1}`}</h3>
                                         <p className="text-slate-500 text-sm mt-1">
-                                            {new Date(sched.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} · {sched.startTime} - {sched.endTime}
+                                            {new Date(sched.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} · {formatTime(sched.startTime)} - {formatTime(sched.endTime)} น.
                                         </p>
-                                        <div className="mt-4 flex flex-wrap gap-3">
+                                        <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-3">
                                             {sched.zoomLink ? (
                                                 <a href={sched.zoomLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors">
                                                     <span>🎥</span> เข้าเรียนผ่าน Zoom
@@ -493,11 +548,7 @@ export default function LearningPage() {
                                     const rawUrl = currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim();
                                     const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
                                     return (
-                                        <iframe
-                                            src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
-                                            className="w-full h-full"
-                                            allowFullScreen
-                                        />
+                                        <LiteYouTube vid={vid} title={currentLesson?.topic || currentLesson?.title} />
                                     );
                                 })()
                             ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId?.trim())) && course?.gumletVideoId?.trim()) ? (
@@ -513,11 +564,7 @@ export default function LearningPage() {
                                     const rawUrl = course.demoVideoUrl;
                                     const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
                                     return (
-                                        <iframe
-                                            src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
-                                            className="w-full h-full"
-                                            allowFullScreen
-                                        />
+                                        <LiteYouTube vid={vid} title="Course Demo Video" />
                                     );
                                 })()
                             ) : (
@@ -598,11 +645,11 @@ export default function LearningPage() {
                         )}
                     </div>
                 )}
-            </div>
+                </div>
 
-            {/* --- Sidebar ขวา (Playlist) --- */}
-            <div className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 shadow-sm relative z-10">
-                {/* Course Overview in Sidebar */}
+                {/* --- Sidebar ขวา (Playlist) --- */}
+                <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col shrink-0 shadow-sm relative z-10 h-[50vh] lg:h-full">
+                    {/* Course Overview in Sidebar */}
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">คอร์สเรียนปัจจุบัน</p>
                     <h2 className="font-bold text-slate-900 text-lg leading-tight mb-4">{course.title}</h2>
@@ -735,6 +782,7 @@ export default function LearningPage() {
                         ถัดไป <ArrowLeft size={16} className="rotate-180" />
                     </button>
                 </div>
+            </div>
             </div>
 
             {/* Review Modal */}
