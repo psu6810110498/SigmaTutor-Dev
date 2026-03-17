@@ -44,16 +44,19 @@ export class ScheduleService {
                             courseId,
                             // ✅ บังคับแปลงเป็นตัวเลข (Number) เสมอ ป้องกัน Error Type Mismatch
                             sessionNumber: Number(s.sessionNumber) || (index + 1),
-                            topic: s.title || 'ไม่มีหัวข้อ',
+                            topic: s.topic || s.title || 'ไม่มีหัวข้อ',
                             chapterTitle: s.chapterTitle || null,
                             videoUrl: s.videoUrl || null,
                             materialUrl: s.materialUrl || null,
                             gumletVideoId: s.gumletVideoId || null,
                             videoProvider: s.videoProvider || 'YOUTUBE',
-                            // ✅ ใส่ค่า Date พื้นฐาน (ลบ Status ออก เผื่อ Database ไม่มีฟิลด์นี้)
-                            date: new Date(),
-                            startTime: new Date(),
-                            endTime: new Date()
+                            date: s.date ? new Date(s.date) : null,
+                            startTime: s.startTime ? new Date(s.startTime) : null,
+                            endTime: s.endTime ? new Date(s.endTime) : null,
+                            location: s.location || null,
+                            isOnline: s.isOnline ?? false,
+                            status: s.status || 'ON_SCHEDULE',
+                            zoomLink: s.zoomLink || null,
                         }
                     }));
                 }

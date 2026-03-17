@@ -73,7 +73,7 @@ export default function MyCoursesPage() {
 
     if (course.courseType === 'ONLINE_LIVE') {
       return (
-        <Link href={`/courses/${course.id}/live`} className="mt-6 block w-full text-center py-3 rounded-xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-colors">
+        <Link href={`/courses/${course.id}/learn`} className="mt-6 block w-full text-center py-3 rounded-xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-colors">
           เข้าร่วมทันที <FiPlay className="inline ml-1" />
         </Link>
       );

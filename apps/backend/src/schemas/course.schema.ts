@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 // --- Course ---
 
-export const createCourseSchema = z.object({
+// Base object schema (ZodObject) — must stay as ZodObject so .partial() works on updateCourseSchema
+const baseCourseSchema = z.object({
     title: z.string().trim().min(3, 'Title must be at least 3 characters'),
     description: z.string().trim().optional(),
     price: z.number().min(0, 'Price must be non-negative'),
@@ -13,13 +14,14 @@ export const createCourseSchema = z.object({
     categoryId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
     levelId: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
     instructorId: z.string().optional().nullable(),
+    // รองรับผู้สอนหลายคน: array ของ teacher IDs (ตัวแรกคือ LEAD)
+    instructorIds: z.array(z.string()).optional(),
     maxSeats: z.number().int().min(0).optional().nullable(),
     enrollStartDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
     enrollEndDate: z.string().datetime().optional().nullable().or(z.date().optional().nullable()),
     location: z.string().trim().optional().nullable(),
     mapUrl: z.string().url().optional().nullable(),
     zoomLink: z.string().url().optional().nullable(),
-    // ✅ เพิ่มฟิลด์วิดีโอแนะนำและ PDF ให้สมบูรณ์
     demoVideoUrl: z.string().optional().nullable(),
     gumletVideoId: z.string().optional().nullable(),
     videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE'),
@@ -38,12 +40,51 @@ export const createCourseSchema = z.object({
     }).passthrough()).optional().default([]),
     isBestSeller: z.boolean().optional().default(false),
     isRecommended: z.boolean().optional().default(false),
+    accessDurationDays: z.number().int().positive().optional().default(365),
+    courseCode: z.string().trim().optional().nullable(),
+    shortDescription: z.string().trim().optional().nullable(),
+    priceRange: z.string().trim().optional().nullable(),
+    meetingId: z.string().trim().optional().nullable(),
 });
 
-// updateCourseSchema จะใช้ค่าจากด้านบนโดยอัตโนมัติ
-export const updateCourseSchema = createCourseSchema.partial().extend({
+// Seat-limit cross-field validation for course creation (courseType is always present)
+export const createCourseSchema = baseCourseSchema.superRefine((data, ctx) => {
+    if (data.courseType === 'ONLINE') {
+        if (data.maxSeats != null) {
+            (data as any).maxSeats = null;
+        }
+        return;
+    }
+    // ONLINE_LIVE / ONSITE require maxSeats >= 1
+    if (!data.maxSeats || data.maxSeats < 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['maxSeats'],
+            message: 'กรุณาระบุจำนวนที่นั่ง (อย่างน้อย 1) สำหรับคอร์สประเภทนี้',
+        });
+    }
+});
+
+// updateCourseSchema — built from base ZodObject so .partial() is available
+export const updateCourseSchema = baseCourseSchema.partial().extend({
     thumbnail: z.string().url().optional().nullable(),
     thumbnailSm: z.string().url().optional().nullable(),
+}).superRefine((data, ctx) => {
+    // Only validate when courseType is explicitly provided in the update payload
+    if (!data.courseType) return;
+    if (data.courseType === 'ONLINE') {
+        if (data.maxSeats != null) {
+            (data as any).maxSeats = null;
+        }
+        return;
+    }
+    if (!data.maxSeats || data.maxSeats < 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['maxSeats'],
+            message: 'กรุณาระบุจำนวนที่นั่ง (อย่างน้อย 1) สำหรับคอร์สประเภทนี้',
+        });
+    }
 });
 
 export const updateCourseStatusSchema = z.object({
@@ -74,6 +115,8 @@ export const marketplaceQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(12),
     sort: z.enum(['newest', 'price-asc', 'price-desc', 'popular']).default('newest'),
+    /** ซ่อนคอร์สที่ปิดรับสมัครแล้ว (เต็มที่นั่ง) — ใช้สำหรับหน้าแรก */
+    excludeFull: z.coerce.boolean().optional(),
 });
 
 /**

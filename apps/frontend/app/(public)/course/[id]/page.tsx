@@ -37,6 +37,10 @@ import { courseApi, reviewApi } from '@/app/lib/api';
 import { useCourse, toCartItem } from '@/app/context/CourseContext';
 import { useAuth } from '@/app/context/AuthContext';
 import type { Course, Review, ReviewListResponse, CourseType } from '@/app/lib/types';
+import { useCourseAvailability } from '@/app/hooks/useCourseAvailability';
+import { SeatProgressBar } from '@/app/components/ui/SeatProgressBar';
+import { ReservationCountdown } from '@/app/components/ui/ReservationCountdown';
+import { NotifyWhenAvailable } from '@/app/components/ui/NotifyWhenAvailable';
 
 // ── Tab Config per CourseType ─────────────────────────────
 const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
@@ -46,10 +50,13 @@ const tabsConfig: Record<CourseType, { key: string; label: string }[]> = {
   ],
   ONLINE_LIVE: [
     { key: 'schedule', label: '📅 ตารางเรียนสด' },
+    { key: 'live_content', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
   ONSITE: [
     { key: 'location', label: '📍 สถานที่เรียน' },
+    { key: 'schedule_table', label: '📅 ตารางเรียน' },
+    { key: 'lessons', label: '📚 เนื้อหาบทเรียน' },
     { key: 'reviews', label: '⭐ รีวิว' },
   ],
 };
@@ -74,9 +81,15 @@ export default function CourseDetailPage() {
   const [activeMedia, setActiveMedia] = useState<'video' | 'image'>('image');
   const [isEnrolled, setIsEnrolled] = useState(false);
 
+  const { availability, refetch: refetchAvailability } = useCourseAvailability(
+    course?.id ?? '',
+    { disabled: !course || course.courseType === 'ONLINE' },
+  );
+
   useEffect(() => {
-    if (course?.videoProvider === 'GUMLET' && course?.gumletVideoId) setActiveMedia('video');
-    else if (course?.demoVideoUrl) setActiveMedia('video');
+    // Default to 'image' to prevent heavy iframe loading on mountain (Lazy load)
+    // User will manually click the Video Thumbnail or Play overlay to switch
+    setActiveMedia('image');
   }, [course]);
 
   // Reviews
@@ -115,12 +128,9 @@ export default function CourseDetailPage() {
     if (!course || !user) return;
     const checkEnrollment = async () => {
       try {
-        const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/enrolled', {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-          const enrolled = data.data.some((c: any) => c.id === course.id || c.courseId === course.id);
+        const res = await courseApi.getEnrolled();
+        if (res.success && Array.isArray(res.data)) {
+          const enrolled = res.data.some((c: any) => c.id === course.id || c.courseId === course.id);
           setIsEnrolled(enrolled);
         }
       } catch (err) {
@@ -138,7 +148,7 @@ export default function CourseDetailPage() {
         setReviews(res.data.reviews);
         setReviewStats(res.data.stats);
         if (user) {
-           const didReview = res.data.reviews.some((r) => r.user.id === user.id);
+           const didReview = res.data.reviews.some((r: any) => r.user.id === user.id);
            setHasReviewed(didReview);
         }
       }
@@ -233,8 +243,27 @@ export default function CourseDetailPage() {
   const formatPrice = (n: number) =>
     new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0 }).format(n);
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const formatTime = (d: string | null | undefined) => {
+    if (!d) return '';
+    return new Date(d).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const calcTotalMinutes = (lessons: any[]) =>
+    lessons.reduce((sum: number, l: any) => sum + (l.duration ?? 0), 0);
+
+  const formatMinutes = (mins: number) => {
+    if (mins <= 0) return '';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) return h + ' ชม. ' + m + ' นาที';
+    if (h > 0) return h + ' ชม.';
+    return m + ' นาที';
+  };
 
   const toggleLesson = (id: string) => {
     setExpandedLessons((prev) => {
@@ -325,17 +354,30 @@ export default function CourseDetailPage() {
                   />
                 )
               ) : (
-                course.thumbnailLg || course.thumbnail ? (
-                  <img
-                    src={course.thumbnailLg || course.thumbnail!}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
-                    <BookOpen size={64} />
-                  </div>
-                )
+                <div className="w-full h-full relative cursor-pointer" onClick={() => {
+                  if (((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl)) {
+                    setActiveMedia('video');
+                  }
+                }}>
+                  {course.thumbnailLg || course.thumbnail ? (
+                    <img
+                      src={course.thumbnailLg || course.thumbnail!}
+                      alt={course.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 bg-gray-100">
+                      <BookOpen size={64} />
+                    </div>
+                  )}
+                  {((course.videoProvider === 'GUMLET' && course.gumletVideoId) || course.demoVideoUrl) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors z-10 group">
+                      <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <PlayCircle size={32} />
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {/* Type Badge */}
               <span
@@ -360,7 +402,18 @@ export default function CourseDetailPage() {
                       <Video className="text-white opacity-50" size={24} />
                     </div>
                   ) : course.demoVideoUrl ? (
-                    <img src={`https://img.youtube.com/vi/${course.demoVideoUrl.includes('v=') ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] : course.demoVideoUrl.split('/').pop()}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />
+                    (() => {
+                      const videoId = course.demoVideoUrl.includes('v=') 
+                        ? course.demoVideoUrl.split('v=')[1]?.split('&')[0] 
+                        : course.demoVideoUrl.split('/').pop()?.split('?')[0];
+                      return (
+                        <img 
+                          src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} 
+                          className="w-full h-full object-cover" 
+                          alt="Video thumbnail" 
+                        />
+                      );
+                    })()
                   ) : null}
                 </button>
 
@@ -494,7 +547,17 @@ export default function CourseDetailPage() {
                 {course.chapters && course.chapters.length > 0 ? (
                   course.chapters.map((chapter) => (
                     <div key={chapter.id}>
-                      <h3 className="font-bold text-gray-900 mb-3 ml-1">{chapter.title}</h3>
+                      <div className="flex items-center justify-between mb-3 ml-1">
+                        <h3 className="font-bold text-gray-900">{chapter.title}</h3>
+                        {chapter.lessons && chapter.lessons.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {chapter.lessons.length} บทเรียน
+                            {calcTotalMinutes(chapter.lessons) > 0 && (
+                              <> · {formatMinutes(calcTotalMinutes(chapter.lessons))}</>
+                            )}
+                          </span>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         {chapter.lessons?.map((lesson, i) => (
                           <div
@@ -512,6 +575,9 @@ export default function CourseDetailPage() {
                                 <span className="text-sm font-medium text-gray-900">
                                   {lesson.title}
                                 </span>
+                                {lesson.isFree && (
+                                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">ทดลองเรียน</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3 text-gray-400">
                                 {lesson.duration && (
@@ -531,23 +597,43 @@ export default function CourseDetailPage() {
                             {expandedLessons.has(lesson.id) && (
                               <div className="px-4 pb-4 text-sm text-gray-500 border-t border-gray-50 pt-3 bg-gray-50/50">
                                 {lesson.content || 'ไม่มีรายละเอียดเนื้อหา'}
-                                {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
-                                      className="w-full h-full"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                      title={lesson.title}
-                                    />
-                                  </div>
-                                ) : lesson.youtubeUrl && (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
-                                      className="w-full h-full"
-                                      allowFullScreen
-                                    />
+                                {isEnrolled || lesson.isFree ? (
+                                  <>
+                                    {((lesson.videoProvider === 'GUMLET' || (!lesson.videoProvider && lesson.gumletVideoId)) && lesson.gumletVideoId) ? (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://play.gumlet.io/embed/${lesson.gumletVideoId}`}
+                                          className="w-full h-full"
+                                          allow="autoplay; fullscreen; picture-in-picture"
+                                          allowFullScreen
+                                          title={lesson.title}
+                                        />
+                                      </div>
+                                    ) : lesson.youtubeUrl && (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${lesson.youtubeUrl.includes('v=') ? lesson.youtubeUrl.split('v=')[1]?.split('&')[0] : lesson.youtubeUrl.split('/').pop()}?autoplay=0`}
+                                          className="w-full h-full"
+                                          allowFullScreen
+                                        />
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="mt-3 p-6 bg-gray-900 rounded-xl border border-gray-800 flex flex-col items-center justify-center text-center shadow-inner">
+                                    <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 mb-3">
+                                      <Lock size={24} />
+                                    </div>
+                                    <p className="text-white font-medium mb-1">เนื้อหาสงวนสิทธิ์เฉพาะผู้เรียนคอร์สนี้</p>
+                                    <p className="text-gray-400 text-xs mb-4">
+                                      กรุณาเข้าสู่ระบบและสมัครเรียนเพื่อรับชมวิดีโอและเอกสารในบทเรียนนี้
+                                    </p>
+                                    <button
+                                      onClick={() => router.push('/checkout')}
+                                      className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
+                                    >
+                                      สั่งซื้อคอร์สเพื่อปลดล็อคเนื้อหา
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -567,7 +653,7 @@ export default function CourseDetailPage() {
                     <div className="space-y-2">
                       {course.schedules.map((sched: any, i: number) => {
                         const FREE_PREVIEW_COUNT = 2;
-                        const isLocked = i >= FREE_PREVIEW_COUNT;
+                        const isLocked = i >= FREE_PREVIEW_COUNT && !isEnrolled;
                         return (
                           <div
                             key={sched.id}
@@ -597,7 +683,7 @@ export default function CourseDetailPage() {
                                   </span>
                                 ) : (
                                   <>
-                                    {(sched.videoUrl || sched.gumletVideoId) && (
+                                    {course.courseType !== 'ONSITE' && (sched.videoUrl || sched.gumletVideoId) && (
                                       <span className="text-xs flex items-center gap-1">
                                         <Video size={14} /> วิดีโอ
                                       </span>
@@ -621,25 +707,30 @@ export default function CourseDetailPage() {
                                 {sched.chapterTitle && (
                                   <p className="text-gray-700 font-medium">{sched.chapterTitle}</p>
                                 )}
-                                {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
-                                  <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
-                                      className="w-full h-full"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
-                                ) : sched.videoUrl && (
-                                  <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                                    <iframe
-                                      src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
-                                      className="w-full h-full"
-                                      allowFullScreen
-                                      title={sched.topic}
-                                    />
-                                  </div>
+                                {/* Hide video for ONSITE — only available in the learning platform */}
+                                {course.courseType !== 'ONSITE' && (
+                                  <>
+                                    {((sched.videoProvider === 'GUMLET' || (!sched.videoProvider && sched.gumletVideoId)) && sched.gumletVideoId) ? (
+                                      <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://play.gumlet.io/embed/${sched.gumletVideoId}`}
+                                          className="w-full h-full"
+                                          allow="autoplay; fullscreen; picture-in-picture"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    ) : sched.videoUrl && (
+                                      <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${sched.videoUrl.includes('v=') ? sched.videoUrl.split('v=')[1]?.split('&')[0] : sched.videoUrl.split('/').pop()}?autoplay=0`}
+                                          className="w-full h-full"
+                                          allowFullScreen
+                                          title={sched.topic}
+                                        />
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                                 {sched.materialUrl && (
                                   <a
@@ -651,7 +742,7 @@ export default function CourseDetailPage() {
                                     <BookOpen size={14} /> ดาวน์โหลดเอกสารประกอบ
                                   </a>
                                 )}
-                                {!sched.videoUrl && !sched.materialUrl && !sched.chapterTitle && (
+                                {!sched.materialUrl && !sched.chapterTitle && (course.courseType === 'ONSITE' || (!sched.videoUrl && !sched.gumletVideoId)) && (
                                   <p className="text-gray-400">ไม่มีรายละเอียดเนื้อหา</p>
                                 )}
                               </div>
@@ -661,7 +752,7 @@ export default function CourseDetailPage() {
                       })}
                     </div>
                     {/* Paywall Message */}
-                    {course.schedules.length > 2 && (
+                    {course.schedules.length > 2 && !isEnrolled && (
                       <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl text-center">
                         <Lock size={20} className="mx-auto mb-2 text-orange-500" />
                         <p className="text-sm font-bold text-gray-800">
@@ -670,12 +761,12 @@ export default function CourseDetailPage() {
                         <p className="text-xs text-gray-500 mt-1">
                           ต้องชำระเงินซื้อคอร์สก่อน ถึงจะดูเนื้อหาทั้ง {course.schedules.length} บทได้
                         </p>
-                        <Link
-                          href="/checkout"
+                        <button
+                          onClick={() => router.push('/checkout')}
                           className="inline-block mt-3 px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-md shadow-primary/20"
                         >
                           <ShoppingCart size={14} className="inline mr-1" /> ซื้อคอร์สเพื่อปลดล็อค
-                        </Link>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -685,63 +776,96 @@ export default function CourseDetailPage() {
               </div>
             )}
 
-            {/* === Schedule Tab (ONLINE_LIVE) === */}
+            {/* === Schedule Tab (ONLINE_LIVE) — table style === */}
             {activeTab === 'schedule' && course.schedules && (
-              <div className="space-y-3">
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2 text-lg">
+                  📅 ตารางเรียน Live
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">ลิงก์ Zoom จะแสดงหลังชำระเงินเรียนเรียบร้อยแล้ว</p>
+
                 {course.schedules.length === 0 ? (
                   <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
                 ) : (
-                  <>
-                    {course.schedules.map((sched, idx) => {
-                      const isPast = new Date(sched.date) < new Date();
-                      const isOnline = sched.isOnline || course.courseType === 'ONLINE_LIVE';
-                      return (
-                        <div
-                          key={sched.id}
-                          className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${isPast ? 'border-gray-100 opacity-60' : 'border-gray-200'
-                            }`}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                          <th className="pb-3 pr-4 w-16">ครั้งที่</th>
+                          <th className="pb-3 pr-4">วันที่</th>
+                          <th className="pb-3 pr-4">เวลา</th>
+                          <th className="pb-3 pr-4">หัวข้อการเรียน</th>
+                          <th className="pb-3 text-right">ลิงก์เข้าเรียน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {course.schedules.map((sched: any, idx: number) => {
+                          const startT = sched.startTime ? formatTime(sched.startTime) : '';
+                          const endT = sched.endTime ? formatTime(sched.endTime) : '';
+                          const timeStr = startT && endT ? `${startT} - ${endT}` : startT || '-';
+                          return (
+                            <tr key={sched.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 pr-4 font-semibold text-gray-700">
+                                <span className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 font-bold text-sm flex items-center justify-center">
+                                  {sched.sessionNumber ?? idx + 1}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{formatDate(sched.date)}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{timeStr}</td>
+                              <td className="py-3 pr-4 text-gray-800 font-medium">{sched.topic || '-'}</td>
+                              <td className="py-3 text-right">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium cursor-not-allowed select-none">
+                                  <Lock size={12} /> ชำระเงินเพื่อดู
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === Course Content Tab (ONLINE_LIVE) — topics + PDF only, no video === */}
+            {activeTab === 'live_content' && course.schedules && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                  📚 เนื้อหาบทเรียน
+                </h3>
+                {course.schedules.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีเนื้อหา</p>
+                ) : (
+                  <div className="space-y-2">
+                    {course.schedules.map((sched: any, idx: number) => (
+                      <div key={sched.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                        <button
+                          onClick={() => toggleLesson(sched.id)}
+                          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                         >
-                          {/* Session Number */}
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${isPast ? 'bg-gray-100 text-gray-400' : 'bg-violet-50 text-violet-600'
-                              }`}
-                          >
-                            {idx + 1}
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center text-sm font-bold">
+                              {sched.sessionNumber ?? idx + 1}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 text-left">{sched.topic || `ครั้งที่ ${idx + 1}`}</span>
                           </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm truncate">
-                              {sched.topic}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {formatDate(sched.date)} · {sched.startTime} – {sched.endTime}
-                            </p>
+                          <div className="flex items-center gap-2 text-gray-400 flex-shrink-0">
+                            {expandedLessons.has(sched.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </div>
-
-                          {/* Platform badge (no link exposed) */}
-                          <div className="flex-shrink-0">
-                            {isPast ? (
-                              <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-                                เรียนแล้ว
-                              </span>
-                            ) : isOnline ? (
-                              <span className="text-xs text-violet-600 bg-violet-50 px-2 py-1 rounded-lg font-medium">
-                                📡 Zoom
-                              </span>
+                        </button>
+                        {expandedLessons.has(sched.id) && (
+                          <div className="px-4 pb-4 pt-3 border-t border-gray-50 bg-gray-50/50">
+                            {sched.chapterTitle ? (
+                              <p className="text-xs text-gray-500 font-medium">{sched.chapterTitle}</p>
                             ) : (
-                              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-lg font-medium">
-                                📍 {sched.location || 'สถานที่เรียน'}
-                              </span>
+                              <p className="text-xs text-gray-400">ไม่มีรายละเอียดเพิ่มเติม</p>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                    <p className="text-xs text-gray-400 text-center pt-2">
-                      🔒 ลิงก์ Zoom จะส่งให้ทางอีเมลหลังชำระเงิน
-                    </p>
-                  </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -766,6 +890,73 @@ export default function CourseDetailPage() {
               </div>
             )}
 
+            {/* === Schedule Table Tab (ONSITE) === */}
+            {activeTab === 'schedule_table' && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                  🗓️ ตารางเรียน
+                </h3>
+
+                {/* Notice box */}
+                <div className="flex items-start gap-2 mb-5 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-700">
+                  <span className="mt-0.5">⚠️</span>
+                  <span>หากมีความจำเป็นต้องเลื่อนคลาส จะแจ้งล่วงหน้าอย่างน้อย 24 ชม.</span>
+                </div>
+
+                {/* Table */}
+                {course.schedules && course.schedules.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs text-gray-500 font-semibold uppercase tracking-wide">
+                          <th className="pb-3 pr-4 w-16">ครั้งที่</th>
+                          <th className="pb-3 pr-4">วันที่</th>
+                          <th className="pb-3 pr-4">เวลา</th>
+                          <th className="pb-3 pr-4">สถานที่</th>
+                          <th className="pb-3 pr-4">หัวข้อ</th>
+                          <th className="pb-3 text-right">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {course.schedules.map((sched: any, idx: number) => {
+                          const statusLabel: Record<string, string> = {
+                            ON_SCHEDULE: 'ตามกำหนด',
+                            POSTPONED: 'เลื่อน',
+                            CANCELLED: 'ยกเลิก',
+                          };
+                          const statusColor: Record<string, string> = {
+                            ON_SCHEDULE: 'bg-gray-100 text-gray-600',
+                            POSTPONED: 'bg-orange-100 text-orange-700',
+                            CANCELLED: 'bg-red-100 text-red-700',
+                          };
+                          const status = sched.status || 'ON_SCHEDULE';
+                          const startT = sched.startTime ? formatTime(sched.startTime) : '';
+                          const endT = sched.endTime ? formatTime(sched.endTime) : '';
+                          const timeStr = startT && endT ? `${startT} - ${endT}` : startT || '-';
+                          return (
+                            <tr key={sched.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="py-3 pr-4 font-semibold text-gray-700">{sched.sessionNumber ?? idx + 1}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{formatDate(sched.date)}</td>
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">{timeStr}</td>
+                              <td className="py-3 pr-4 text-gray-600">{sched.location || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 pr-4 text-gray-800 font-medium">{sched.topic || <span className="text-gray-300 italic">-</span>}</td>
+                              <td className="py-3 text-right">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[status] || statusColor['ON_SCHEDULE']}`}>
+                                  {statusLabel[status] || status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-8">ยังไม่มีตารางเรียน</p>
+                )}
+              </div>
+            )}
+
             {/* === Reviews Tab (All Types) === */}
             {activeTab === 'reviews' && (
               <div className="space-y-6">
@@ -781,7 +972,7 @@ export default function CourseDetailPage() {
                     </div>
                     <div className="flex-1 space-y-2 w-full">
                       {Array.from({ length: 5 }, (_, i) => 5 - i).map((star) => {
-                        const dist = reviewStats.distribution.find((d) => d.rating === star);
+                        const dist = reviewStats.distribution.find((d: any) => d.rating === star);
                         const count = dist?.count || 0;
                         const pct = reviewStats.total > 0 ? (count / reviewStats.total) * 100 : 0;
                         return (
@@ -961,11 +1152,8 @@ export default function CourseDetailPage() {
                   { step: '2', title: 'รอยืนยัน', desc: 'ทีมงานจะยืนยันภายใน 24 ชม.' },
                   {
                     step: '3',
-                    title: 'รับลิงก์',
-                    desc:
-                      course.courseType === 'ONLINE_LIVE'
-                        ? 'รับลิงก์ Zoom ทางอีเมล'
-                        : 'รับรายละเอียดสถานที่เรียน',
+                    title: 'เข้าคอร์สของฉัน',
+                    desc: 'Login และไปที่หน้า Dashboard เพื่อดูลิงก์',
                   },
                   { step: '4', title: 'เริ่มเรียน!', desc: 'เข้าเรียนตามตารางที่กำหนด' },
                 ].map((s) => (
@@ -1009,16 +1197,24 @@ export default function CourseDetailPage() {
               )}
             </div>
 
+            {/* Seat Availability */}
+            {availability && availability.isLimited && (
+              <div className="space-y-2">
+                <SeatProgressBar availability={availability} size="md" showCount />
+                {availability.isReservedOnly && availability.earliestExpiryInSeconds != null && (
+                  <ReservationCountdown
+                    expiresInSeconds={availability.earliestExpiryInSeconds}
+                    onExpired={refetchAvailability}
+                  />
+                )}
+                {availability.isReservedOnly && (
+                  <NotifyWhenAvailable courseId={course.id} courseTitle={course.title} />
+                )}
+              </div>
+            )}
+
             {/* Info */}
             <div className="space-y-3 text-sm">
-              {course.maxSeats && (
-                <div className="flex items-center justify-between text-gray-600">
-                  <span>จำนวนรับ</span>
-                  <span className="font-medium">
-                    {course._count?.enrollments || 0}/{course.maxSeats}
-                  </span>
-                </div>
-              )}
               {course.duration && (
                 <div className="flex items-center justify-between text-gray-600">
                   <span>ระยะเวลา</span>
@@ -1044,6 +1240,10 @@ export default function CourseDetailPage() {
               >
                 <PlayCircle size={18} /> เข้าสู่บทเรียน
               </Link>
+            ) : availability?.isFull && !availability.isReservedOnly ? (
+              <div className="text-center py-3 px-4 rounded-xl bg-gray-100 text-gray-500 text-sm font-medium">
+                คอร์สนี้ปิดรับสมัครแล้ว
+              </div>
             ) : (
               <>
                 <button
@@ -1060,14 +1260,14 @@ export default function CourseDetailPage() {
                       addToCart(toCartItem(course));
                     }
                   }}
-                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group ${
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${
                     isOwned(course.id)
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed hidden'
                       : isInCart(course.id)
                       ? 'bg-red-50 text-red-600 hover:bg-red-100'
                       : 'bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20 active:scale-[0.98]'
                   }`}
-                  disabled={isOwned(course.id)}
+                  disabled={availability?.isFull || isOwned(course.id)}
                 >
                   {isOwned(course.id) ? (
                     <span className="flex items-center justify-center gap-2">
@@ -1089,6 +1289,7 @@ export default function CourseDetailPage() {
                   )}
                 </button>
                 <button
+                  disabled={availability?.isFull}
                   onClick={() => {
                     const owned = isOwned(course.id);
                     if (owned) {
@@ -1099,10 +1300,9 @@ export default function CourseDetailPage() {
                     if (!isInCart(course.id)) {
                       addToCart(toCartItem(course));
                     }
-                    // Use setTimeout to ensure context state is flushed slightly before routing
                     setTimeout(() => router.push('/checkout'), 50);
                   }}
-                  className={`block w-full py-3 rounded-xl text-sm font-bold text-center border-2 transition-colors ${
+                  className={`block w-full py-3 rounded-xl text-sm font-bold text-center border-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     isOwned(course.id) 
                       ? 'bg-primary text-white hover:bg-primary-dark border-primary hidden'
                       : 'border-primary text-primary hover:bg-primary/5'

@@ -42,6 +42,8 @@ export default function AdminCoursesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [instructorFilter, setInstructorFilter] = useState<string>('all');
+  const [instructors, setInstructors] = useState<any[]>([]);
 
   // ── Pagination ───────────────────────────────────────────
   const [page, setPage] = useState(1);
@@ -79,6 +81,19 @@ export default function AdminCoursesPage() {
       }
     };
 
+    const fetchInstructors = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/users/instructors', {
+          credentials: 'include'
+        });
+        const res = await response.json();
+        if (res.success) setInstructors(res.data);
+      } catch (error) {
+        console.error('Failed to fetch instructors', error);
+      }
+    };
+
+    fetchInstructors();
     fetchStudentsCount();
   }, []);
 
@@ -92,6 +107,9 @@ export default function AdminCoursesPage() {
       });
       if (search) params.append('search', search);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (categoryFilter !== 'all') params.append('categoryId', categoryFilter);
+      if (typeFilter !== 'all') params.append('courseType', typeFilter);
+      if (instructorFilter !== 'all') params.append('instructorId', instructorFilter);
 
       const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/admin?${params.toString()}`, {
         headers: {
@@ -134,27 +152,28 @@ export default function AdminCoursesPage() {
     }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, page]);
-
-  // ── Client-side filters for category & type ──────────────
-  const filteredCourses = useMemo(() => {
-    return courses.filter((c) => {
-      if (categoryFilter !== 'all' && c.categoryId !== categoryFilter) return false;
-      if (typeFilter !== 'all' && c.courseType !== typeFilter) return false;
-      return true;
-    });
-  }, [courses, categoryFilter, typeFilter]);
+  }, [search, statusFilter, categoryFilter, typeFilter, instructorFilter, page]);
 
   // ── Stats (ปรับปรุงให้ใช้ค่าจาก summary ที่แม่นยำ 100%) ──────────────────
   const stats = useMemo(
     () => ({
-      total: summary.all,           // 🌟 เปลี่ยนจาก courses.length เป็น summary.all (จะโชว์ 28)
-      published: summary.published, // 🌟 ใช้ค่าจาก summary เพื่อความแม่นยำ
-      draft: summary.draft,         // 🌟 ใช้ค่าจาก summary เพื่อความแม่นยำ
+      total: summary.all,
+      published: summary.published,
+      draft: summary.draft,
       totalStudents: totalStudents,
     }),
-    [summary, totalStudents] // 🌟 เปลี่ยน dependencies เป็น summary
+    [summary, totalStudents]
   );
+
+  // Helper function to get full category name with hierarchy
+  const getCategoryLabel = (category: Category) => {
+    if (!category) return '';
+    const parent = categories.find(c => c.id === (category as any).parentId);
+    if (parent) {
+      return `${parent.name} > ${category.name}`;
+    }
+    return category.name;
+  };
 
   // ── อัปเดตสถานะคอร์ส (API PATCH) ──────────────────────────
   const handleStatusChange = async (courseId: string, newStatus: string) => {
@@ -371,19 +390,40 @@ export default function AdminCoursesPage() {
           <div className="flex flex-col md:flex-row gap-3 pt-2 border-t border-gray-100 animate-fade-in-up">
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[160px]"
             >
               <option value="all">หมวดหมู่ทั้งหมด</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {getCategoryLabel(c)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={instructorFilter}
+              onChange={(e) => {
+                setInstructorFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[160px]"
+            >
+              <option value="all">ผู้สอนทั้งหมด</option>
+              {instructors.map((inst) => (
+                <option key={inst.id} value={inst.id}>
+                  {inst.name}
                 </option>
               ))}
             </select>
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white min-w-[140px]"
             >
               <option value="all">ประเภททั้งหมด</option>
@@ -396,7 +436,9 @@ export default function AdminCoursesPage() {
                 setCategoryFilter('all');
                 setTypeFilter('all');
                 setStatusFilter('all');
+                setInstructorFilter('all');
                 setSearch('');
+                setPage(1);
               }}
               className="text-sm text-gray-500 hover:text-primary underline"
             >
@@ -434,36 +476,36 @@ export default function AdminCoursesPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(limit)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-14 h-10 bg-gray-100 rounded-lg" />
                         <div className="space-y-2">
-                          <div className="h-3.5 bg-gray-100 rounded w-48" />
-                          <div className="h-2.5 bg-gray-100 rounded w-24" />
+                          <div className="h-4 bg-gray-100 rounded w-48" />
+                          <div className="h-3 bg-gray-100 rounded w-24" />
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="h-3.5 bg-gray-100 rounded w-16" />
+                      <div className="h-4 bg-gray-100 rounded w-16" />
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell">
-                      <div className="h-3.5 bg-gray-100 rounded w-16" />
+                      <div className="h-4 bg-gray-100 rounded w-16" />
                     </td>
                     <td className="px-5 py-4 hidden lg:table-cell">
-                      <div className="h-3.5 bg-gray-100 rounded w-24" />
+                      <div className="h-4 bg-gray-100 rounded w-24" />
                     </td>
-                    <td className="px-5 py-4">
-                      <div className="h-5 bg-gray-100 rounded-full w-16 mx-auto" />
+                    <td className="px-5 py-4 text-center">
+                      <div className="h-6 bg-gray-100 rounded-full w-20 mx-auto" />
                     </td>
-                    <td className="px-5 py-4">
-                      <div className="h-5 bg-gray-100 rounded w-20 mx-auto" />
+                    <td className="px-5 py-4 text-center">
+                      <div className="h-8 bg-gray-100 rounded-lg w-24 mx-auto" />
                     </td>
                   </tr>
                 ))
-              ) : filteredCourses.length > 0 ? (
-                filteredCourses.map((course) => (
+              ) : courses.length > 0 ? (
+                courses.map((course) => (
                   <tr key={course.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -540,6 +582,16 @@ export default function AdminCoursesPage() {
                             <Eye size={16} />
                           </button>
                         </Link>
+                        {course.courseType !== 'ONLINE' && (
+                          <Link href={`/admin/courses/${course.id}/seats`}>
+                            <button
+                              className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                              title="จัดการที่นั่ง"
+                            >
+                              <Users size={16} />
+                            </button>
+                          </Link>
+                        )}
                         <Link href={`/admin/courses/${course.id}/edit`}>
                           <button
                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -594,7 +646,7 @@ export default function AdminCoursesPage() {
         {total > 0 && (
           <div className="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
             <span className="text-sm text-gray-500">
-              แสดง {filteredCourses.length} จากทั้งหมด {total} รายการ
+              แสดง {courses.length} จากทั้งหมด {total} รายการ
             </span>
             <div className="flex items-center gap-1">
               <button

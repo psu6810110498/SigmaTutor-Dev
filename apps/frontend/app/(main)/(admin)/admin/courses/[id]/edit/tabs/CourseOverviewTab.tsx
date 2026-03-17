@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { FileText, Video, User, Save, File, DollarSign, Folder } from "lucide-react";
-import { courseApi, categoryApi, levelApi } from "@/app/lib/api";
+import { FileText, Video, User, Save, File, DollarSign, Folder, MapPin } from "lucide-react";
+import { courseApi, categoryApi, levelApi, userApi, gumletApi } from "@/app/lib/api";
 import { useToast } from "@/app/components/ui/Toast";
 import { SectionCard } from "@/app/components/ui/SectionCard";
 import { NumberInput } from "@/app/components/ui/NumberInput";
@@ -10,10 +10,11 @@ import { RichTextarea } from "@/app/components/ui/RichTextarea";
 import { ImageUpload } from "@/app/components/ui/ImageUpload";
 import { Button } from "@/app/components/ui/Button";
 import { useRouter } from "next/navigation";
+import { InstructorMultiSelect, type SelectedInstructor, type InstructorOption } from "@/app/components/ui/InstructorMultiSelect";
 
 interface CourseOverviewTabProps {
     course: any;
-    instructors: any[];
+    instructors: InstructorOption[];
     onUpdate: () => void;
 }
 
@@ -34,6 +35,22 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     const [gumletProgress, setGumletProgress] = useState(0);
     const [saving, setSaving] = useState(false);
 
+    // โหลด instructors ที่มีอยู่แล้วของคอร์ส (instructors[] จาก API หรือ fallback จาก instructorId)
+    const [selectedInstructors, setSelectedInstructors] = useState<SelectedInstructor[]>(() => {
+        if (Array.isArray(course.instructors) && course.instructors.length > 0) {
+            return course.instructors.map((inst: any, idx: number) => ({
+                id: inst.id,
+                role: inst.role ?? (idx === 0 ? 'LEAD' : 'ASSISTANT'),
+                order: inst.order ?? idx,
+            }));
+        }
+        // backward compat: ถ้ายังไม่มี instructors[] ให้ใช้ instructorId เดิม
+        if (course.instructorId) {
+            return [{ id: course.instructorId, role: 'LEAD' as const, order: 0 }];
+        }
+        return [];
+    });
+
     // ── ข้อมูลอ้างอิงจาก API ──
     const [categories, setCategories] = useState<any[]>([]);
     const [levels, setLevels] = useState<any[]>([]);
@@ -44,24 +61,57 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
     }, []);
 
     const [form, setForm] = useState<any>({
-        title: course.title || "",
-        description: course.description || "",
-        price: course.price || 0,
-        originalPrice: course.originalPrice || null,
-        promotionalPrice: course.promotionalPrice || null,
-        instructorId: course.instructorId || "",
-        courseType: course.courseType || "ONLINE",
-        categoryId: course.categoryId || null,
-        levelId: course.levelId || null,
-        demoVideoUrl: course.demoVideoUrl || "",
-        gumletVideoId: course.gumletVideoId || "",
-        videoProvider: course.videoProvider || "YOUTUBE",
-        duration: course.duration || null,
-        materialUrl: course.materialUrl || "",
-        published: course.published ?? false,
-        isBestSeller: course.isBestSeller ?? false,
-        isRecommended: course.isRecommended ?? false,
+        title: "",
+        description: "",
+        price: 0,
+        originalPrice: null,
+        promotionalPrice: null,
+        instructorId: "",
+        courseType: "ONLINE",
+        categoryId: null,
+        levelId: null,
+        demoVideoUrl: "",
+        gumletVideoId: "",
+        videoProvider: "YOUTUBE",
+        duration: null,
+        materialUrl: "",
+        published: false,
+        isBestSeller: false,
+        isRecommended: false,
+        accessDurationDays: 365,
+        maxSeats: null,
+        location: "",
+        mapUrl: "",
     });
+
+    // 🌟 Sync form when course prop changes (essential for Edit mode)
+    useEffect(() => {
+        if (course) {
+            setForm({
+                title: course.title || "",
+                description: course.description || "",
+                price: course.price || 0,
+                originalPrice: course.originalPrice || null,
+                promotionalPrice: course.promotionalPrice || null,
+                instructorId: course.instructorId || "",
+                courseType: course.courseType || "ONLINE",
+                categoryId: course.categoryId || null,
+                levelId: course.levelId || null,
+                demoVideoUrl: course.demoVideoUrl || "",
+                gumletVideoId: course.gumletVideoId || "",
+                videoProvider: course.videoProvider || "YOUTUBE",
+                duration: course.duration || null,
+                materialUrl: course.materialUrl || "",
+                published: course.published ?? false,
+                isBestSeller: course.isBestSeller ?? false,
+                isRecommended: course.isRecommended ?? false,
+                accessDurationDays: course.accessDurationDays ?? 365,
+                maxSeats: course.maxSeats || null,
+                location: course.location || "",
+                mapUrl: course.mapUrl || "",
+            });
+        }
+    }, [course]);
 
     const rootCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
     const [rootCategoryId, setRootCategoryId] = useState<string>("");
@@ -166,28 +216,15 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
             setUploadingGumlet(true);
             setGumletProgress(0);
 
-            let token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken');
-            if (!token) {
-                const match = document.cookie.match(/(?:^|;)\s*(token|accessToken)\s*=\s*([^;]+)/);
-                if (match) token = match[2];
-            }
-            const headers: Record<string, string> = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const res = await gumletApi.getUploadUrl();
 
-            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/gumlet/upload-url', {
-                method: 'POST',
-                credentials: 'include',
-                headers
-            });
-            const data = await res.json();
-
-            if (!data.success || !data.upload_url) {
-                toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
+            if (!res.success || !res.data) {
+                toast.error(res.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้");
                 setUploadingGumlet(false);
                 return;
             }
 
-            const { upload_url, asset_id } = data;
+            const { upload_url, asset_id } = res.data;
 
             return new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -247,7 +284,12 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
         try {
 
             // prepare and possibly upload new PDF if selected
-            const payload = { ...form };
+            const payload: any = { ...form };
+            // ส่ง instructorIds array ไปกับ payload
+            payload.instructorIds = selectedInstructors
+                .sort((a, b) => a.order - b.order)
+                .map((s) => s.id);
+            delete payload.instructorId;
             if (newPdfFile) {
                 setUploadingPdf(true);
                 try {
@@ -291,7 +333,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
             }
 
             // Cleanup empty strings
-            ['demoVideoUrl', 'gumletVideoId', 'materialUrl'].forEach((key) => {
+            ['demoVideoUrl', 'gumletVideoId', 'materialUrl', 'location', 'mapUrl'].forEach((key) => {
                 if (payload[key as keyof typeof payload] === "") payload[key as keyof typeof payload] = null;
             });
 
@@ -318,7 +360,11 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                 onUpdate(); // รีเฟรชข้อมูลในหน้าหลัก
                 router.refresh(); // clear Next.js cache so UI shows updated data
             } else {
-                toast.error(res.error || "บันทึกไม่สำเร็จ");
+                if (res.details && Array.isArray(res.details)) {
+                    toast.error(`Validation Failed: ${res.details[0].message}`);
+                } else {
+                    toast.error(res.error || "บันทึกไม่สำเร็จ");
+                }
             }
         } catch (error) {
             console.error("Update Error:", error);
@@ -502,6 +548,19 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                             </div>
                         </div>
                     </div>
+                    <div className="pt-4 border-t border-gray-100">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">อายุการเข้าถึงคอร์ส (วัน) <span className="text-xs text-gray-400 font-normal">— ตั้งค่า admin เท่านั้น</span></label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="1"
+                                value={form.accessDurationDays ?? 365}
+                                onChange={(e) => updateForm("accessDurationDays", parseInt(e.target.value) || 365)}
+                                className="w-32 h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm text-center"
+                            />
+                            <span className="text-sm text-gray-500">วัน (ค่าเริ่มต้น 365 วัน = 1 ปี)</span>
+                        </div>
+                    </div>
                 </SectionCard>
 
                 {/* 3. หมวดหมู่และระดับชั้น */}
@@ -546,23 +605,13 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                     )}
                 </SectionCard>
 
-                {/* 4. ผู้สอน (เชื่อมกับฐานข้อมูลครู) */}
+                {/* 4. ผู้สอน (รองรับหลายคน) */}
                 <SectionCard title="ผู้สอน" icon={User}>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">เลือกผู้สอน</label>
-                        <select
-                            value={form.instructorId || ""}
-                            onChange={(e) => updateForm("instructorId", e.target.value)}
-                            className="w-full h-10 px-3 rounded-lg border border-gray-300 bg-white outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-                        >
-                            <option value="">-- เลือกผู้สอน --</option>
-                            {instructors.map((inst) => (
-                                <option key={inst.id} value={inst.id}>
-                                    {inst.name} {inst.nickname ? `(${inst.nickname})` : ''} - {inst.title || 'ครูผู้สอน'}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <InstructorMultiSelect
+                        options={instructors}
+                        value={selectedInstructors}
+                        onChange={setSelectedInstructors}
+                    />
                 </SectionCard>
             </div>
 
@@ -620,6 +669,34 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                         </div>
                     </div>
                 </SectionCard>
+
+                {/* สถานที่เรียน — only for ONSITE */}
+                {form.courseType === 'ONSITE' && (
+                    <SectionCard title="สถานที่เรียน" icon={MapPin}>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อสถานที่</label>
+                                <input
+                                    type="text"
+                                    value={form.location || ""}
+                                    onChange={(e) => updateForm("location", e.target.value)}
+                                    placeholder="เช่น ห้อง 201 อาคาร A มหาวิทยาลัย..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ลิงก์ Google Map</label>
+                                <input
+                                    type="url"
+                                    value={form.mapUrl || ""}
+                                    onChange={(e) => updateForm("mapUrl", e.target.value)}
+                                    placeholder="https://maps.google.com/?q=..."
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 outline-none text-sm"
+                                />
+                            </div>
+                        </div>
+                    </SectionCard>
+                )}
             </div>
         </div>
     );

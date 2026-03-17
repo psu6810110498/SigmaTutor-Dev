@@ -63,6 +63,8 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
 
     // ✅ ฟังก์ชันจัดการอัปโหลด PDF
     const handlePdfUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.type !== "application/pdf") {
@@ -106,7 +108,6 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
             alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ตอนอัปโหลดไฟล์");
         } finally {
             setUploadingId(null);
-            e.target.value = ''; // รีเซ็ตค่า input เผื่อผู้ใช้เลือกไฟล์เดิมซ้ำ
         }
     };
 
@@ -185,8 +186,6 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
             console.error(error);
             alert("ระบบอัปโหลดมีปัญหา");
             setUploadingGumletId(null);
-        } finally {
-            e.target.value = '';
         }
     };
 
@@ -344,12 +343,18 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                                         onChange={(e) => handlePdfUpload(s.id, e)}
                                                         disabled={uploadingId === s.id}
                                                     />
-                                                    <label
-                                                        htmlFor={`desktop-pdf-${s.id}`}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            document.getElementById(`desktop-pdf-${s.id}`)?.click();
+                                                        }}
                                                         className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        disabled={uploadingId === s.id}
                                                     >
                                                         {uploadingId === s.id ? "กำลังอัปโหลด..." : "เลือกไฟล์ PDF"}
-                                                    </label>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </td>
@@ -529,12 +534,18 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                                                         onChange={(e) => handlePdfUpload(s.id, e)}
                                                         disabled={uploadingId === s.id}
                                                     />
-                                                    <label
-                                                        htmlFor={`mobile-pdf-${s.id}`}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            document.getElementById(`mobile-pdf-${s.id}`)?.click();
+                                                        }}
                                                         className={`h-9 px-3 bg-white border border-gray-200 rounded-md flex items-center justify-center cursor-pointer text-xs font-medium transition-colors whitespace-nowrap text-gray-600 hover:bg-gray-50 ${uploadingId === s.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        disabled={uploadingId === s.id}
                                                     >
                                                         {uploadingId === s.id ? "อัปโหลด..." : "เลือก PDF"}
-                                                    </label>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

@@ -3,7 +3,7 @@ import { courseService } from '../services/course.service.js';
 import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { publicApiLimiter } from '../middleware/rate-limit.middleware.js';
-import { authenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
+import { authenticate, optionalAuthenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
 import {
   createCourseSchema,
   updateCourseSchema,
@@ -164,12 +164,120 @@ router.get('/my-courses', authenticate, async (req: Request, res: Response): Pro
 });
 
 /**
+ * GET /api/courses/my-schedules
+ * Returns upcoming schedules for the authenticated user isolated to the closest learning day.
+ */
+router.get('/my-schedules', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const mySchedules = await courseService.getMyUpcomingSchedules(userId);
+    res.json({ success: true, data: mySchedules });
+  } catch (error) {
+    console.error('Error fetching upcoming schedules:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch schedules' });
+  }
+});
+
+/**
+ * GET /api/courses/enrolled-vod
+ * Get user's enrolled ONLINE (VOD) courses with chapters/lessons
+ */
+router.get('/enrolled-vod', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const courses = await courseService.getEnrolledVodCourses(userId);
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch VOD courses';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/courses/self-study
+ * Create a self-study session
+ */
+router.post('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const session = await courseService.createSelfStudySession(userId, req.body);
+    res.status(201).json({ success: true, data: session });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create self-study session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * DELETE /api/courses/self-study/:id
+ * Delete a self-study session
+ */
+router.delete('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    await courseService.deleteSelfStudySession(userId, req.params.id);
+    res.json({ success: true, message: 'Session deleted' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * GET /api/courses/self-study
+ * Get all self-study sessions for authenticated user (for calendar view)
+ */
+router.get('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const sessions = await courseService.getAllSelfStudySessions(userId);
+    res.json({ success: true, data: sessions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch self-study sessions';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
+ * PUT /api/courses/self-study/:id
+ * Update a self-study session
+ */
+router.put('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user?.userId;
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const session = await courseService.updateSelfStudySession(userId, req.params.id, req.body);
+    res.json({ success: true, data: session });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update session';
+    res.status(400).json({ success: false, error: message });
+  }
+});
+
+/**
  * GET /api/courses/slug/:slug
  * Get course details by slug (public)
  */
-router.get('/slug/:slug', async (req: Request, res: Response): Promise<void> => {
+router.get('/slug/:slug', optionalAuthenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
   try {
-    const course = await courseService.findBySlug(String(req.params.slug));
+    const course = await courseService.findBySlug(String(req.params.slug), authReq.user?.userId);
     res.json({ success: true, data: course });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Course not found';
@@ -181,9 +289,10 @@ router.get('/slug/:slug', async (req: Request, res: Response): Promise<void> => 
  * GET /api/courses/:id
  * Get course details (public)
  */
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', optionalAuthenticate, async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthRequest;
   try {
-    const course = await courseService.findById(String(req.params.id));
+    const course = await courseService.findById(String(req.params.id), authReq.user?.userId);
     res.json({ success: true, data: course });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Course not found';
@@ -289,7 +398,6 @@ router.post(
         return;
       }
 
-      // Use UploadService to upload to R2 (Correct Logic)
       const { url } = await import('../services/upload.service.js').then((m) =>
         m.uploadService.uploadFile(req.file!, 'courses/thumbnails')
       );
@@ -299,6 +407,119 @@ router.post(
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed';
       res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+// ── Admin Seat Management ─────────────────────────────────────
+
+/**
+ * POST /api/courses/:id/seats/sync
+ * Force sync Redis seat counter from DB
+ */
+router.post(
+  '/:id/seats/sync',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const courseId = req.params.id;
+      const course = await prisma.course.findUniqueOrThrow({
+        where: { id: courseId },
+        select: { maxSeats: true, courseType: true }
+      });
+
+      if (course.courseType === 'ONLINE' || !course.maxSeats) {
+        res.status(400).json({ success: false, error: 'Not a limited course' });
+        return;
+      }
+
+      const enrolledCount = await prisma.enrollment.count({
+        where: { courseId, status: 'ACTIVE' },
+      });
+      // Need to import seatReservationService at top to use it here: 
+      const { seatReservationService } = await import('../services/seat-reservation.service.js');
+      const reservedCount = await seatReservationService.countReservations(courseId);
+      
+      await seatReservationService.syncCounter(courseId, course.maxSeats, enrolledCount, reservedCount);
+      
+      res.json({ success: true, message: 'Seat counter synced successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to sync seats';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * PATCH /api/courses/:id/seats
+ * Update maxSeats (ADMIN only)
+ */
+router.patch(
+  '/:id/seats',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const courseId = req.params.id;
+      const maxSeats = Number(req.body.maxSeats);
+      
+      if (isNaN(maxSeats) || maxSeats < 0) {
+        res.status(400).json({ success: false, error: 'Invalid maxSeats' });
+        return;
+      }
+
+      await courseService.update(courseId, { maxSeats });
+      res.json({ success: true, message: 'Seat limit updated and counter synced' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update seats';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/courses/:id/enrollments
+ * Get enrolled students list for a limited course (ADMIN only)
+ */
+router.get(
+  '/:id/enrollments',
+  authenticate,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const enrollments = await prisma.enrollment.findMany({
+        where: { courseId: req.params.id, status: 'ACTIVE' },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, profileImage: true, phone: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json({ success: true, data: enrollments });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get enrollments';
+      res.status(400).json({ success: false, error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/courses/:id/availability
+ * Get real-time seat availability for a course (public).
+ */
+router.get(
+  '/:id/availability',
+  publicApiLimiter,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const availability = await courseService.getAvailability(req.params.id);
+      res.json({ success: true, data: availability });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch availability';
+      const status = message === 'Course not found' ? 404 : 500;
+      res.status(status).json({ success: false, error: message });
     }
   }
 );

@@ -1,28 +1,25 @@
-// User model
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  password     String?
-  name         String?
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  lastActive   DateTime @default(now())
-  profileImage String?
-
+  id             String         @id @default(cuid())
+  email          String         @unique
+  password       String?
+  name           String?
+  role           Role           @default(USER)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  profileImage   String?
   address        String?
   phone          String?
   birthday       DateTime?
   educationLevel String?
   school         String?
   province       String?
-
-  // Relations
-  sessions    Session[]
-  enrollments Enrollment[]
-  payments    Payment[]
-  progress    UserProgress[]
-  reviews     Review[]
+  lastActive     DateTime       @default(now())
+  enrollments    Enrollment[]
+  payments       Payment[]
+  sessions       Session[]
+  reviews        Review[]
+  progress       UserProgress[]
+  selfStudySessions SelfStudySession[]
 
   @@index([email])
 }
@@ -33,8 +30,7 @@ model Session {
   refreshToken String   @unique
   expiresAt    DateTime
   createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([refreshToken])

@@ -29,8 +29,11 @@ export default function LearningPage() {
 
     // State สำหรับการเรียน
     const [currentLesson, setCurrentLesson] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'SCHEDULE' | 'VOD'>('SCHEDULE');
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+    const [courseExpired, setCourseExpired] = useState(false);
+    const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
     // State สำหรับการรีวิว
     const [userReview, setUserReview] = useState<Review | null>(null);
@@ -43,11 +46,34 @@ export default function LearningPage() {
         const fetchCourse = async () => {
             try {
                 // Fetch public course detail (which includes chapters/schedules)
-                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${courseId}`);
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + `/courses/${courseId}`, {
+                    credentials: 'include',
+                });
                 const data = await res.json();
 
                 if (data.success) {
                     setCourse(data.data);
+
+                    // Check enrollment expiry (non-admin users only)
+                    if (user && user.role !== 'ADMIN') {
+                        try {
+                            const enrollRes = await fetch('http://localhost:4000/api/courses/enrolled', {
+                                credentials: 'include',
+                            });
+                            const enrollData = await enrollRes.json();
+                            if (enrollData.success && Array.isArray(enrollData.data)) {
+                                const enrollment = enrollData.data.find((e: any) => e.courseId === courseId || e.course?.id === courseId);
+                                if (enrollment?.expiresAt) {
+                                    setExpiresAt(enrollment.expiresAt);
+                                    if (new Date(enrollment.expiresAt) < new Date()) {
+                                        setCourseExpired(true);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to check enrollment expiry:', e);
+                        }
+                    }
 
                     // Fetch user's completed progress
                     try {
@@ -72,6 +98,13 @@ export default function LearningPage() {
                         }
                     } else if (c.schedules && c.schedules.length > 0) {
                         setCurrentLesson(c.schedules[0]);
+                    }
+
+                    // Default Tab Logic
+                    if (c.courseType !== 'ONLINE') {
+                        setActiveTab('SCHEDULE');
+                    } else {
+                        setActiveTab('VOD');
                     }
                 } else {
                     toast.error("ไม่สามารถโหลดข้อมูลคอร์สได้");
@@ -260,6 +293,26 @@ export default function LearningPage() {
 
     if (!course) return null;
 
+    if (courseExpired) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
+                    <div className="text-5xl mb-4">⏰</div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">คอร์สนี้หมดอายุแล้ว</h2>
+                    <p className="text-gray-500 text-sm mb-1">คุณไม่สามารถเข้าถึงบทเรียนได้อีกต่อไป</p>
+                    {expiresAt && (
+                        <p className="text-xs text-gray-400 mb-6">
+                            หมดอายุเมื่อ {new Date(expiresAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                    )}
+                    <a href="/" className="inline-block px-6 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
+                        กลับหน้าหลัก
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     // คำนวณเปอร์เซ็นต์เรียนจบแบบ UI Fake
     let totalItems = 0;
     if (course.chapters?.length > 0) {
@@ -267,7 +320,7 @@ export default function LearningPage() {
     } else if (course.schedules?.length > 0) {
         totalItems = course.schedules.length;
     }
-    
+
     // กรองหาเฉพาะบทเรียนที่เรียนจบและยังมีอยู่จริงในคอร์ส เพื่อป้องกันเปอร์เซ็นต์เกิน 100% จากบทเรียนที่ถูกลบไปแล้ว
     const validCompletedLessonsCount = Array.from(completedLessons).filter(id => allLessons.some((l: any) => l.id === id)).length;
     const progressPercent = totalItems === 0 ? 0 : Math.min(100, Math.round((validCompletedLessonsCount / totalItems) * 100));
@@ -369,128 +422,182 @@ export default function LearningPage() {
                     </div>
                 </div>
 
-                {/* Video & Info Area */}
-                <div className="p-8 max-w-5xl mx-auto w-full">
-                    {/* Video Player */}
-                    <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
-                        {/* 1. Lesson has Gumlet */}
-                        {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId)) && currentLesson?.gumletVideoId ? (
-                            <iframe
-                                src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId}`}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                title={currentLesson?.title || 'Gumlet Video'}
-                            />
-                        ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId)) && (currentLesson?.videoUrl || currentLesson?.youtubeUrl)) ? (
-                            (() => {
-                                const rawUrl = currentLesson?.videoUrl || currentLesson?.youtubeUrl;
-                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
-                                return (
-                                    <iframe
-                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
-                                        className="w-full h-full"
-                                        allowFullScreen
-                                    />
-                                );
-                            })()
-                        ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId)) && course?.gumletVideoId) ? (
-                            <iframe
-                                src={`https://play.gumlet.io/embed/${course.gumletVideoId}`}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                title="Course Demo Video"
-                            />
-                        ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
-                            (() => {
-                                const rawUrl = course.demoVideoUrl;
-                                const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
-                                return (
-                                    <iframe
-                                        src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
-                                        className="w-full h-full"
-                                        allowFullScreen
-                                    />
-                                );
-                            })()
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
-                                <PlayCircle size={48} className="opacity-50 text-slate-300" />
-                                <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
+                {course.courseType !== 'ONLINE' && (
+                    <div className="flex px-8 border-b border-slate-200 shrink-0 bg-white">
+                        <button
+                            onClick={() => setActiveTab('SCHEDULE')}
+                            className={`px-6 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'SCHEDULE' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        >
+                            ตารางเรียน
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('VOD')}
+                            className={`px-6 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'VOD' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        >
+                            ดูย้อนหลัง (VOD)
+                        </button>
+                    </div>
+                )}
+
+                {activeTab === 'SCHEDULE' && course.courseType !== 'ONLINE' ? (
+                    <div className="flex-1 w-full overflow-y-auto bg-slate-50 p-8 max-w-5xl mx-auto">
+                        <h2 className="text-2xl font-bold text-slate-900 mb-6">ตารางเรียนและช่องทางการเรียน</h2>
+                        <div className="space-y-4">
+                            {course.schedules?.map((sched: any, idx: number) => (
+                                <div key={sched.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">{sched.sessionNumber || idx + 1}</div>
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-lg text-slate-900">{sched.topic || `บทเรียนที่ ${idx + 1}`}</h3>
+                                        <p className="text-slate-500 text-sm mt-1">
+                                            {new Date(sched.date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} · {sched.startTime} - {sched.endTime}
+                                        </p>
+                                        <div className="mt-4 flex flex-wrap gap-3">
+                                            {sched.zoomLink ? (
+                                                <a href={sched.zoomLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors">
+                                                    <span>🎥</span> เข้าเรียนผ่าน Zoom
+                                                </a>
+                                            ) : course.courseType === 'ONLINE_LIVE' ? (
+                                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm font-semibold">
+                                                    กำลังเตรียมลิงก์ Zoom...
+                                                </div>
+                                            ) : null}
+                                            {course.courseType === 'ONSITE' && (
+                                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-lg text-sm font-semibold">
+                                                    <span>📍</span> สถานที่: {sched.location || course.location || 'ติดต่อผู้สอน'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(!course.schedules || course.schedules.length === 0) && (
+                                <p className="text-slate-500 italic text-center py-8">ยังไม่มีตารางเรียน</p>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-8 max-w-5xl mx-auto w-full flex-1 overflow-y-auto">
+                        {/* Video Player */}
+                        <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
+                            {/* 1. Lesson has Gumlet */}
+                            {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId?.trim())) && currentLesson?.gumletVideoId?.trim() ? (
+                                <iframe
+                                    src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId.trim()}`}
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    title={currentLesson?.topic || currentLesson?.title || 'Gumlet Video'}
+                                />
+                            ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId?.trim())) && (currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim())) ? (
+                                (() => {
+                                    const rawUrl = currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim();
+                                    const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                    return (
+                                        <iframe
+                                            src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                            className="w-full h-full"
+                                            allowFullScreen
+                                        />
+                                    );
+                                })()
+                            ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId?.trim())) && course?.gumletVideoId?.trim()) ? (
+                                <iframe
+                                    src={`https://play.gumlet.io/embed/${course.gumletVideoId.trim()}`}
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    title="Course Demo Video"
+                                />
+                            ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
+                                (() => {
+                                    const rawUrl = course.demoVideoUrl;
+                                    const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                    return (
+                                        <iframe
+                                            src={`https://www.youtube.com/embed/${vid}?autoplay=0&rel=0`}
+                                            className="w-full h-full"
+                                            allowFullScreen
+                                        />
+                                    );
+                                })()
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
+                                    <PlayCircle size={48} className="opacity-50 text-slate-300" />
+                                    <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Lesson Title & Desc */}
+                        <div className="mt-8 flex items-start justify-between gap-6">
+                            <div>
+                                <h1 className="text-3xl font-black text-slate-900">{currentLesson?.topic || currentLesson?.title || 'ไม่ได้เลือกบทเรียน'}</h1>
+                                <p className="text-slate-500 mt-3 text-sm leading-relaxed max-w-3xl">
+                                    {currentLesson?.description || 'บทเรียนนี้จะอธิบายเนื้อหาตามหัวข้อเพื่อเตรียมความพร้อมสำหรับเนื้อหาขั้นต่อไป โปรดดูวิดีโอและทำแบบฝึกหัดหากมี'}
+                                </p>
+                            </div>
+                            <div className="flex gap-3 shrink-0">
+                                <button
+                                    onClick={handleOpenReviewModal}
+                                    className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
+                                    ${userReview
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    {userReview ? (
+                                        <>แก้ไขรีวิว</>
+                                    ) : (
+                                        <>เขียนรีวิวคอร์ส</>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (!currentLesson) return;
+                                        await toggleCompleted(currentLesson.id);
+                                    }}
+                                    className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
+                                    ${currentLesson && completedLessons.has(currentLesson.id)
+                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    {currentLesson && completedLessons.has(currentLesson.id) ? (
+                                        <><CheckCircle size={16} /> เรียนจบแล้ว</>
+                                    ) : (
+                                        <><div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center bg-white" /> ทำเครื่องหมายว่าเรียนจบ</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Documents */}
+                        {(currentLesson?.materialUrl || course.materialUrl) && (
+                            <div className="mt-10">
+                                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+                                    <BookOpen size={16} className="text-blue-500" /> เอกสารประกอบการเรียน
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <a
+                                        href={currentLesson?.materialUrl || course.materialUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-50 transition-all group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0">
+                                                <FileText size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700 group-hover:text-blue-700 transition-colors">เอกสารแนบ.pdf</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">PDF Document</p>
+                                            </div>
+                                        </div>
+                                        <Download size={18} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                                    </a>
+                                </div>
                             </div>
                         )}
                     </div>
-
-                    {/* Lesson Title & Desc */}
-                    <div className="mt-8 flex items-start justify-between gap-6">
-                        <div>
-                            <h1 className="text-3xl font-black text-slate-900">{currentLesson?.topic || currentLesson?.title || 'ไม่ได้เลือกบทเรียน'}</h1>
-                            <p className="text-slate-500 mt-3 text-sm leading-relaxed max-w-3xl">
-                                {currentLesson?.description || 'บทเรียนนี้จะอธิบายเนื้อหาตามหัวข้อเพื่อเตรียมความพร้อมสำหรับเนื้อหาขั้นต่อไป โปรดดูวิดีโอและทำแบบฝึกหัดหากมี'}
-                            </p>
-                        </div>
-                        <div className="flex gap-3 shrink-0">
-                            <button
-                                onClick={handleOpenReviewModal}
-                                className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
-                                    ${userReview 
-                                        ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-                            >
-                                {userReview ? (
-                                    <>แก้ไขรีวิว</>
-                                ) : (
-                                    <>เขียนรีวิวคอร์ส</>
-                                )}
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (!currentLesson) return;
-                                    await toggleCompleted(currentLesson.id);
-                                }}
-                                className={`px-4 py-2 font-bold text-sm rounded-xl border transition-colors flex items-center gap-2
-                                    ${currentLesson && completedLessons.has(currentLesson.id)
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-                            >
-                                {currentLesson && completedLessons.has(currentLesson.id) ? (
-                                    <><CheckCircle size={16} /> เรียนจบแล้ว</>
-                                ) : (
-                                    <><div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center bg-white" /> ทำเครื่องหมายว่าเรียนจบ</>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Documents */}
-                    {(currentLesson?.materialUrl || course.materialUrl) && (
-                        <div className="mt-10">
-                            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-                                <BookOpen size={16} className="text-blue-500" /> เอกสารประกอบการเรียน
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <a
-                                    href={currentLesson?.materialUrl || course.materialUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md hover:shadow-blue-50 transition-all group"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0">
-                                            <FileText size={20} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-700 group-hover:text-blue-700 transition-colors">เอกสารแนบ.pdf</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">PDF Document</p>
-                                        </div>
-                                    </div>
-                                    <Download size={18} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
-                                </a>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
             {/* --- Sidebar ขวา (Playlist) --- */}

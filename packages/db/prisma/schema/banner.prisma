@@ -3,17 +3,17 @@ model Banner {
   title          String
   subtitle       String?
   imageUrl       String
-  imageUrlMobile String? // For mobile devices (Portrait/Square)
+  imageUrlMobile String?
   ctaLink        String?        @default("#")
   ctaText        String?        @default("Learn More")
   isActive       Boolean        @default(true)
-  priority       Int            @default(0) // Display Order (1, 2, 3...)
-  startDate      DateTime? // Schedule Start
-  endDate        DateTime? // Schedule End
+  priority       Int            @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  deletedAt      DateTime? // Soft delete for Recycle Bin
   position       BannerPosition @default(EXPLORE_TOP)
+  deletedAt      DateTime?
 
   @@map("banners")
 }

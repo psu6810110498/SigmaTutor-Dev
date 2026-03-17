@@ -4,9 +4,12 @@
 // ============================================================
 
 import type {
+  TutorPublicProfile,
+  InstructorPublic,
   ApiResponse,
   Course,
   CourseListResponse,
+  CourseAvailability,
   CreateCourseInput,
   CourseQueryParams,
   Category,
@@ -107,6 +110,47 @@ export const courseApi = {
   /** GET /courses/enrolled — User's enrolled courses */
   getEnrolled() {
     return request<Course[]>(`/courses/enrolled`);
+  },
+
+  /** GET /courses/my-schedules — User's daily timetable schedules */
+  getUpcomingSchedules() {
+    return request<any>(`/courses/my-schedules`);
+  },
+
+  /** GET /courses/enrolled-vod — User's enrolled VOD courses with chapters/lessons */
+  getEnrolledVod() {
+    return request<any>(`/courses/enrolled-vod`);
+  },
+
+  /** POST /courses/self-study — Create a self-study session */
+  createSelfStudy(data: { courseId: string; lessonId?: string; topic: string; startTime: string; endTime: string }) {
+    return request<any>('/courses/self-study', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** DELETE /courses/self-study/:id — Delete a self-study session */
+  deleteSelfStudy(id: string) {
+    return request<void>(`/courses/self-study/${id}`, {
+      method: 'DELETE',
+      headers: headers(true),
+    });
+  },
+
+  /** GET /courses/self-study — Get all self-study sessions (for calendar) */
+  getAllSelfStudy() {
+    return request<any>(`/courses/self-study`);
+  },
+
+  /** PUT /courses/self-study/:id — Update a self-study session */
+  updateSelfStudy(id: string, data: { topic?: string; startTime?: string; endTime?: string; lessonId?: string }) {
+    return request<any>(`/courses/self-study/${id}`, {
+      method: 'PUT',
+      headers: headers(true),
+      body: JSON.stringify(data),
+    });
   },
 
   /** GET /courses/admin — Admin/Instructor dashboard listing */
@@ -235,6 +279,8 @@ export type TutorProfile = {
   title?: string | null;
 };
 
+
+
 export const tutorApi = {
   /**
    * GET /tutors — Returns instructors filtered by active course filters.
@@ -249,6 +295,27 @@ export const tutorApi = {
         ? '?' + new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()
         : '';
     return request<TutorProfile[]>(`/tutors${query}`);
+  },
+
+  /** 
+   * GET /tutors/all — Full list for the Instructors/Tutors Grid Page
+   * Cached at Edge/CDN for performance.
+   */
+  getAll(): Promise<ApiResponse<InstructorPublic[]>> {
+    // Revalidate every 1 hour (3600 seconds) for ISR
+    return request<InstructorPublic[]>('/tutors/all', {
+      next: { revalidate: 3600 },
+    } as RequestInit);
+  },
+
+  /** 
+   * GET /tutors/:id — Full Instructor Profile including review stats
+   * Cached at Edge/CDN for performance.
+   */
+  getById(id: string): Promise<ApiResponse<TutorPublicProfile>> {
+    return request<TutorPublicProfile>(`/tutors/${id}`, {
+      next: { revalidate: 3600 },
+    } as RequestInit);
   },
 };
 
@@ -792,4 +859,38 @@ export const progressApi = {
       body: JSON.stringify({ courseId, ...data }),
       headers: headers(true),
     }),
+};
+
+// ============================================================
+// Seat Availability API
+// ============================================================
+
+export const availabilityApi = {
+  /** GET /courses/:id/availability — real-time seat data */
+  get: (courseId: string) =>
+    request<CourseAvailability>(`/courses/${courseId}/availability`),
+
+  /** Fetch availability for multiple courses in parallel */
+  getMany: (courseIds: string[]) =>
+    Promise.all(courseIds.map((id) => availabilityApi.get(id))),
+
+  /** POST /courses/notify-seat — subscribe to seat-available notification */
+  notifyWhenAvailable: (courseId: string, email: string) =>
+    request<{ message: string }>('/courses/notify-seat', {
+      method: 'POST',
+      body: JSON.stringify({ courseId, email }),
+    }),
+};
+
+// ============================================================
+// Gumlet API
+// ============================================================
+export const gumletApi = {
+  /** POST /gumlet/upload-url — Get signed upload URL (ADMIN) */
+  getUploadUrl() {
+    return request<{ upload_url: string; asset_id: string }>('/gumlet/upload-url', {
+      method: 'POST',
+      headers: headers(true),
+    });
+  },
 };

@@ -1,6 +1,24 @@
 import { prisma } from '@sigma/db';
 
 export class ProgressService {
+    async checkEnrollmentAccess(userId: string, courseId: string, userRole?: string) {
+        if (userRole === 'ADMIN') return { allowed: true };
+
+        const enrollment = await prisma.enrollment.findUnique({
+            where: { userId_courseId: { userId, courseId } },
+        });
+
+        if (!enrollment || enrollment.status !== 'ACTIVE') {
+            return { allowed: false, reason: 'NOT_ENROLLED' };
+        }
+
+        if (enrollment.expiresAt && enrollment.expiresAt < new Date()) {
+            return { allowed: false, reason: 'COURSE_EXPIRED', expiresAt: enrollment.expiresAt };
+        }
+
+        return { allowed: true, enrollment };
+    }
+
     async getProgressByCourse(userId: string, courseId: string) {
         return prisma.userProgress.findMany({
             where: {

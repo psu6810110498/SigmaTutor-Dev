@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/components/ui/Toast';
 
 // ✅ แก้ไข: เพิ่มฟิลด์เสริมเข้าไปใน Interface ให้ครบตาม Database
@@ -32,7 +31,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const { toast } = useToast();
 
   const checkAuth = useCallback(async () => {
@@ -48,19 +46,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('sigma_user', JSON.stringify(json.data));
         }
       } else if (res && res.status === 401) {
+        const wasLoggedIn = !!localStorage.getItem('sigma_user');
         setUser(null);
         localStorage.removeItem('sigma_user');
         localStorage.removeItem('sigma_cart');
         localStorage.removeItem('sigma_wishlist');
-        // Show notification but DO NOT redirect aggressively
-        toast.error('Session expired, please login again');
+        // Show notification only if they were previously logged in (avoids noise for guests/after intentional logout)
+        if (wasLoggedIn) {
+          toast.error('Session expired, please login again');
+        }
       }
-    } catch (error) {
+    } catch {
       console.error("Auth Check Failed");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('sigma_user');
@@ -81,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         credentials: 'include',
       }).catch(() => null);
-    } catch (e) {
+    } catch {
       console.error("Logout error");
     }
     setUser(null);
@@ -89,10 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('sigma_cart');
     localStorage.removeItem('sigma_wishlist');
 
-    // Clear the cart application state by reloading or pushing and letting context trigger
-    router.push('/login');
-    setTimeout(() => window.location.reload(), 100);
-  }, [router]);
+    // Clear the cart application state by securely navigating
+    window.location.href = '/login';
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>

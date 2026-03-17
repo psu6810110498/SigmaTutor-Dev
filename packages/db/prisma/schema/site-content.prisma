@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────────
-// SiteContent — key/value JSON store for homepage sections
-// keys: "students" | "stats" | "universities" | "tutors" | "testimonial" | "faqs"
-// ─────────────────────────────────────────────
 model SiteContent {
   id        String   @id @default(cuid())
   key       String   @unique

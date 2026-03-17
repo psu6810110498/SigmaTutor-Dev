@@ -12,7 +12,6 @@ import { useAuth } from "@/app/context/AuthContext";
 
 const NAV_LINKS = [
     { label: "หน้าแรก", href: "/" },
-    // Fix Route: Updated from /courses to /explore to match new routing structure
     { label: "รวมคอร์ส", href: "/explore" },
     { label: "เกี่ยวกับเรา", href: "/about" },
     { label: "ติดต่อเรา", href: "/contact" },

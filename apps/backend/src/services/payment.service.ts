@@ -1,6 +1,7 @@
 import { prisma } from '@sigma/db';
 import { stripe } from '../lib/stripe.js';
 import type Stripe from 'stripe';
+import { seatReservationService } from './seat-reservation.service.js';
 
 interface CartItem {
   courseId: string;
@@ -136,9 +137,44 @@ export class PaymentService {
         },
       });
 
-      // 🌟 อนุญาตให้ซื้อซ้ำได้เฉพาะกรณีที่เคยทำรายการแต่ยังชำระไม่สำเร็จ
       if (existing && existing.status === 'ACTIVE') {
         throw new Error(`Already enrolled in: ${item.title}`);
+      }
+    }
+
+    // ── Seat Reservation: all-or-nothing ──────────────────
+    // For limited courses (ONLINE_LIVE / ONSITE), atomically reserve a seat
+    // before creating the Stripe session. If any course is full → rollback all.
+    const reservedCourseIds: string[] = [];
+
+    for (const item of items) {
+      const course = await prisma.course.findUnique({
+        where: { id: item.courseId },
+        select: { courseType: true, maxSeats: true },
+      });
+
+      const isLimited = course?.courseType !== 'ONLINE' && course?.maxSeats != null;
+      if (!isLimited) continue;
+
+      // ตรวจสอบและ init Redis counter ก่อนเสมอ
+      // ป้องกัน false FULL เมื่อ Redis restart หรือ counter ยังไม่เคย init
+      await seatReservationService.ensureCounter(item.courseId, async () => {
+        const enrolled = await prisma.enrollment.count({
+          where: { courseId: item.courseId, status: 'ACTIVE' },
+        });
+        return { maxSeats: course!.maxSeats!, enrolledCount: enrolled };
+      });
+
+      const result = await seatReservationService.reserve(item.courseId, userId);
+
+      if (result === 'OK') {
+        reservedCourseIds.push(item.courseId);
+      } else if (result === 'ALREADY_RESERVED') {
+        reservedCourseIds.push(item.courseId);
+      } else {
+        // FULL — rollback all reservations made so far
+        await seatReservationService.releaseMany(reservedCourseIds, userId);
+        throw new Error(`คอร์ส "${item.title}" เต็มแล้ว กรุณาลองใหม่ภายหลัง`);
       }
     }
 
@@ -218,13 +254,15 @@ export class PaymentService {
 
     const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
-    // Create Stripe Checkout Session
+    // Create Stripe Checkout Session (15-min expiry matches reservation TTL)
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'promptpay'],
       line_items: lineItems,
       mode: 'payment',
       success_url: `${frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/checkout/cancel`,
+      // Stripe ต้องการ expires_at อย่างน้อย 30 นาที นับจากตอนสร้าง session
+      expires_at: Math.floor(Date.now() / 1000) + 1800,
       metadata: {
         userId,
         courseIds: items.map((i) => i.courseId).join(','),
@@ -310,35 +348,55 @@ export class PaymentService {
           where: { userId_courseId: { userId, courseId } },
         });
 
+        const courseAccess = await tx.course.findUnique({
+          where: { id: courseId },
+          select: { accessDurationDays: true },
+        });
+        const accessDays = courseAccess?.accessDurationDays ?? 365;
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + accessDays);
+
         if (!existing) {
           await tx.enrollment.create({
             data: {
               userId,
               courseId,
               status: 'ACTIVE',
+              expiresAt,
             },
           });
         } else {
           await tx.enrollment.update({
             where: { userId_courseId: { userId, courseId } },
-            data: { status: 'ACTIVE' },
+            data: { status: 'ACTIVE', expiresAt },
           });
         }
       }
     });
 
+    // Confirm reservations → seats are now consumed as enrollments
+    await seatReservationService.confirmMany(courseIds, userId);
+
     console.log(`✅ Checkout completed for user ${userId}, courses: ${courseIds.join(', ')}`);
   }
 
   /**
-   * Handle expired checkout
+   * Handle expired or failed checkout — release seat reservations.
    */
   private async handleCheckoutExpired(session: Stripe.Checkout.Session) {
     await prisma.payment.updateMany({
       where: { stripeId: session.id },
       data: { status: 'FAILED' },
     });
-    console.log(`❌ Checkout expired or failed for session ${session.id}`);
+
+    const userId = session.metadata?.userId;
+    const courseIds = session.metadata?.courseIds?.split(',').filter(Boolean) || [];
+
+    if (userId && courseIds.length > 0) {
+      await seatReservationService.releaseMany(courseIds, userId);
+    }
+
+    console.log(`❌ Checkout expired/failed for session ${session.id}`);
   }
 
   /**

@@ -91,6 +91,14 @@ function AnimatedStat({ value, label }: { value: string; label: string }) {
 
 // ─── Main page ────────────────────────────────────────────
 export default function HomePage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400">กำลังโหลด...</div>}>
+      <HomeContent />
+    </React.Suspense>
+  );
+}
+
+function HomeContent() {
   const [popularCourses, setPopularCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ทั้งหมด');
@@ -137,6 +145,7 @@ export default function HomePage() {
         const params = {
           sort: 'popular' as const,
           limit: 5,
+          excludeFull: true,
           ...(activeTab !== 'ทั้งหมด' && matchedCategory ? { categoryId: matchedCategory.id } : {}),
         };
         const courseRes = await courseApi.getMarketplace(params);
@@ -296,8 +305,8 @@ export default function HomePage() {
 
           {!loading && popularCourses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-              {popularCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
+              {popularCourses.map((course, i) => (
+                <CourseCard key={course.id} course={course} index={i} priority={i < 5} />
               ))}
             </div>
           ) : loading ? (

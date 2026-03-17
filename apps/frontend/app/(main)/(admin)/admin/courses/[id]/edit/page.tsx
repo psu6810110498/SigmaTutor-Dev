@@ -8,7 +8,11 @@ import type { Course } from "@/app/lib/types";
 import { useToast } from "@/app/components/ui/Toast";
 import { AdminFormLayout } from "@/app/components/layouts/AdminFormLayout";
 import { CourseOverviewTab } from "./tabs/CourseOverviewTab";
-import { ScheduleTab } from "./tabs/ScheduleTab"; // ✅ ลบ CurriculumTab ออก แล้วใช้แค่ ScheduleTab
+import { LessonsTab } from "./tabs/LessonsTab";
+import { LiveScheduleTab } from "./tabs/LiveScheduleTab";
+import { OnsiteScheduleTab } from "./tabs/OnsiteScheduleTab";
+
+import { courseApi, userApi } from "@/app/lib/api";
 
 export default function EditCoursePage() {
     const params = useParams();
@@ -24,27 +28,21 @@ export default function EditCoursePage() {
     const [activeTab, setActiveTab] = useState<"overview" | "schedule">("overview");
 
     const fetchData = async () => {
+        if (!courseId) return;
         setLoading(true);
         try {
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-
-            const courseRes = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${courseId}`, { headers, credentials: 'include' });
-            const courseData = await courseRes.json();
-
-            const instRes = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/instructors`, { headers, credentials: 'include' });
-            const instData = await instRes.json();
-
-            if (courseData.success) {
-                setCourse(courseData.data);
-            } else {
-                toast.error("ไม่พบข้อมูลคอร์ส");
+            const [courseRes, instRes] = await Promise.all([
+                courseApi.getById(courseId),
+                userApi.list()
+            ]);
+            if (courseRes.success && courseRes.data) {
+                setCourse(courseRes.data);
+                toast.error(courseRes.error || "ไม่พบข้อมูลคอร์ส");
                 router.push("/admin/courses");
             }
 
-            if (instData.success) {
-                setInstructors(instData.data);
+            if (instRes.success && instRes.data) {
+                setInstructors(instRes.data);
             }
         } catch (error) {
             console.error("Fetch Error:", error);
@@ -63,8 +61,8 @@ export default function EditCoursePage() {
 
     return (
         <AdminFormLayout
-            title={`แก้ไข: ${course.title}`}
-            description="จัดการข้อมูล เนื้อหา และตารางเรียน"
+            title="แก้ไขคอร์สเรียน 🛠️"
+            description={`กำลังปรับปรุงข้อมูลสำหรับ: ${course.title}`}
             breadcrumbs={[
                 { label: 'แดชบอร์ด', href: '/admin' },
                 { label: 'จัดการคอร์ส', href: '/admin/courses' },
@@ -92,8 +90,15 @@ export default function EditCoursePage() {
                         onUpdate={fetchData}
                     />
                 )}
-                {/* ✅ บังคับให้เรียกใช้ ScheduleTab เสมอ เพื่อให้หน้าตาเหมือนตอนสร้างคอร์สเป๊ะๆ */}
-                {activeTab === "schedule" && <ScheduleTab course={course} onUpdate={fetchData} />}
+                {activeTab === "schedule" && course.courseType === "ONLINE" && (
+                    <LessonsTab course={course} onUpdate={fetchData} />
+                )}
+                {activeTab === "schedule" && course.courseType === "ONLINE_LIVE" && (
+                    <LiveScheduleTab course={course} onUpdate={fetchData} />
+                )}
+                {activeTab === "schedule" && course.courseType === "ONSITE" && (
+                    <OnsiteScheduleTab course={course} onUpdate={fetchData} />
+                )}
             </div>
         </AdminFormLayout>
     );

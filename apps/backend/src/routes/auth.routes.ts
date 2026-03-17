@@ -87,12 +87,22 @@ router.post('/logout', async (req: Request, res: Response): Promise<void> => {
     if (refreshToken) {
       await authService.logout(refreshToken);
     }
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+    };
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     res.json({ success: true, message: 'Logged out successfully' });
   } catch {
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+    };
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     res.json({ success: true, message: 'Logged out successfully' });
   }
 });

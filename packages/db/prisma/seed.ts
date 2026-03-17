@@ -98,79 +98,19 @@ async function main() {
   // Default password for instructors
   const instructorPassword = hashSync('password123', 10);
 
-  const INSTRUCTORS = [
-    {
-      email: 'bas@sigma.com',
-      name: 'ครูพี่บาส',
-      nickname: 'พี่บาส',
-      title: 'Physics Expert & Engineering Tutor',
-      bio: 'ปริญญาเอก วิศวกรรมศาสตร์ จุฬาฯ ประสบการณ์สอนฟิสิกส์กว่า 15 ปี เน้นความเข้าใจ ไม่ต้องท่องจำ',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Bas&gender=male&clothing=blazerAndShirt',
-    },
-    {
-      email: 'dome@sigma.com',
-      name: 'ครูพี่โดม',
-      nickname: 'พี่โดม',
-      title: 'Social Studies & Thai Guru',
-      bio: 'ติวเตอร์สังคม-ไทย อารมณ์ดี เล่าเรื่องสนุก เข้าใจง่าย เกร็งข้อสอบแม่นยำ',
-      profileImage: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dome&gender=male',
-    },
-    {
-      email: 'ann@sigma.com',
-      name: 'Teacher Ann',
-      nickname: 'Kru Ann',
-      title: 'IELTS/SAT/GED Specialist',
-      bio: 'จบจากต่างประเทศ สำเนียงเป๊ะ สอนเทคนิคทำข้อสอบ Inter ให้ได้คะแนนพุ่ง',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Ann&gender=female&clothing=blazerAndShirt',
-    },
-    {
-      email: 'ton@sigma.com',
-      name: 'ครูพี่ต้น',
-      nickname: 'พี่ต้น',
-      title: 'Chemistry & Science Expert',
-      bio: 'เคมีจะไม่ใช่เรื่องยากอีกต่อไป ด้วยเทคนิคการจำตารางธาตุและการคำนวณที่เข้าใจง่าย',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Ton&gender=male&glasses=prescription02',
-    },
-    {
-      email: 'jib@sigma.com',
-      name: 'หมอจิ๊บ',
-      nickname: 'หมอจิ๊บ',
-      title: 'Biology Diagram Master',
-      bio: 'นศ.แพทย์ ที่จะมาสอนชีวะด้วยภาพ Diagram ให้จำได้แม่น ไม่มีลืม',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Jib&gender=female&clothing=shirtScoopNeck',
-    },
-    {
-      email: 'pop@sigma.com',
-      name: 'ครูพี่ป๊อป',
-      nickname: 'พี่ป๊อป',
-      title: 'Math Foundation to Calculus',
-      bio: 'คณิตศาสตร์ ม.ต้น ถึง ม.ปลาย ปูพื้นฐานให้แน่น พร้อมลุยสนามสอบ',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Pop&gender=male&top=shortHairDreads01',
-    },
-    {
-      email: 'oat@sigma.com',
-      name: 'พี่โอ๊ต',
-      nickname: 'พี่โอ๊ต',
-      title: 'TPAT3 & Engineering Math',
-      bio: 'วิศวะ ลาดกระบัง สอนความถนัดวิศวะและคณิตประยุกต์ เจาะลึกข้อสอบจริง',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Oat&gender=male&facialHair=beardLight',
-    },
-    {
-      email: 'mae@sigma.com',
-      name: 'ครูพี่เมย์',
-      nickname: 'พี่เมย์',
-      title: 'English Grammar & GAT',
-      bio: 'แกรมม่าร์แม่น ศัพท์ปัง สอนละเอียด เข้าใจง่าย สำหรับคนพื้นฐานน้อย',
-      profileImage:
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Mae&gender=female&hair=longHairStraight',
-    },
-  ];
+  const names = ['พี่บาส', 'พี่โดม', 'Kru Ann', 'พี่ต้น', 'หมอจิ๊บ', 'พี่ป๊อป', 'พี่โอ๊ต', 'พี่เมย์', 'พี่นนท์', 'ครูผึ้ง', 'พี่กิต', 'โค้ชแม็กซ์', 'พี่เจมส์', 'Kru Alice', 'พี่วอร์ม'];
+  const titles = ['Physics Expert', 'Social Studies Guru', 'IELTS Specialist', 'Chemistry Master', 'Biology Expert', 'Math Foundation', 'Engineering Math', 'English Grammar', 'Programming Coach', 'Science Teacher', 'General Science', 'Business Math', 'IT Master', 'Language Specialist', 'Test Prep Guru'];
+  const INSTRUCTORS = Array.from({ length: 15 }).map((_, i) => {
+    const id = i + 1;
+    return {
+      email: `teacher${id}@sigma.com`,
+      name: `ครู${names[i]}`,
+      nickname: names[i],
+      title: titles[i],
+      bio: `อาจารย์คุณภาพประสบการณ์กว่า 10 ปี จบการศึกษาจากมหาวิทยาลัยชั้นนำ เน้นการสอนให้เข้าใจง่ายและประยุกต์ใช้ได้จริงในทุกสนามสอบ`,
+      profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=Tutor${id}&gender=${i % 2 === 0 ? 'male' : 'female'}&clothing=blazerAndShirt`,
+    };
+  });
 
   const instructorMap = new Map();
 
@@ -288,317 +228,165 @@ async function main() {
   console.log(`   ✅ ${totalChildCategories} child categories seeded`);
 
   // ------------------------------------------------------------
-  // Courses Generation
+  // Courses Generation (Scale Up Bulk Data & Strict Boundaries)
   // ------------------------------------------------------------
-  console.log('📚 Seeding Courses...');
+  console.log('🗑️  Deleting existing courses...');
+  await prisma.course.deleteMany({});
 
-  const COURSES_DATA = [
-    // === TCAS ===
-    // Physics - Kru Bas
-    {
-      title: 'Physics Mechanics A-Level (กลศาสตร์)',
-      price: 3500,
-      instructor: 'พี่บาส',
-      catSlug: 'tcas-physics',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Physics Electromagnetism (ไฟฟ้าและแม่เหล็ก)',
-      price: 3800,
-      promo: 3200,
-      instructor: 'พี่บาส',
-      catSlug: 'tcas-physics',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'ตะลุยโจทย์ฟิสิกส์ A-Level 67',
-      price: 1500,
-      instructor: 'พี่บาส',
-      catSlug: 'tcas-physics',
-      type: 'ONLINE_LIVE',
-      thumb:
-        'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1000&auto=format&fit=crop',
-      bestSeller: true,
-    },
-    // Math - Kru Pop
-    {
-      title: 'Math A-Level 1: เซต ตรรกศาสตร์ จำนวนจริง',
-      price: 2900,
-      promo: 2500,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'tcas-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Calculus & Statistics A-Level (แคลคูลัสและสถิติ)',
-      price: 3500,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'tcas-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1596495578065-6e0763fa1178?q=80&w=1000&auto=format&fit=crop',
-      bestSeller: true,
-    },
-    // Chem - Kru Ton
-    {
-      title: 'Chemistry: ปริมาณสารสัมพันธ์ A-Level',
-      price: 2500,
-      instructor: 'พี่ต้น',
-      catSlug: 'tcas-chemistry',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Organic Chemistry A-Level (เคมีอินทรีย์)',
-      price: 3000,
-      promo: 2490,
-      instructor: 'พี่ต้น',
-      catSlug: 'tcas-chemistry',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?q=80&w=1000&auto=format&fit=crop',
-    },
-    // Bio - Dr. Jib
-    {
-      title: 'Biology A-Level: ระบบร่างกายมนุษย์',
-      price: 3200,
-      instructor: 'หมอจิ๊บ',
-      catSlug: 'tcas-biology',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Biology A-Level: พันธุศาสตร์',
-      price: 2800,
-      instructor: 'หมอจิ๊บ',
-      catSlug: 'tcas-biology',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=1000&auto=format&fit=crop',
-      bestSeller: true,
-    },
-    // Social/Thai - Kru Dome
-    {
-      title: 'Social Studies A-Level: สรุปข่าวและเหตุการณ์ปัจจุบัน',
-      price: 1200,
-      instructor: 'พี่โดม',
-      catSlug: 'tcas-social',
-      type: 'ONLINE_LIVE',
-      thumb:
-        'https://images.unsplash.com/photo-1447069387593-a5de0862481e?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'ภาษาไทย A-Level: หลักภาษาและการใช้ภาษา',
-      price: 2200,
-      instructor: 'พี่โดม',
-      catSlug: 'tcas-thai',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=1000&auto=format&fit=crop',
-    },
-    // TGAT
-    {
-      title: 'TGAT: การคิดอย่างมีเหตุผล + Conversation',
-      price: 2900,
-      instructor: 'พี่โดม',
-      catSlug: 'tcas-tgat',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1000&auto=format&fit=crop',
-    },
-    // TPAT3
-    {
-      title: 'TPAT3 ความถนัดทางวิศวกรรม',
-      price: 4200,
-      instructor: 'พี่โอ๊ต',
-      catSlug: 'tcas-tpat3',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1581092921461-eab62e97a783?q=80&w=1000&auto=format&fit=crop',
-    },
+  console.log('📚 Seeding 30 Courses (10 ONLINE, 10 ONLINE_LIVE, 10 ONSITE)...');
 
-    // === SAT ===
-    {
-      title: 'SAT Math Digital: Hack โจทย์คณิตอินเตอร์',
-      price: 4500,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'sat-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'SAT Reading & Writing Techniques',
-      price: 5500,
-      instructor: 'Kru Ann',
-      catSlug: 'sat-rw',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=1000&auto=format&fit=crop',
-    },
+  const categories = await prisma.category.findMany();
+  const teachers = await prisma.teacher.findMany();
 
-    // === IELTS ===
-    {
-      title: 'IELTS 4 Skills Ultimate Pack',
-      price: 8900,
-      promo: 6990,
-      instructor: 'Kru Ann',
-      catSlug: 'ielts-listening', // Main body under listening, covers all
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1000&auto=format&fit=crop',
-      bestSeller: true,
-    },
-    {
-      title: 'IELTS Writing Task 1 & 2: Band 7+ Strategy',
-      price: 3900,
-      instructor: 'Kru Ann',
-      catSlug: 'ielts-writing',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'IELTS Speaking: เทคนิคพูดให้ได้ Band 7',
-      price: 2900,
-      instructor: 'Kru Ann',
-      catSlug: 'ielts-speaking',
-      type: 'ONLINE_LIVE',
-      thumb:
-        'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=1000&auto=format&fit=crop',
-    },
+  if (categories.length === 0 || teachers.length === 0) {
+    console.error('❌ Missing category or instructor, cannot seed courses');
+    return;
+  }
 
-    // === ม.ปลาย ===
-    {
-      title: 'คณิต ม.ปลาย: ฟังก์ชันและตรีโกณมิติ',
-      price: 2500,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'hs-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'ฟิสิกส์ ม.ปลาย: คลื่นและแสง',
-      price: 2800,
-      instructor: 'พี่บาส',
-      catSlug: 'hs-physics',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'เคมี ม.ปลาย: กรด-เบส และสมดุลเคมี',
-      price: 2600,
-      instructor: 'พี่ต้น',
-      catSlug: 'hs-chemistry',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000&auto=format&fit=crop',
-    },
-
-    // === ม.ต้น ===
-    {
-      title: 'คณิต ม.ต้น: พีชคณิตและเรขาคณิต',
-      price: 2200,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'ms-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'วิทย์ ม.ต้น ฉบับสมบูรณ์',
-      price: 3500,
-      instructor: 'พี่ต้น',
-      catSlug: 'ms-science',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Basic Grammar for ม.ต้น',
-      price: 1900,
-      instructor: 'พี่เมย์',
-      catSlug: 'ms-english',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1451226428352-cf66bf8a0317?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'Vocab ม.ต้น: ศัพท์พื้นฐาน 2000 คำ',
-      price: 1500,
-      promo: 990,
-      instructor: 'พี่เมย์',
-      catSlug: 'ms-english',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?q=80&w=1000&auto=format&fit=crop',
-    },
-
-    // === ประถม ===
-    {
-      title: 'คณิตประถม: บวก ลบ คูณ หาร สนุกๆ',
-      price: 1200,
-      instructor: 'พี่ป๊อป',
-      catSlug: 'primary-math',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1596495578065-6e0763fa1178?q=80&w=1000&auto=format&fit=crop',
-    },
-    {
-      title: 'วิทย์ประถม: สำรวจโลกรอบตัว',
-      price: 1200,
-      instructor: 'พี่ต้น',
-      catSlug: 'primary-science',
-      type: 'ONLINE',
-      thumb:
-        'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1000&auto=format&fit=crop',
-    },
+  const COURSE_TYPES = ['ONLINE', 'ONLINE_LIVE', 'ONSITE'];
+  const THUMBNAILS = [
+    'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1596495578065-6e0763fa1178?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1447069387593-a5de0862481e?q=80&w=1000&auto=format&fit=crop',
   ];
 
-  for (const c of COURSES_DATA) {
-    const catId = await getCatId(c.catSlug);
-    const instId = instructorMap.get(c.instructor);
+  const SUBJECTS = ['Math', 'Physics', 'Chemistry', 'Biology', 'English', 'Social Studies', 'Thai', 'Programming', 'SAT', 'IELTS'];
 
-    if (!catId || !instId) {
-      console.log(`⚠️  Skipping ${c.title} (Missing Cat/Inst)`);
-      continue;
-    }
+  const today = new Date();
+  
+  for (let i = 0; i < 30; i++) {
+    const typeIndex = i % 3;
+    const courseType = COURSE_TYPES[typeIndex];
+    const teacher = teachers[i % teachers.length];
+    const category = categories[i % categories.length];
+    const thumb = THUMBNAILS[i % THUMBNAILS.length];
+    const subject = SUBJECTS[i % SUBJECTS.length];
 
-    const slug =
-      c.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 1000);
-
-    await prisma.course.upsert({
-      where: { slug: slug },
-      update: {},
-      create: {
-        title: c.title,
-        slug: slug,
-        description: `คอร์สเรียน ${c.title} โดย ${c.instructor} เน้นความเข้าใจ ปูพื้นฐานแน่น พร้อมลุยโจทย์จริง`,
-        price: c.price,
-        originalPrice: c.price * 1.5,
-        promotionalPrice: c.promo || null,
-        courseType: c.type as any,
-        thumbnail: c.thumb,
-        teacherId: instId,
-        categoryId: catId,
+    const course = await prisma.course.create({
+      data: {
+        title: `${subject} Mastery Bootcamp ${i + 1} (${courseType})`,
+        slug: `course-${subject.toLowerCase().replace(/ /g, '-')}-${i + 1}-${Date.now()}`,
+        description: `This is a comprehensive ${courseType} course focusing on ${subject}. Master the concepts and excel in your exams. Limits are set high so everyone can enroll.`,
+        price: 2500 + (i * 100),
+        originalPrice: 4000 + (i * 100),
+        courseType: courseType as any,
+        thumbnail: thumb,
+        teacherId: teacher.id,
+        categoryId: category.id,
         status: 'PUBLISHED',
         published: true,
-        isBestSeller: c.bestSeller || false,
-        duration: '25 ชม.',
-        videoCount: 15,
-      },
+        duration: '10 ชม.',
+        videoCount: courseType === 'ONLINE' ? 5 : 0,
+        maxSeats: 50,
+        enrollStartDate: new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+        enrollEndDate: new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000), // 90 days from now (future)
+        location: courseType === 'ONSITE' ? `ห้องเรียนที่ ${i + 1}01 อาคาร B` : null,
+      }
     });
-    console.log(`   📘 Seeded course: ${c.title}`);
+
+    // Seed content strictly based on type
+    if (courseType === 'ONLINE') {
+      const chapter = await prisma.chapter.create({
+        data: {
+          title: `บทนำ: พื้นฐาน ${subject}`,
+          order: 1,
+          courseId: course.id,
+        }
+      });
+      await prisma.lesson.createMany({
+        data: [
+          {
+            title: `EP.1 แนะนำ ${subject}`,
+            type: 'VIDEO',
+            videoProvider: 'YOUTUBE',
+            youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+            duration: 30,
+            order: 1,
+            chapterId: chapter.id,
+            isFree: true,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          },
+          {
+            title: `EP.2 เจาะลึกเนื้อหา`,
+            type: 'VIDEO',
+            videoProvider: 'YOUTUBE',
+            youtubeUrl: 'https://youtu.be/kJQP7kiw5Fk',
+            duration: 45,
+            order: 2,
+            chapterId: chapter.id,
+            isFree: false,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          }
+        ]
+      });
+    } else if (courseType === 'ONLINE_LIVE') {
+      await prisma.courseSchedule.createMany({
+        data: [
+          {
+            sessionNumber: 1,
+            date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), 
+            startTime: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000),
+            endTime: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000), 
+            topic: `Session 1: Live ${subject}`,
+            isOnline: true,
+            zoomLink: 'https://zoom.us/j/1234567890',
+            status: 'ON_SCHEDULE',
+            courseId: course.id,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          },
+          {
+            sessionNumber: 2,
+            date: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), 
+            startTime: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000),
+            endTime: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000), 
+            topic: `Session 2: Live Workshop ${subject}`,
+            isOnline: true,
+            zoomLink: 'https://zoom.us/j/1234567890',
+            status: 'ON_SCHEDULE',
+            courseId: course.id,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          }
+        ]
+      });
+    } else if (courseType === 'ONSITE') {
+      await prisma.courseSchedule.createMany({
+        data: [
+          {
+            sessionNumber: 1,
+            date: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), 
+            startTime: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000),
+            endTime: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000), 
+            topic: `Class 1: Onsite ${subject}`,
+            location: `ห้องเรียน ${i + 1}01`,
+            isOnline: false,
+            status: 'ON_SCHEDULE',
+            courseId: course.id,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          },
+          {
+            sessionNumber: 2,
+            date: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000), 
+            startTime: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000),
+            endTime: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000), 
+            topic: `Class 2: Onsite Practice ${subject}`,
+            location: `ห้องเรียน ${i + 1}01`,
+            isOnline: false,
+            status: 'ON_SCHEDULE',
+            courseId: course.id,
+            materialUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          }
+        ]
+      });
+    }
+    
+    console.log(`   📘 Seeded ${courseType} course: ${course.title}`);
   }
 
   // ----------------------------------------------------------------

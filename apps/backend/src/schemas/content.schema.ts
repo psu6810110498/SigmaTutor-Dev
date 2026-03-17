@@ -14,11 +14,13 @@ export const reorderChapterSchema = z.object({
 export const createLessonSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   type: z.enum(['VIDEO', 'FILE', 'QUIZ']).default('VIDEO'),
-  content: z.string().optional().nullable(),
-  youtubeUrl: z.string().optional().nullable(),
-  gumletVideoId: z.string().optional().nullable(),
+  content: z.string().optional().nullable().or(z.literal('')),
+  youtubeUrl: z.string().optional().nullable().or(z.literal('')),
+  gumletVideoId: z.string().optional().nullable().or(z.literal('')),
   videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
-  duration: z.number().int().optional(),
+  duration: z.number().int().optional().nullable(), // Duration in minutes
+  isFree: z.boolean().optional().default(false),
+  materialUrl: z.string().optional().nullable().or(z.literal('')), // ✅ URL ไฟล์ PDF/เอกสาร
   order: z.number().int().optional(),
 });
 export const updateLessonSchema = createLessonSchema.partial();
@@ -30,8 +32,8 @@ export const reorderLessonSchema = z.object({
 export const createScheduleSchema = z.object({
   topic: z.string().min(1, 'Topic is required'),
   chapterTitle: z.string().optional().nullable(), // ✅ ชื่อบทเรียน
-  videoUrl: z.string().optional().nullable().or(z.literal('')), // ✅ ลิงก์วิดีโอ
-  materialUrl: z.string().optional().nullable().or(z.literal('')), // ✅ ลิงก์ไฟล์
+  videoUrl: z.string().optional().nullable().or(z.literal("")), // ✅ ลิงก์วิดีโอ
+  materialUrl: z.string().optional().nullable().or(z.literal("")), // ✅ ลิงก์ไฟล์
   sessionNumber: z.number().optional().nullable(),
   status: z.enum(['ON_SCHEDULE', 'POSTPONED', 'CANCELLED']).optional(),
   // คงฟิลด์เดิมไว้เป็น Optional เพื่อความปลอดภัย
@@ -39,6 +41,9 @@ export const createScheduleSchema = z.object({
   startTime: z.string().datetime().optional().nullable(),
   endTime: z.string().datetime().optional().nullable(),
   location: z.string().optional().nullable(),
+  zoomLink: z.string().optional().nullable(),
+  gumletVideoId: z.string().optional().nullable(),
+  videoProvider: z.enum(['YOUTUBE', 'GUMLET']).default('YOUTUBE').optional(),
   isOnline: z.boolean().optional(),
 });
 

@@ -7,7 +7,8 @@ import { notFound } from 'next/navigation';
 const MOCK_COURSES: Course[] = [
     {
         id: '1', title: 'ฟิสิกส์ ม.ปลาย - กลศาสตร์ 1', slug: 'physics-mech-1', description: 'ปูพื้นฐานกลศาสตร์แน่นปึ้ก',
-        price: 2500, promotionalPrice: 1290, originalPrice: 2500, status: 'PUBLISHED', courseType: 'ONLINE',
+        shortDescription: 'Short description...',
+        price: 5000, promotionalPrice: 1290, originalPrice: 2500, status: 'PUBLISHED', courseType: 'ONLINE',
         thumbnail: null, thumbnailSm: null, thumbnailLg: null,
         categoryId: 'sci', category: { id: 'sci', name: 'วิทยาศาสตร์', slug: 'science' },
         levelId: 'hs', level: null, instructorId: '2', instructor: { id: '2', name: 'Kroo P Ohm', nickname: 'ครูพี่โอม', title: 'Physics Master', profileImage: null },
@@ -17,6 +18,7 @@ const MOCK_COURSES: Course[] = [
     },
     {
         id: '2', title: 'TCAS English - Grammar Intensive', slug: 'eng-grammar', description: 'สรุป Grammar ทั้งหมดใน 10 ชม.',
+        shortDescription: 'Short description...',
         price: 1990, promotionalPrice: 990, originalPrice: 1990, status: 'PUBLISHED', courseType: 'ONLINE',
         thumbnail: null, thumbnailSm: null, thumbnailLg: null,
         categoryId: 'eng', category: { id: 'eng', name: 'ภาษาอังกฤษ', slug: 'english' },

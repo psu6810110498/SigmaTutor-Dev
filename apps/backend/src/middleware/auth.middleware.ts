@@ -43,6 +43,32 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 };
 
 /**
+ * Middleware to optionally authenticate JWT token (for public routes that adjust responses for logged-in users)
+ */
+export const optionalAuthenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  let token = '';
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const payload = authService.verifyAccessToken(token);
+    req.user = payload;
+  } catch {
+    // Ignore invalid tokens for optional auth
+  }
+  next();
+};
+
+/**
  * Middleware to check if user has required role
  */
 export const requireRole = (...roles: string[]) => {
