@@ -296,11 +296,11 @@ export default function RegisterPage() {
                   className="text-xs text-gray-500 leading-relaxed cursor-pointer select-none"
                 >
                   ฉันยอมรับ{' '}
-                  <span className="text-primary font-bold hover:underline">เงื่อนไขการใช้งาน</span>{' '}
+                  <Link href="/terms" target="_blank" className="text-primary font-bold hover:underline">เงื่อนไขการใช้งาน</Link>{' '}
                   และ{' '}
-                  <span className="text-primary font-bold hover:underline">
+                  <Link href="/privacy" target="_blank" className="text-primary font-bold hover:underline">
                     นโยบายความเป็นส่วนตัว
-                  </span>
+                  </Link>
                 </label>
               </div>
 

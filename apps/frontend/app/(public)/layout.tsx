@@ -1,5 +1,6 @@
 import { PublicNavbar } from "@/app/components/layouts/PublicNavbar";
 import { PublicFooter } from "@/app/components/layouts/PublicFooter";
+import { CookieConsentBanner } from "@/app/components/ui/CookieConsentBanner";
 
 export default function PublicLayout({
     children,
@@ -11,6 +12,7 @@ export default function PublicLayout({
             <PublicNavbar />
             <main className="flex-1 pt-20">{children}</main>
             <PublicFooter />
+            <CookieConsentBanner />
         </div>
     );
 }
