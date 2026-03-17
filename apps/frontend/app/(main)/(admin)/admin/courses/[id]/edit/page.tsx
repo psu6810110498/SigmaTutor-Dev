@@ -35,10 +35,8 @@ export default function EditCoursePage() {
                 courseApi.getById(courseId),
                 userApi.list()
             ]);
-
             if (courseRes.success && courseRes.data) {
                 setCourse(courseRes.data);
-            } else {
                 toast.error(courseRes.error || "ไม่พบข้อมูลคอร์ส");
                 router.push("/admin/courses");
             }

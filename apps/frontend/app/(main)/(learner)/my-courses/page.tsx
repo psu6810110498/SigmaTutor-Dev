@@ -27,7 +27,7 @@ export default function MyCoursesPage() {
   useEffect(() => {
     const fetchMyCourses = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
         const res = await fetch(`${apiUrl}/courses/my-courses`, {
           credentials: 'include', // ✅ ต้องส่งคุกกี้ไปเพื่อยืนยันตัวตน
         });

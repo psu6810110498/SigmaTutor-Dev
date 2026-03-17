@@ -41,7 +41,7 @@ export default function CreateTeacherPage() {
     try {
       const uploadData = new FormData();
       uploadData.append("file", file);
-      const res = await fetch("http://localhost:4000/api/courses/upload/pdf", {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + "/courses/upload/pdf", {
         method: "POST",
         credentials: "include",
         body: uploadData,
@@ -140,8 +140,6 @@ export default function CreateTeacherPage() {
                 {uploadingImage ? "กำลังอัปโหลด..." : "อัปโหลดรูปภาพ"}
               </label>
             </div>
-
-            {/* Fields */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อ-นามสกุลจริง <span className="text-red-500">*</span></label>

@@ -26,15 +26,12 @@ export function useCheckout() {
     const [finalTotalPrice, setFinalTotalPrice] = useState<number>(0);
     const [finalTotalDiscount, setFinalTotalDiscount] = useState<number>(0);
 
-    // Effect to recalculate totals when cart or coupon changes
-    useState(() => {
-        // Initial setup
-    });
+
 
     // We can't use useEffect purely because we want to update the returned values synchronously, 
     // so we just calculate on render
-    const totalPrice = cartItems.reduce((sum, item) => sum + item.price, 0);
-    const totalOriginalPrice = cartItems.reduce((sum, item) => sum + (item.originalPrice || item.price), 0);
+    const totalPrice = cartItems.reduce((sum: number, item: any) => sum + item.price, 0);
+    const totalOriginalPrice = cartItems.reduce((sum: number, item: any) => sum + (item.originalPrice || item.price), 0);
     const baseDiscount = totalOriginalPrice - totalPrice;
 
     const netDiscount = baseDiscount + (appliedCoupon?.discountAmount || 0);
@@ -55,7 +52,7 @@ export function useCheckout() {
         setCouponError(null);
 
         try {
-            const data = await couponApi.validate(couponCode, cartItems.map(item => item.id));
+            const data = await couponApi.validate(couponCode, cartItems.map((item: any) => item.id));
 
             if (!data.success) {
                 throw new Error(data.error || 'คูปองไม่ถูกต้อง');
@@ -96,10 +93,10 @@ export function useCheckout() {
         try {
             // Pre-flight: check availability for limited courses before hitting Stripe
             const limitedItems = cartItems.filter(
-                (item) => item.courseType === 'ONLINE_LIVE' || item.courseType === 'ONSITE'
+                (item: any) => item.courseType === 'ONLINE_LIVE' || item.courseType === 'ONSITE'
             );
             if (limitedItems.length > 0) {
-                const results = await availabilityApi.getMany(limitedItems.map((i) => i.id));
+                const results = await availabilityApi.getMany(limitedItems.map((i: any) => i.id));
                 const fullCourses = results
                     .filter((r) => r.success && r.data?.isFull)
                     .map((r) => r.data!);
@@ -120,7 +117,7 @@ export function useCheckout() {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    items: cartItems.map((item) => ({
+                    items: cartItems.map((item: any) => ({
                         courseId: item.id,
                         title: item.title,
                         price: item.price,

@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/auth/me', {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/auth/me', {
         credentials: 'include',
       }).catch(() => null);
 
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('http://localhost:4000/api/auth/logout', {
+      await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/auth/logout', {
         method: 'POST',
         credentials: 'include',
       }).catch(() => null);

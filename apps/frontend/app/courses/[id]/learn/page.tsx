@@ -46,7 +46,7 @@ export default function LearningPage() {
         const fetchCourse = async () => {
             try {
                 // Fetch public course detail (which includes chapters/schedules)
-                const res = await fetch(`http://localhost:4000/api/courses/${courseId}`, {
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + `/courses/${courseId}`, {
                     credentials: 'include',
                 });
                 const data = await res.json();

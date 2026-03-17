@@ -66,7 +66,7 @@ export default function AdminCoursesPage() {
 
     const fetchStudentsCount = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/users/students', {
+        const response = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/users/students', {
           headers: {
             'Content-Type': 'application/json'
           },
@@ -111,7 +111,7 @@ export default function AdminCoursesPage() {
       if (typeFilter !== 'all') params.append('courseType', typeFilter);
       if (instructorFilter !== 'all') params.append('instructorId', instructorFilter);
 
-      const response = await fetch(`http://localhost:4000/api/courses/admin?${params.toString()}`, {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/admin?${params.toString()}`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -178,7 +178,7 @@ export default function AdminCoursesPage() {
   // ── อัปเดตสถานะคอร์ส (API PATCH) ──────────────────────────
   const handleStatusChange = async (courseId: string, newStatus: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/courses/${courseId}/status`, {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${courseId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ export default function AdminCoursesPage() {
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      const response = await fetch(`http://localhost:4000/api/courses/${deletingId}`, {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${deletingId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +233,7 @@ export default function AdminCoursesPage() {
   // ── Export to Excel ──────────────────────────────────────
   const handleExportExcel = async (courseId: string, courseTitle: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/courses/${courseId}/students`, {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${courseId}/students`, {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });

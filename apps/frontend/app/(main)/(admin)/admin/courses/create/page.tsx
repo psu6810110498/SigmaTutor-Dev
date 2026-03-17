@@ -47,9 +47,10 @@ export default function CreateCoursePage() {
         levelApi.list().then((r) => { if (r.success && r.data) setLevels(r.data); });
         const fetchInstructors = async () => {
             try {
-                const res = await userApi.list();
-                if (res.success && res.data) {
-                    const options: InstructorOption[] = res.data.map((t: any) => ({
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/users/instructors', { credentials: 'include' });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const options: InstructorOption[] = data.data.map((t: any) => ({
                         id: t.id, name: t.name, profileImage: t.profileImage || undefined,
                     }));
                     setInstructors(options);
@@ -122,7 +123,7 @@ export default function CreateCoursePage() {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.form) setForm((prev: any) => ({ ...prev, ...parsed.form }));
+                if (parsed.form) setForm((prev: Partial<CreateCourseInput> & Record<string, any>) => ({ ...prev, ...parsed.form }));
                 if (parsed.rootCategoryId) setRootCategoryId(parsed.rootCategoryId);
                 if (parsed.activeQuickFilter) setActiveQuickFilter(parsed.activeQuickFilter);
             } catch (e) { console.error("Failed to parse draft", e); }
@@ -192,7 +193,11 @@ export default function CreateCoursePage() {
         const formData = new FormData();
         formData.append("file", file);
         try {
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', { method: 'POST', credentials: 'include', body: formData });
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/upload/pdf', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
             const data = await res.json();
             if (data.url) { updateForm("materialUrl", data.url); toast.success("อัปโหลด PDF สำเร็จ"); }
             else toast.error(data.error || "อัปโหลดไฟล์ไม่สำเร็จ");
@@ -204,8 +209,14 @@ export default function CreateCoursePage() {
         const file = e.target.files?.[0];
         if (!file || !file.type.startsWith('video/')) { toast.error("กรุณาเลือกไฟล์วิดีโอเท่านั้น"); return; }
         try {
-            setUploadingGumlet(true); setGumletProgress(0);
-            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', { method: 'POST', credentials: 'include' });
+            setUploadingGumlet(true);
+            setGumletProgress(0);
+
+            // 1. Get Signed URL and Asset ID from our Backend
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/gumlet/upload-url', {
+                method: 'POST',
+                credentials: 'include'
+            });
             const data = await res.json();
             if (!data.success || !data.upload_url) { toast.error(data.error || "ไม่สามารถสร้างลิงก์อัปโหลดได้"); setUploadingGumlet(false); return; }
             const { upload_url, asset_id } = data;
@@ -271,7 +282,7 @@ export default function CreateCoursePage() {
         }
 
         try {
-            const response = await fetch('http://localhost:4000/api/courses', {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(payload)
             });
             const res = await response.json();

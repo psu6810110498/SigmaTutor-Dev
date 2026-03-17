@@ -9,6 +9,11 @@ import { prisma } from '@sigma/db'; // 🌟 เพิ่มการนำเข
 
 const router: express.Router = express.Router();
 
+// Base Auth Route
+router.get('/', (req, res) => {
+  res.json({ success: true, message: 'Auth endpoint is running' });
+});
+
 // Google Authentication
 router.get('/google', passport.authenticate('google', { session: false, scope: ['profile', 'email'], prompt: 'select_account' }));
 
@@ -28,10 +33,10 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
   });
 };
 
-router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: 'http://localhost:3000/login' }), (req, res) => {
+router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:3000'}/login` }), (req, res) => {
     const tokens = req.user as any;
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-    res.redirect('http://localhost:3000/login-success');
+    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/login-success`);
 });
 
 // Authentication Routes

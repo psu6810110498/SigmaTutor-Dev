@@ -148,7 +148,7 @@ export default function CourseDetailPage() {
         setReviews(res.data.reviews);
         setReviewStats(res.data.stats);
         if (user) {
-           const didReview = res.data.reviews.some((r) => r.user.id === user.id);
+           const didReview = res.data.reviews.some((r: any) => r.user.id === user.id);
            setHasReviewed(didReview);
         }
       }
@@ -254,7 +254,7 @@ export default function CourseDetailPage() {
   };
 
   const calcTotalMinutes = (lessons: any[]) =>
-    lessons.reduce((sum, l) => sum + (l.duration ?? 0), 0);
+    lessons.reduce((sum: number, l: any) => sum + (l.duration ?? 0), 0);
 
   const formatMinutes = (mins: number) => {
     if (mins <= 0) return '';
@@ -972,7 +972,7 @@ export default function CourseDetailPage() {
                     </div>
                     <div className="flex-1 space-y-2 w-full">
                       {Array.from({ length: 5 }, (_, i) => 5 - i).map((star) => {
-                        const dist = reviewStats.distribution.find((d) => d.rating === star);
+                        const dist = reviewStats.distribution.find((d: any) => d.rating === star);
                         const count = dist?.count || 0;
                         const pct = reviewStats.total > 0 ? (count / reviewStats.total) * 100 : 0;
                         return (

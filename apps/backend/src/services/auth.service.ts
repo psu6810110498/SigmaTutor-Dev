@@ -106,7 +106,7 @@ export class AuthService {
       { expiresIn: '1h' }
     );
 
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.CORS_ORIGIN || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     try {
       await this.sendResetEmail(email, resetLink);

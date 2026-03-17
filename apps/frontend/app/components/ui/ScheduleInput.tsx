@@ -89,7 +89,7 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const res = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/upload/pdf', {
                 method: 'POST',
                 credentials: 'include',
                 headers,
@@ -133,7 +133,7 @@ export function ScheduleInput({ value, onChange }: ScheduleInputProps) {
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const res = await fetch('http://localhost:4000/api/gumlet/upload-url', {
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/gumlet/upload-url', {
                 method: 'POST',
                 credentials: 'include',
                 headers

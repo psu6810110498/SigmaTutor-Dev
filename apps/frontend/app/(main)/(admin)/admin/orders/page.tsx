@@ -160,7 +160,7 @@ export default function AdminOrdersPage() {
       if (sortBy) params.append('sort', sortBy);
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/payments/admin?${params}`,
+        `${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api')}/payments/admin?${params}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

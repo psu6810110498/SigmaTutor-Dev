@@ -140,7 +140,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
 
     function removeSession(index: number) {
         if (sessions.length === 1) { toast.error("ต้องมีอย่างน้อย 1 ครั้ง"); return; }
-        setSessions(prev => prev.filter((_, i) => i !== index).map((s, i) => ({ ...s, sessionNumber: i + 1 })));
+        setSessions(prev => prev.filter((_, i) => i !== index).map((s: OnsiteSession, i: number) => ({ ...s, sessionNumber: i + 1 })));
     }
 
 

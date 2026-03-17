@@ -24,7 +24,7 @@ function SuccessContent() {
 
     const verifyPayment = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
         const res = await fetch(`${apiUrl}/payments/verify-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

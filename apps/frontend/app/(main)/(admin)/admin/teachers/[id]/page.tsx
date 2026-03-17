@@ -19,7 +19,7 @@ export default function AdminTeacherViewPage() {
     useEffect(() => {
         const fetchTeacher = async () => {
             try {
-                const res = await fetch(`http://localhost:4000/api/users/${id}`, {
+                const res = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/users/${id}`, {
                     credentials: 'include'
                 });
                 const data = await res.json();

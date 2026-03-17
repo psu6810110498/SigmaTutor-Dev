@@ -28,11 +28,10 @@ export default function EditTeacherPage() {
     const fetchTeacher = async () => {
       try {
         const res = await fetch(
-          `http://localhost:4000/api/users/instructors?t=${Date.now()}`,
-          { method: "GET", credentials: "include" }
+            (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api") + `/users/instructors?t=${Date.now()}`,
+            { method: "GET", credentials: "include", headers: { "Content-Type": "application/json" } }
         );
         const data = await res.json();
-
         if (data.success) {
           const teacher = data.data.find((t: any) => String(t.id) === String(params.id));
           if (!teacher) {
@@ -93,7 +92,6 @@ export default function EditTeacherPage() {
 
   const handleRichChange = (updated: Partial<TeacherFormData>) =>
     setFormData((prev) => ({ ...prev, ...updated }));
-
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setSaving(true);
@@ -110,7 +108,7 @@ export default function EditTeacherPage() {
         if (value !== undefined && value !== null) submitData.append(key, String(value));
       });
 
-      const res = await fetch(`http://localhost:4000/api/users/${params.id}`, {
+      const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + `/users/${params.id}`, {
         method: "PATCH",
         credentials: "include",
         body: submitData,

@@ -302,7 +302,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
                     }
                     const pdfHeaders: Record<string, string> = {};
                     if (pdfToken) pdfHeaders['Authorization'] = `Bearer ${pdfToken}`;
-                    const upRes = await fetch('http://localhost:4000/api/courses/upload/pdf', {
+                    const upRes = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api') + '/courses/upload/pdf', {
                         method: 'POST',
                         credentials: 'include',
                         headers: pdfHeaders,
@@ -340,7 +340,7 @@ export function CourseOverviewTab({ course, instructors, onUpdate }: CourseOverv
             console.log("FINAL PAYLOAD TO BACKEND:", payload);
             // ✅ ใช้ fetch ยิงตรงไปที่ /api/courses/:id (ตามที่ระบุใน course.routes.ts)
             // บังคับใช้ Method PUT ตามหลังบ้าน
-            const response = await fetch(`http://localhost:4000/api/courses/${course.id}`, {
+            const response = await fetch((process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}`) + `/courses/${course.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

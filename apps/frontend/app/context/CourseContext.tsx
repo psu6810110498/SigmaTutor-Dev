@@ -92,7 +92,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
       if (!user) return; // ถ้าไม่ได้ล็อกอิน ไม่ต้องเช็ค
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
         const res = await fetch(`${apiUrl}/courses/my-courses`, {
           credentials: 'include',
         });

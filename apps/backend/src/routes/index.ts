@@ -22,6 +22,11 @@ import statsRoutes from './stats.routes.js';
 // ✅ ระบุ Type : express.Router เพื่อแก้ปัญหา inferred type
 const router: express.Router = express.Router();
 
+// Base API route
+router.get('/', (req, res) => {
+  res.json({ success: true, message: 'Sigma API is running', version: '0.1.0' });
+});
+
 // Mount routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);

@@ -1,0 +1,66 @@
+app/(main)/(admin)/admin/courses/[id]/edit/page.tsx(39,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/[id]/edit/page.tsx(42,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/[id]/edit/page.tsx(51,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/CourseOverviewTab.tsx(221,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/CourseOverviewTab.tsx(224,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/CourseOverviewTab.tsx(234,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(50,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(58,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(62,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(131,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(133,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(136,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(206,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(208,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(214,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(226,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(229,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/courses/create/page.tsx(238,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(36,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(44,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(53,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(105,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(108,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/[id]/edit/page.tsx(115,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/create/page.tsx(40,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/create/page.tsx(61,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/create/page.tsx(68,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/create/page.tsx(125,13): error TS1005: '</' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(127,1): error TS1185: Merge conflict marker encountered.
+app/(main)/(admin)/admin/teachers/create/page.tsx(128,8): error TS17008: JSX element 'form' has no corresponding closing tag.
+app/(main)/(admin)/admin/teachers/create/page.tsx(153,54): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(154,27): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(157,13): error TS1109: Expression expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(158,23): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(160,35): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(161,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(164,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(168,62): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(170,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(171,60): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(172,13): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(173,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(174,62): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(175,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(176,35): error TS1005: '}' expected.
+app/(main)/(admin)/admin/teachers/create/page.tsx(177,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(178,5): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,1): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,2): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,3): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,4): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,5): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,6): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(206,7): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(253,9): error TS17002: Expected corresponding JSX closing tag for 'div'.
+app/(main)/(admin)/admin/teachers/create/page.tsx(256,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/teachers/create/page.tsx(257,1): error TS1005: '</' expected.
+app/(public)/course/[id]/page.tsx(131,1): error TS1185: Merge conflict marker encountered.
+app/(public)/course/[id]/page.tsx(135,1): error TS1185: Merge conflict marker encountered.
+app/(public)/course/[id]/page.tsx(142,1): error TS1185: Merge conflict marker encountered.
+app/courses/[id]/learn/page.tsx(49,1): error TS1185: Merge conflict marker encountered.
+app/courses/[id]/learn/page.tsx(53,1): error TS1185: Merge conflict marker encountered.
+app/courses/[id]/learn/page.tsx(55,1): error TS1185: Merge conflict marker encountered.
+app/hooks/useCheckout.ts(97,1): error TS1185: Merge conflict marker encountered.
+app/hooks/useCheckout.ts(116,1): error TS1185: Merge conflict marker encountered.
+app/hooks/useCheckout.ts(118,1): error TS1185: Merge conflict marker encountered.
