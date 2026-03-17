@@ -15,7 +15,7 @@ interface LessonsTabProps {
     onUpdate: () => void;
 }
 
-const API = "http://localhost:4000/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 function getCredentials() {
     return { credentials: "include" as RequestCredentials };

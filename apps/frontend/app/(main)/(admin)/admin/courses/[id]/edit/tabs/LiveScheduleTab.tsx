@@ -28,7 +28,7 @@ interface LiveSession {
     content: string;
 }
 
-const API = "http://localhost:4000/api";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const CREDS: RequestInit = { credentials: "include" };
 
 function toDateInput(iso: string | null | undefined): string {
@@ -491,15 +491,50 @@ export function LiveScheduleTab({ course, onUpdate }: LiveScheduleTabProps) {
                                                     className="text-gray-400 hover:text-red-500"
                                                 ><X size={14} /></button>
                                             </div>
+                                        ) : uploading[index] ? (
+                                            <div className="space-y-1.5 p-3 border border-gray-200 rounded-lg">
+                                                <div className="flex justify-between text-xs text-gray-500">
+                                                    <span className="truncate max-w-[200px]">{fileName[index] || "Uploading..."}</span>
+                                                    <span className="font-semibold">{progress[index] || 0}%</span>
+                                                </div>
+                                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-gradient-to-r from-blue-400 to-blue-300 rounded-full transition-all duration-300" style={{ width: `${progress[index] || 0}%` }} />
+                                                </div>
+                                                <p className="text-xs text-gray-400">กำลังอัปโหลดและประมวลผลวิดีโอ (Gumlet)...</p>
+                                            </div>
                                         ) : (
                                             <div>
                                                 <label className="block text-xs font-semibold text-gray-600 mb-1">Gumlet Video ID</label>
-                                                <input
-                                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                                    value={session.gumletVideoId}
-                                                    onChange={e => updateSession(index, "gumletVideoId", e.target.value)}
-                                                    placeholder="กรอก Gumlet Video ID..."
-                                                />
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                        value={session.gumletVideoId}
+                                                        onChange={e => updateSession(index, "gumletVideoId", e.target.value)}
+                                                        placeholder="กรอก Gumlet Video ID..."
+                                                    />
+                                                    <div className="relative shrink-0">
+                                                        <input
+                                                            id={`live-video-${index}`}
+                                                            type="file"
+                                                            accept="video/*"
+                                                            onChange={e => handleVideoUpload(index, e)}
+                                                            className="hidden"
+                                                            disabled={!!uploading[index]}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                document.getElementById(`live-video-${index}`)?.click();
+                                                            }}
+                                                            disabled={!!uploading[index]}
+                                                            className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 cursor-pointer transition-colors whitespace-nowrap border border-blue-200"
+                                                        >
+                                                            <Upload size={14} /> อัปโหลด MP4
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
