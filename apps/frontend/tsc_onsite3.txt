@@ -1,0 +1,6 @@
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(293,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(316,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(547,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(559,6): error TS1005: ')' expected.
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(560,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/(main)/(admin)/admin/courses/[id]/edit/tabs/OnsiteScheduleTab.tsx(561,1): error TS1005: '</' expected.

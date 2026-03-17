@@ -420,7 +420,7 @@ export function OnsiteScheduleTab({ course, onUpdate }: OnsiteScheduleTabProps) 
                                         ><X size={14} /></button>
                                     </div>
                                 ) : pdfUploading[index] ? (
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-1.5 border border-orange-200 bg-orange-50 rounded-lg p-3">
                                         <div className="flex justify-between text-xs text-gray-500">
                                             <span className="truncate max-w-[200px]">{pdfFileName[index]}</span>
                                             <span className="font-semibold">{pdfProgress[index] || 0}%</span>

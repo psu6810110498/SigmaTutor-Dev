@@ -1,0 +1,14 @@
+app/(main)/(admin)/admin/courses/[id]/seats/page.tsx(67,59): error TS2339: Property 'mutate' does not exist on type 'UseCourseAvailabilityReturn'.
+app/(main)/(admin)/admin/courses/[id]/seats/page.tsx(214,36): error TS18047: 'availability.maxSeats' is possibly 'null'.
+app/(main)/(admin)/admin/courses/[id]/seats/page.tsx(214,60): error TS18047: 'availability.remaining' is possibly 'null'.
+app/(main)/(admin)/admin/marketing/__tests__/BannersPage.test.tsx(92,55): error TS2345: Argument of type 'Promise<unknown>' is not assignable to parameter of type 'ApiResponse<Banner[]>'.
+  Property 'success' is missing in type 'Promise<unknown>' but required in type 'ApiResponse<Banner[]>'.
+app/(main)/(admin)/admin/marketing/__tests__/BannersPage.test.tsx(98,72): error TS2322: Type '({ id: string; title: string; subtitle: string; imageUrl: string; imageUrlMobile: string; linkUrl: null; position: string; priority: number; isActive: boolean; startDate: string; endDate: null; } | { ...; })[]' is not assignable to type 'Banner[]'.
+  Type '{ id: string; title: string; subtitle: string; imageUrl: string; imageUrlMobile: string; linkUrl: null; position: string; priority: number; isActive: boolean; startDate: string; endDate: null; } | { ...; }' is not assignable to type 'Banner'.
+    Type '{ id: string; title: string; subtitle: string; imageUrl: string; imageUrlMobile: string; linkUrl: null; position: string; priority: number; isActive: boolean; startDate: string; endDate: null; }' is not assignable to type 'Banner'.
+      Types of property 'position' are incompatible.
+        Type 'string' is not assignable to type 'BannerPosition'.
+app/(main)/(admin)/admin/marketing/__tests__/BannersPage.test.tsx(125,81): error TS2322: Type '{ id: string; title: string; subtitle: string; imageUrl: string; imageUrlMobile: string; linkUrl: null; position: string; priority: number; isActive: boolean; startDate: string; endDate: null; } | { ...; }' is not assignable to type 'Banner'.
+  Type '{ id: string; title: string; subtitle: string; imageUrl: string; imageUrlMobile: string; linkUrl: null; position: string; priority: number; isActive: boolean; startDate: string; endDate: null; }' is not assignable to type 'Banner'.
+    Types of property 'position' are incompatible.
+      Type 'string' is not assignable to type 'BannerPosition'.
