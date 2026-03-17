@@ -26,7 +26,7 @@ router.get('/', async (_req, res: Response) => {
 
 /** GET /api/site-content/:key — single section (public) */
 router.get('/:key', async (req, res: Response) => {
-  const { key } = req.params;
+  const key = req.params.key as string;
   if (!ALLOWED_KEYS.includes(key)) {
     return res.status(404).json({ success: false, error: 'Unknown section key' });
   }
@@ -40,7 +40,7 @@ router.get('/:key', async (req, res: Response) => {
 
 /** PUT /api/site-content/:key — update section (ADMIN only) */
 router.put('/:key', authenticate, requireRole('ADMIN'), async (req: AuthRequest, res: Response) => {
-  const { key } = req.params;
+  const key = req.params.key as string;
   if (!ALLOWED_KEYS.includes(key)) {
     return res.status(400).json({ success: false, error: 'Unknown section key' });
   }

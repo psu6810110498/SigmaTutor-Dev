@@ -37,7 +37,7 @@ router.get('/:courseId', authenticate, async (req: AuthRequest, res: Response) =
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Unauthorized' });
         }
-        const { courseId } = req.params;
+        const courseId = req.params.courseId as string;
 
         const progress = await progressService.getProgressByCourse(userId, courseId);
         res.json({ success: true, data: progress });

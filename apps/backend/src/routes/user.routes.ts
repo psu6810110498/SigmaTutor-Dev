@@ -303,7 +303,7 @@ router.delete(
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      await prisma.user.delete({ where: { id: req.params.id } });
+      await prisma.user.delete({ where: { id: req.params.id as string } });
       res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ success: false, error: 'Failed to delete user' });
@@ -319,7 +319,7 @@ router.get(
   authenticate as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+      const user = await prisma.user.findUnique({ where: { id: req.params.id as string } });
       if (!user) {
         res.status(404).json({ success: false, error: 'User not found' });
         return;

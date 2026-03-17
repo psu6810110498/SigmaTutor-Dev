@@ -23,6 +23,7 @@ interface UseCourseAvailabilityReturn {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  mutate: () => void;
   // Shortcuts
   isLimited: boolean;
   isFull: boolean;
@@ -83,6 +84,7 @@ export function useCourseAvailability(
     isLoading,
     error,
     refetch: fetchAvailability,
+    mutate: fetchAvailability,
     isLimited: availability?.isLimited ?? false,
     isFull: availability?.isFull ?? false,
     isReservedOnly: availability?.isReservedOnly ?? false,

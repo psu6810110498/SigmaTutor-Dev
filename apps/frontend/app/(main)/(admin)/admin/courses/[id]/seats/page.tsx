@@ -211,7 +211,7 @@ export default function AdminSeatManagementPage() {
               <div className="flex justify-between text-sm mb-2 font-medium">
                 <span className="text-gray-600">ที่นั่งใช้ไปแล้ว</span>
                 <span className={availability?.isFull ? 'text-red-600 font-bold' : 'text-gray-900'}>
-                  {availability ? (availability.maxSeats - availability.remaining) : enrollments.length} 
+                  {availability ? ((availability.maxSeats ?? course.maxSeats) - (availability.remaining ?? (course.maxSeats - enrollments.length))) : enrollments.length} 
                   <span className="text-gray-400 font-normal mx-1">/</span> 
                   {course.maxSeats}
                 </span>

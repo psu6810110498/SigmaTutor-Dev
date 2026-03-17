@@ -61,7 +61,7 @@ router.get(
     publicApiLimiter,
     async (req: Request, res: Response): Promise<void> => {
         try {
-            const id = req.params.id;
+            const id = req.params.id as string;
             const tutor = await tutorService.getById(id);
             if (!tutor) {
                 res.status(404).json({ success: false, error: 'Tutor not found' });

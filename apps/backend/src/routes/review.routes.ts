@@ -161,7 +161,7 @@ router.put(
     validate(updateReviewSchema),
     async (req: AuthRequest, res: Response): Promise<void> => {
         try {
-            const reviewId = req.params.id;
+            const reviewId = req.params.id as string;
             const userId = req.user!.userId;
             const { rating, comment } = req.body;
 
@@ -383,7 +383,7 @@ router.patch(
                 return;
             }
 
-            const reviewId = req.params.id;
+            const reviewId = req.params.id as string;
             const review = await prisma.review.findUnique({ where: { id: reviewId } });
 
             if (!review) {

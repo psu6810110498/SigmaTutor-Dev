@@ -148,7 +148,7 @@ export class TutorService {
           course: {
             OR: [
               { teacherId: id },
-              { courseTeachers: { some: { teacherId: id } } },
+              { teachers: { some: { teacherId: id } } },
             ],
           },
         },
@@ -204,33 +204,33 @@ export class TutorService {
         course: {
           OR: [
             { teacherId: tutorId },
-            { courseTeachers: { some: { teacherId: tutorId } } },
+            { teachers: { some: { teacherId: tutorId } } },
           ],
         },
-      } as const;
+      };
 
       const [aggregate, distribution] = await Promise.all([
         prisma.review.aggregate({
           where: { ...courseFilter, isHidden: false },
           _avg: { rating: true },
-          _count: { id: true },
+          _count: { _all: true },
         }),
         prisma.review.groupBy({
           by: ['rating'],
           where: { ...courseFilter, isHidden: false },
-          _count: { id: true },
+          _count: { _all: true },
           orderBy: { rating: 'asc' },
         }),
       ]);
 
       const ratingDistribution = [1, 2, 3, 4, 5].map((star) => ({
         star,
-        count: distribution.find((d) => d.rating === star)?._count?.id ?? 0,
+        count: Number((distribution.find((d) => d.rating === star)?._count as any)?._all ?? 0),
       }));
 
       return {
-        averageRating: Number((aggregate._avg.rating ?? 0).toFixed(1)),
-        totalReviews: aggregate._count.id,
+        averageRating: Number((aggregate._avg?.rating ?? 0).toFixed(1)),
+        totalReviews: Number((aggregate._count as any)?._all ?? 0),
         ratingDistribution,
       };
     } catch {
@@ -252,7 +252,7 @@ export class TutorService {
           course: {
             OR: [
               { teacherId: tutorId },
-              { courseTeachers: { some: { teacherId: tutorId } } },
+              { teachers: { some: { teacherId: tutorId } } },
             ],
           },
         },

@@ -27,7 +27,7 @@ router.put('/sync/:courseId', express.json(), forceInjectToken, authenticate, re
             // ✅ ใช้เครื่องหมาย ? (Optional Chaining) ป้องกันแอปพัง ถ้าหา req.body ไม่เจอให้ใช้ Array ว่างแทน
             const sessions = req.body?.sessions || [];
             
-            const result = await scheduleService.sync(req.params.courseId, sessions);
+            const result = await scheduleService.sync(req.params.courseId as string, sessions);
             res.json({ success: true, data: result });
         } catch (error) {
             console.error("Sync Error:", error);

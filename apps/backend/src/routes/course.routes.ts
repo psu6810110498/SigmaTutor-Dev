@@ -228,7 +228,7 @@ router.delete('/self-study/:id', authenticate, async (req: Request, res: Respons
   const userId = authReq.user?.userId;
   if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
   try {
-    await courseService.deleteSelfStudySession(userId, req.params.id);
+    await courseService.deleteSelfStudySession(userId, req.params.id as string);
     res.json({ success: true, message: 'Session deleted' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete session';
@@ -262,7 +262,7 @@ router.put('/self-study/:id', authenticate, async (req: Request, res: Response):
   const userId = authReq.user?.userId;
   if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
   try {
-    const session = await courseService.updateSelfStudySession(userId, req.params.id, req.body);
+    const session = await courseService.updateSelfStudySession(userId, req.params.id as string, req.body);
     res.json({ success: true, data: session });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update session';
@@ -423,7 +423,7 @@ router.post(
   requireRole('ADMIN'),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const courseId = req.params.id;
+      const courseId = req.params.id as string;
       const course = await prisma.course.findUniqueOrThrow({
         where: { id: courseId },
         select: { maxSeats: true, courseType: true }
@@ -461,7 +461,7 @@ router.patch(
   requireRole('ADMIN'),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const courseId = req.params.id;
+      const courseId = req.params.id as string;
       const maxSeats = Number(req.body.maxSeats);
       
       if (isNaN(maxSeats) || maxSeats < 0) {
@@ -489,7 +489,7 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const enrollments = await prisma.enrollment.findMany({
-        where: { courseId: req.params.id, status: 'ACTIVE' },
+        where: { courseId: req.params.id as string, status: 'ACTIVE' },
         include: {
           user: {
             select: { id: true, name: true, email: true, profileImage: true, phone: true }
@@ -514,7 +514,7 @@ router.get(
   publicApiLimiter,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const availability = await courseService.getAvailability(req.params.id);
+      const availability = await courseService.getAvailability(req.params.id as string);
       res.json({ success: true, data: availability });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch availability';
