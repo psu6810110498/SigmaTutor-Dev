@@ -148,7 +148,7 @@ export class TutorService {
           course: {
             OR: [
               { teacherId: id },
-              { courseTeachers: { some: { teacherId: id } } },
+              { teachers: { some: { teacherId: id } } },
             ],
           },
         },
@@ -204,7 +204,7 @@ export class TutorService {
         course: {
           OR: [
             { teacherId: tutorId },
-            { courseTeachers: { some: { teacherId: tutorId } } },
+            { teachers: { some: { teacherId: tutorId } } },
           ],
         },
       } as const;
@@ -252,7 +252,7 @@ export class TutorService {
           course: {
             OR: [
               { teacherId: tutorId },
-              { courseTeachers: { some: { teacherId: tutorId } } },
+              { teachers: { some: { teacherId: tutorId } } },
             ],
           },
         },

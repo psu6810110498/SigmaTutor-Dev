@@ -316,7 +316,7 @@ export default function CourseDetailPage() {
   // Render
   // ============================================================
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 lg:pb-8 relative">
       {/* Back */}
       <Link
         href="/explore"
@@ -451,6 +451,11 @@ export default function CourseDetailPage() {
                 {course.level.name}
               </span>
             )}
+            {course.courseType === 'ONSITE' && course.location && (
+              <span className="flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full text-xs font-semibold">
+                <MapPin size={12} /> {course.location}
+              </span>
+            )}
           </div>
 
           {/* Stats Row — Dynamic by type */}
@@ -512,11 +517,43 @@ export default function CourseDetailPage() {
 
           {/* Description */}
           {course.description && (
-            <div className="bg-white rounded-xl border border-gray-100 p-6 mb-6">
-              <h3 className="font-bold text-gray-900 mb-3">เกี่ยวกับคอร์สนี้</h3>
-              <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
-                {course.description}
-              </p>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 mb-6 shadow-sm">
+              <div 
+                className="prose prose-blue prose-sm md:prose-base max-w-none text-gray-700 leading-relaxed 
+                           prose-h3:text-gray-900 prose-h3:font-bold prose-h3:mb-4 prose-h3:text-xl
+                           prose-p:mb-4 prose-ul:mb-4 prose-ol:mb-4 prose-li:my-1
+                           prose-strong:text-gray-900 prose-strong:font-bold
+                           prose-em:text-gray-500 prose-em:italic"
+                dangerouslySetInnerHTML={{ __html: course.description }}
+              />
+            </div>
+          )}
+
+          {/* Teacher Profile Showcase */}
+          {course.instructor && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-6 mb-8 flex flex-col md:flex-row items-center md:items-start gap-6">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden shadow-md ring-4 ring-white flex-shrink-0 bg-white">
+                {course.instructor.profileImage ? (
+                  <img src={course.instructor.profileImage} alt={course.instructor.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-primary">
+                    {course.instructor.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-xl font-bold text-gray-900 mb-1">{course.instructor.name}</h3>
+                <p className="text-sm text-primary font-medium mb-3">{course.instructor.title || 'ผู้เชี่ยวชาญการสอน'}</p>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4 max-w-2xl">
+                  {course.instructor.bio || 'มุ่งมั่นสร้างประสบการณ์การเรียนรู้ที่ดีที่สุดให้กับนักเรียนทุกคน พร้อมเทคนิคการสอนที่เข้าใจง่ายและนำไปใช้ได้จริง'}
+                </p>
+                <Link 
+                  href={`/tutors/${course.instructor.id}`}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary border border-primary/20 hover:bg-primary/5 hover:border-primary/40 rounded-xl font-semibold text-sm transition-all shadow-sm"
+                >
+                  <Users size={16} /> ดูโปรไฟล์เต็มของผู้สอน
+                </Link>
+              </div>
             </div>
           )}
 
@@ -1141,38 +1178,9 @@ export default function CourseDetailPage() {
               </div>
             )}
           </div>
-
-          {/* How to Join (ONLINE_LIVE + ONSITE) */}
-          {(course.courseType === 'ONLINE_LIVE' || course.courseType === 'ONSITE') && (
-            <div className="bg-gradient-to-br from-primary/5 to-blue-50 rounded-2xl p-6 border border-primary/10">
-              <h3 className="font-bold text-gray-900 mb-4">🚀 ขั้นตอนการเข้าเรียน</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                  { step: '1', title: 'สมัครเรียน', desc: 'เพิ่มคอร์สลงตะกร้าและชำระเงิน' },
-                  { step: '2', title: 'รอยืนยัน', desc: 'ทีมงานจะยืนยันภายใน 24 ชม.' },
-                  {
-                    step: '3',
-                    title: 'เข้าคอร์สของฉัน',
-                    desc: 'Login และไปที่หน้า Dashboard เพื่อดูลิงก์',
-                  },
-                  { step: '4', title: 'เริ่มเรียน!', desc: 'เข้าเรียนตามตารางที่กำหนด' },
-                ].map((s) => (
-                  <div key={s.step} className="text-center">
-                    <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-2 font-bold text-sm">
-                      {s.step}
-                    </div>
-                    <p className="font-medium text-gray-900 text-sm">{s.title}</p>
-                    <p className="text-xs text-gray-500 mt-1">{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ═══════════════════════════════════════ */}
-        {/* Right Column — Sticky Price Card        */}
-        {/* ═══════════════════════════════════════ */}
+        {/* Right Column */}
         <div className="lg:w-80 flex-shrink-0">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-28 space-y-5">
             {/* Popular Badge */}
@@ -1229,6 +1237,58 @@ export default function CourseDetailPage() {
                     {course.enrollEndDate && ` - ${formatDate(course.enrollEndDate)}`}
                   </span>
                 </div>
+              )}
+            </div>
+
+            {/* Benefits per Course Type */}
+            <div className="border-t border-gray-50 pt-4 space-y-2.5">
+              {course.courseType === 'ONLINE' && (
+                <>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\u23f1\ufe0f"}</span>
+                    <div><span className="font-semibold">เข้าถึงคอร์สได้ 365 วัน</span><p className="text-xs text-gray-400 mt-0.5">เรียนได้ทุกที่ ทุกเวลา ทุกอุปกรณ์</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udcc4"}</span>
+                    <div><span className="font-semibold">รวมเอกสารประกอบการเรียน (PDF)</span><p className="text-xs text-gray-400 mt-0.5">ดาวน์โหลดได้ทันทีหลังชำระเงิน</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udcf1"}</span>
+                    <div><span className="font-semibold">เรียนผ่านคอมฯ และมือถือได้</span><p className="text-xs text-gray-400 mt-0.5">อุปกรณ์ทั้ง iOS และ Android</p></div>
+                  </div>
+                </>
+              )}
+              {course.courseType === 'ONLINE_LIVE' && (
+                <>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udda5\ufe0f"}</span>
+                    <div><span className="font-semibold">เรียนสดผ่าน Zoom</span><p className="text-xs text-gray-400 mt-0.5">โต้ตอบและถามผู้สอนได้โดยตรง</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udcf9"}</span>
+                    <div><span className="font-semibold">ดูวิดีโอย้อนหลังภายหลังคลาสได้</span><p className="text-xs text-gray-400 mt-0.5">เผื่อทบทวนเนื้อหาภายหลัง</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udcc4"}</span>
+                    <div><span className="font-semibold">รวมเอกสารประกอบการเรียน (PDF)</span><p className="text-xs text-gray-400 mt-0.5">ส่งให้หลังจากแต่ละคลาส</p></div>
+                  </div>
+                </>
+              )}
+              {course.courseType === 'ONSITE' && (
+                <>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udccd"}</span>
+                    <div><span className="font-semibold">เรียนสดที่สถาบัน</span><p className="text-xs text-gray-400 mt-0.5">{course.location || 'พร้อมทีมงานดูแลตลอดคลาส'}</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83e\udd1d"}</span>
+                    <div><span className="font-semibold">ดูแลใกล้ชิดตัวต่อตัว</span><p className="text-xs text-gray-400 mt-0.5">ถาม-ตอบได้ทันทีในห้องเรียน</p></div>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <span className="text-lg leading-none">{"\ud83d\udcc4"}</span>
+                    <div><span className="font-semibold">แจกชีทและเอกสารในคลาส</span><p className="text-xs text-gray-400 mt-0.5">พร้อมสำหรับทุกคนที่เข้าเรียน</p></div>
+                  </div>
+                </>
               )}
             </div>
 
@@ -1331,6 +1391,53 @@ export default function CourseDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════ */}
+      {/* Mobile Sticky Bottom CTA Bar            */}
+      {/* ═══════════════════════════════════════ */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-8px_15px_-3px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 animate-fade-in-up">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-500 line-through mb-0.5">
+            {course.originalPrice && course.originalPrice > course.price ? `฿${formatPrice(course.originalPrice)}` : ''}
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-gray-900 leading-none">฿{formatPrice(course.price)}</span>
+            {course.originalPrice && course.originalPrice > course.price && (
+              <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-bold">
+                -{Math.round((1 - course.price / course.originalPrice) * 100)}%
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex-shrink-0 w-[140px] sm:w-[180px]">
+          {isEnrolled ? (
+            <Link
+              href={`/courses/${course.id}/learn`}
+              className="w-full flex items-center justify-center py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary-dark shadow-md"
+            >
+              เข้าสู่บทเรียน
+            </Link>
+          ) : availability?.isFull && !availability.isReservedOnly ? (
+            <div className="text-center py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm font-medium">
+              คลาสเต็ม
+            </div>
+          ) : (
+            <button
+              disabled={availability?.isFull || isOwned(course.id)}
+              onClick={() => {
+                const owned = isOwned(course.id);
+                if (owned) return router.push(`/courses/${course.id}/learn`);
+                if (!isInCart(course.id)) addToCart(toCartItem(course));
+                setTimeout(() => router.push('/checkout'), 50);
+              }}
+              className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white shadow-md active:scale-95 transition-transform"
+            >
+              {isOwned(course.id) ? 'เข้าเรียน' : 'ซื้อเลย'}
+            </button>
+          )}
         </div>
       </div>
     </div>

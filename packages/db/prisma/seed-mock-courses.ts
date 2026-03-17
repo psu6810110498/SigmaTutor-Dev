@@ -359,7 +359,8 @@ async function main() {
         email: mockEmail,
         password: 'mockpassword', // Note: in real scenarios use bcrypt
         name: `นักเรียนจำลอง ${u+1}`,
-        role: 'USER'
+        role: 'USER',
+        profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=mockuser${u}&hair=short&clothing=blazerAndShirt`
       }
     });
     mockUsers.push(user);
@@ -401,9 +402,40 @@ async function main() {
             skipDuplicates: true
         });
         totalEnrollments += createdEnrollments.count;
+
+        // Generate Reviews (50% to 80% of enrolled students will leave a review)
+        const numReviews = Math.floor(pickedUsers.length * (Math.random() * 0.3 + 0.5));
+        if (numReviews > 0) {
+            const reviewers = pickedUsers.slice(0, numReviews);
+            const reviewComments = [
+                'สอนเข้าใจง่ายมากครับ ได้เทคนิคไปเยอะเลย',
+                'เนื้อหาดีมาก ภาพเสียงคมชัด',
+                'คุ้มค่ากับราคามากๆ แนะนำเลยครับ',
+                'ช่วยให้ทำข้อสอบได้เร็วขึ้นจริง',
+                'ชอบการสอนของคุณครูมากๆ เข้าใจง่าย ไม่น่าเบื่อ',
+                'จัดเรียบเรียงเนื้อหาได้ดีมากครับ',
+                'ตรงจุด มีประโยชน์กับการสอบมาก',
+                'อธิบายละเอียดแบบคนไม่มีพื้นฐานก็เข้าใจได้'
+            ];
+            const reviewData = reviewers.map(user => {
+                const isGreat = Math.random() > 0.2; // 80% true
+                return {
+                    userId: user.id,
+                    courseId: c.id,
+                    rating: isGreat ? 5 : 4,
+                    comment: reviewComments[randomInt(0, reviewComments.length - 1)],
+                    helpful: randomInt(0, 50)
+                };
+            });
+            await prisma.review.createMany({
+                data: reviewData,
+                skipDuplicates: true
+            });
+        }
     }
   }
   console.log(`   ✅ Seeded ${totalEnrollments} mock enrollments for seat calculation`);
+  console.log(`   ✅ Seeded mock reviews for courses`);
 
   console.log('\n🎉 Mock Data Generation Complete!');
   console.log(`📊 Summary:`);

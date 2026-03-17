@@ -8,9 +8,9 @@ const FOOTER_LINKS = {
     { label: 'ติดต่อเรา', href: '/contact' },
   ],
   ข้อมูลเพิ่มเติม: [
-    { label: 'เงื่อนไขการใช้งาน', href: '#' },
-    { label: 'นโยบายความเป็นส่วนตัว', href: '#' },
-    { label: 'นโยบายคุกกี้', href: '#' },
+    { label: 'เงื่อนไขการใช้งาน', href: '/terms' },
+    { label: 'นโยบายความเป็นส่วนตัว', href: '/privacy' },
+    { label: 'นโยบายคุกกี้', href: '/cookie' },
   ],
 };
 
