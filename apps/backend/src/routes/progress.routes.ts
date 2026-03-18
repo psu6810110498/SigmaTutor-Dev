@@ -47,4 +47,30 @@ router.get('/:courseId', authenticate, async (req: AuthRequest, res: Response) =
     }
 });
 
+// Update watch time
+router.patch('/watch-time', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+        const { courseId, lessonId, scheduleId, watchedSeconds } = req.body;
+
+        if (!courseId || (!lessonId && !scheduleId) || watchedSeconds === undefined) {
+            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+
+        const access = await progressService.checkEnrollmentAccess(userId, courseId, req.user?.role);
+        if (!access.allowed) {
+            return res.status(403).json({ success: false, error: access.reason });
+        }
+
+        const progress = await progressService.updateWatchTime(userId, courseId, { lessonId, scheduleId, watchedSeconds });
+        res.json({ success: true, data: progress });
+    } catch (error: any) {
+        console.error('Update watch time error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+});
+
 export default router;

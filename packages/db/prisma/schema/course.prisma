@@ -114,6 +114,8 @@ model UserProgress {
   lessonId    String?
   scheduleId  String?
   isCompleted Boolean  @default(true)
+  watchedSeconds Int      @default(0)
+  lastWatchedAt  DateTime?
   completedAt DateTime @default(now())
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
