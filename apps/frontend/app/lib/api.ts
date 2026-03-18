@@ -24,7 +24,7 @@ import type {
 
 // ── Config ────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api');
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 // ── Core HTTP Methods ─────────────────────────────────────
 
@@ -123,7 +123,13 @@ export const courseApi = {
   },
 
   /** POST /courses/self-study — Create a self-study session */
-  createSelfStudy(data: { courseId: string; lessonId?: string; topic: string; startTime: string; endTime: string }) {
+  createSelfStudy(data: {
+    courseId: string;
+    lessonId?: string;
+    topic: string;
+    startTime: string;
+    endTime: string;
+  }) {
     return request<any>('/courses/self-study', {
       method: 'POST',
       headers: headers(true),
@@ -145,7 +151,10 @@ export const courseApi = {
   },
 
   /** PUT /courses/self-study/:id — Update a self-study session */
-  updateSelfStudy(id: string, data: { topic?: string; startTime?: string; endTime?: string; lessonId?: string }) {
+  updateSelfStudy(
+    id: string,
+    data: { topic?: string; startTime?: string; endTime?: string; lessonId?: string }
+  ) {
     return request<any>(`/courses/self-study/${id}`, {
       method: 'PUT',
       headers: headers(true),
@@ -279,8 +288,6 @@ export type TutorProfile = {
   title?: string | null;
 };
 
-
-
 export const tutorApi = {
   /**
    * GET /tutors — Returns instructors filtered by active course filters.
@@ -297,7 +304,7 @@ export const tutorApi = {
     return request<TutorProfile[]>(`/tutors${query}`);
   },
 
-  /** 
+  /**
    * GET /tutors/all — Full list for the Instructors/Tutors Grid Page
    * Cached at Edge/CDN for performance.
    */
@@ -308,7 +315,7 @@ export const tutorApi = {
     } as RequestInit);
   },
 
-  /** 
+  /**
    * GET /tutors/:id — Full Instructor Profile including review stats
    * Cached at Edge/CDN for performance.
    */
@@ -867,12 +874,10 @@ export const progressApi = {
 
 export const availabilityApi = {
   /** GET /courses/:id/availability — real-time seat data */
-  get: (courseId: string) =>
-    request<CourseAvailability>(`/courses/${courseId}/availability`),
+  get: (courseId: string) => request<CourseAvailability>(`/courses/${courseId}/availability`),
 
   /** Fetch availability for multiple courses in parallel */
-  getMany: (courseIds: string[]) =>
-    Promise.all(courseIds.map((id) => availabilityApi.get(id))),
+  getMany: (courseIds: string[]) => Promise.all(courseIds.map((id) => availabilityApi.get(id))),
 
   /** POST /courses/notify-seat — subscribe to seat-available notification */
   notifyWhenAvailable: (courseId: string, email: string) =>

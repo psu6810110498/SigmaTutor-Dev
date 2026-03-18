@@ -40,7 +40,7 @@ interface LiveSession {
   content: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API = process.env.NEXT_PUBLIC_API_URL || '';
 const CREDS: RequestInit = { credentials: 'include' };
 
 function toDateInput(iso: string | null | undefined): string {
