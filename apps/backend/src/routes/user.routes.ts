@@ -244,52 +244,51 @@ router.patch(
         profileImageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       }
 
-      // Update User record (general fields)
-      const user = await prisma.user.update({
-        where: { id },
-        data: {
-          name,
-          phone,
-          educationLevel,
-          school,
-          province,
-          address,
-          profileImage: profileImageUrl,
-          birthday: birthday ? new Date(birthday) : undefined,
-        },
-        select: { id: true, email: true, name: true, role: true, profileImage: true, updatedAt: true },
-      });
+      // 1. Try to update User record if it exists
+      let user = null;
+      try {
+        user = await prisma.user.update({
+          where: { id },
+          data: {
+            name, phone, educationLevel, school, province, address,
+            profileImage: profileImageUrl,
+            birthday: birthday ? new Date(birthday) : undefined,
+          },
+          select: { id: true, email: true, name: true, role: true, profileImage: true, updatedAt: true },
+        });
+      } catch (err: any) {
+        if (err.code !== 'P2025') throw err; // Throw if not "Record not found"
+      }
 
-      // If the user is a teacher, sync teacher-specific fields as well
-      const teacher = await prisma.teacher.findUnique({ where: { email: user.email } });
+      // 2. Sync or Update Teacher record
+      // Search by email if User was found, otherwise search by the provided id (in case it is a Teacher id)
+      const teacher = user 
+        ? await prisma.teacher.findUnique({ where: { email: user.email } })
+        : await prisma.teacher.findUnique({ where: { id } });
+
       if (teacher) {
         await prisma.teacher.update({
           where: { id: teacher.id },
           data: {
-            name,
-            nickname,
-            title,
-            bio,
-            expertise,
-            education,
-            experience,
-            socialLink,
-            profileImage: profileImageUrl,
-            educationHistory,
-            achievements,
-            quote,
-            facebookUrl,
-            instagramUrl,
-            tiktokUrl,
-            linkedinUrl,
+            name, nickname, title, bio, expertise, education, experience,
+            socialLink, profileImage: profileImageUrl, educationHistory,
+            achievements, quote, facebookUrl, instagramUrl, tiktokUrl, linkedinUrl,
           },
         });
       }
 
-      res.json({ success: true, data: user });
-    } catch (error) {
+      if (!user && !teacher) {
+        res.status(404).json({ success: false, error: 'User or Teacher not found' });
+        return;
+      }
+
+      res.json({ success: true, data: user || teacher });
+    } catch (error: any) {
       console.error('Update user error:', error);
-      res.status(500).json({ success: false, error: 'Failed to update user' });
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to update user' 
+      });
     }
   }
 );
@@ -303,10 +302,28 @@ router.delete(
   requireRole('ADMIN') as express.RequestHandler,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      await prisma.user.delete({ where: { id: req.params.id as string } });
-      res.json({ success: true, message: 'User deleted successfully' });
-    } catch (error) {
-      res.status(500).json({ success: false, error: 'Failed to delete user' });
+      const id = req.params.id as string;
+      const user = await prisma.user.findUnique({ where: { id } });
+      const teacher = await prisma.teacher.findUnique({ where: { id } });
+
+      const targetEmail = user?.email || teacher?.email;
+
+      if (!targetEmail) {
+        res.status(404).json({ success: false, error: 'User or Teacher not found' });
+        return;
+      }
+
+      // Use deleteMany to avoid P2025 errors if the record exists in only one table
+      await prisma.teacher.deleteMany({ where: { email: targetEmail } });
+      await prisma.user.deleteMany({ where: { email: targetEmail } });
+
+      res.json({ success: true, message: 'User/Teacher deleted successfully' });
+    } catch (error: any) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete user' 
+      });
     }
   }
 );
