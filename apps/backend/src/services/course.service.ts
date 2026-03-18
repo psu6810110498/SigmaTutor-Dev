@@ -63,7 +63,7 @@ export class CourseService {
   /**
    * Dependency Injection: Accept database via constructor.
    */
-  constructor(private db: DbClient = prisma) { }
+  constructor(private db: DbClient = prisma) {}
 
   /**
    * Create a new course
@@ -92,7 +92,9 @@ export class CourseService {
     if (data.categoryId) {
       const cat = await this.db.category.findUnique({ where: { id: data.categoryId } });
       if (!cat) {
-        throw new Error('หมวดหมู่ที่เลือกไม่ถูกต้อง กรุณาเลือกหมวดหมู่ใหม่อีกครั้ง (อาจเกิดจากข้อมูลเก่าในแบบร่าง)');
+        throw new Error(
+          'หมวดหมู่ที่เลือกไม่ถูกต้อง กรุณาเลือกหมวดหมู่ใหม่อีกครั้ง (อาจเกิดจากข้อมูลเก่าในแบบร่าง)'
+        );
       }
     }
     if (data.levelId) {
@@ -104,11 +106,11 @@ export class CourseService {
 
     // ── กำหนด teacherId (ผู้สอนหลัก) ──────────────────────────────────────────
     // ถ้ามี instructorIds[] ให้ใช้ตัวแรกเป็น LEAD, ถ้าไม่มีให้ fallback ไปที่ instructorId หรือ creatorId
-    const instructorIds: string[] = Array.isArray(data.instructorIds) && data.instructorIds.length > 0
-      ? data.instructorIds
-      : [];
+    const instructorIds: string[] =
+      Array.isArray(data.instructorIds) && data.instructorIds.length > 0 ? data.instructorIds : [];
     const primaryInstructorId = instructorIds[0] ?? data.instructorId ?? creatorId;
-    const teacherId = (primaryInstructorId && primaryInstructorId !== "") ? primaryInstructorId : creatorId;
+    const teacherId =
+      primaryInstructorId && primaryInstructorId !== '' ? primaryInstructorId : creatorId;
     delete data.instructorId;
     delete data.instructorIds;
 
@@ -117,7 +119,7 @@ export class CourseService {
       const sessions = data.schedules as any[];
       data.schedules = {
         create: sessions.map((s, idx) => ({
-          sessionNumber: s.sessionNumber ?? (idx + 1),
+          sessionNumber: s.sessionNumber ?? idx + 1,
           topic: s.title ?? s.topic ?? 'ไม่มีหัวข้อ',
           chapterTitle: s.chapterTitle ?? null,
           videoUrl: s.videoUrl ?? null,
@@ -183,12 +185,15 @@ export class CourseService {
       if (course.instructorId === userId) {
         isAuthorized = true;
       } else {
-        const user = await this.db.user.findUnique({ where: { id: userId }, select: { role: true } });
+        const user = await this.db.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
         if (user?.role === 'ADMIN' || (user?.role as string) === 'INSTRUCTOR') {
           isAuthorized = true;
         } else {
           const enrollment = await this.db.enrollment.findFirst({
-            where: { userId, courseId: course.id, status: 'ACTIVE' }
+            where: { userId, courseId: course.id, status: 'ACTIVE' },
           });
           if (enrollment) isAuthorized = true;
         }
@@ -333,10 +338,7 @@ export class CourseService {
       ...(courseType && { courseType }),
       // tutorId — ค้นหาทั้งจาก teacherId (legacy) และ teachers join table (multi-instructor)
       ...(tutorId && {
-        OR: [
-          { teacherId: tutorId },
-          { teachers: { some: { teacherId: tutorId } } },
-        ],
+        OR: [{ teacherId: tutorId }, { teachers: { some: { teacherId: tutorId } } }],
       }),
       ...(minPrice !== undefined && !isNaN(minPrice) && { price: { gte: minPrice } }),
       ...(maxPrice !== undefined && !isNaN(maxPrice) && { price: { lte: maxPrice } }),
@@ -432,7 +434,7 @@ export class CourseService {
       return {
         ...en,
         isExpired,
-        course: { ...courseRest, instructor: teacher, instructorId: teacherId }
+        course: { ...courseRest, instructor: teacher, instructorId: teacherId },
       };
     });
   }
@@ -475,18 +477,15 @@ export class CourseService {
       where: {
         userId,
         status: 'ACTIVE',
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } }
-        ],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         course: {
-          courseType: { in: ['ONSITE', 'ONLINE_LIVE'] }
-        }
+          courseType: { in: ['ONSITE', 'ONLINE_LIVE'] },
+        },
       },
-      select: { courseId: true }
+      select: { courseId: true },
     });
 
-    const enrolledCourseIds = activeEnrollments.map(e => e.courseId);
+    const enrolledCourseIds = activeEnrollments.map((e) => e.courseId);
 
     if (enrolledCourseIds.length === 0) {
       return [];
@@ -497,25 +496,22 @@ export class CourseService {
       where: {
         courseId: { in: enrolledCourseIds },
         date: { gte: today },
-        status: { in: ['ON_SCHEDULE', 'POSTPONED'] } // Ignore CANCELLED
+        status: { in: ['ON_SCHEDULE', 'POSTPONED'] }, // Ignore CANCELLED
       },
       include: {
         course: {
-          select: { title: true, courseType: true }
-        }
+          select: { title: true, courseType: true },
+        },
       },
-      orderBy: [
-        { date: 'asc' },
-        { startTime: 'asc' }
-      ],
-      take: 10
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      take: 10,
     });
 
     if (upcomingSchedules.length === 0) {
-        return [];
+      return [];
     }
 
-    const mappedOfficial = upcomingSchedules.map(schedule => ({
+    const mappedOfficial = upcomingSchedules.map((schedule) => ({
       id: schedule.id,
       type: 'OFFICIAL' as const,
       courseId: schedule.courseId,
@@ -528,24 +524,24 @@ export class CourseService {
       location: schedule.location,
       zoomLink: schedule.zoomLink,
       isOnline: schedule.isOnline,
-      status: schedule.status
+      status: schedule.status,
     }));
 
     // 2) Fetch self-study sessions for this user
     const selfStudySessions = await this.db.selfStudySession.findMany({
       where: {
         userId,
-        startTime: { gte: today }
+        startTime: { gte: today },
       },
       include: {
         course: { select: { title: true } },
-        lesson: { select: { title: true } }
+        lesson: { select: { title: true } },
       },
       orderBy: { startTime: 'asc' },
-      take: 10
+      take: 10,
     });
 
-    const mappedSelfStudy = selfStudySessions.map(s => ({
+    const mappedSelfStudy = selfStudySessions.map((s) => ({
       id: s.id,
       type: 'SELF_STUDY' as const,
       courseId: s.courseId,
@@ -559,7 +555,7 @@ export class CourseService {
       location: null,
       zoomLink: null,
       isOnline: false,
-      status: 'ON_SCHEDULE'
+      status: 'ON_SCHEDULE',
     }));
 
     // 3) Merge and sort by startTime
@@ -574,21 +570,24 @@ export class CourseService {
 
   // ── Self-Study Session Management ───────────────────────────────
 
-  async createSelfStudySession(userId: string, data: {
-    courseId: string;
-    lessonId?: string;
-    topic: string;
-    startTime: string;
-    endTime: string;
-  }) {
+  async createSelfStudySession(
+    userId: string,
+    data: {
+      courseId: string;
+      lessonId?: string;
+      topic: string;
+      startTime: string;
+      endTime: string;
+    }
+  ) {
     // Verify user is enrolled in this VOD course
     const enrollment = await this.db.enrollment.findFirst({
       where: {
         userId,
         courseId: data.courseId,
         status: 'ACTIVE',
-        course: { courseType: 'ONLINE' }
-      }
+        course: { courseType: 'ONLINE' },
+      },
     });
 
     if (!enrollment) {
@@ -603,13 +602,13 @@ export class CourseService {
         topic: data.topic,
         startTime: new Date(data.startTime),
         endTime: new Date(data.endTime),
-      }
+      },
     });
   }
 
   async deleteSelfStudySession(userId: string, sessionId: string) {
     const session = await this.db.selfStudySession.findFirst({
-      where: { id: sessionId, userId }
+      where: { id: sessionId, userId },
     });
 
     if (!session) {
@@ -624,7 +623,7 @@ export class CourseService {
       where: {
         userId,
         status: 'ACTIVE',
-        course: { courseType: 'ONLINE' }
+        course: { courseType: 'ONLINE' },
       },
       include: {
         course: {
@@ -643,17 +642,17 @@ export class CourseService {
                     title: true,
                     order: true,
                   },
-                  orderBy: { order: 'asc' }
-                }
+                  orderBy: { order: 'asc' },
+                },
               },
-              orderBy: { order: 'asc' }
-            }
-          }
-        }
-      }
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+      },
     });
 
-    return enrollments.map(e => e.course);
+    return enrollments.map((e) => e.course);
   }
 
   async getAllSelfStudySessions(userId: string) {
@@ -661,12 +660,12 @@ export class CourseService {
       where: { userId },
       include: {
         course: { select: { title: true, thumbnail: true } },
-        lesson: { select: { title: true } }
+        lesson: { select: { title: true } },
       },
-      orderBy: { startTime: 'asc' }
+      orderBy: { startTime: 'asc' },
     });
 
-    return sessions.map(s => ({
+    return sessions.map((s) => ({
       id: s.id,
       courseId: s.courseId,
       courseTitle: s.course.title,
@@ -680,14 +679,18 @@ export class CourseService {
     }));
   }
 
-  async updateSelfStudySession(userId: string, sessionId: string, data: {
-    topic?: string;
-    startTime?: string;
-    endTime?: string;
-    lessonId?: string;
-  }) {
+  async updateSelfStudySession(
+    userId: string,
+    sessionId: string,
+    data: {
+      topic?: string;
+      startTime?: string;
+      endTime?: string;
+      lessonId?: string;
+    }
+  ) {
     const session = await this.db.selfStudySession.findFirst({
-      where: { id: sessionId, userId }
+      where: { id: sessionId, userId },
     });
 
     if (!session) {
@@ -701,7 +704,7 @@ export class CourseService {
         ...(data.startTime && { startTime: new Date(data.startTime) }),
         ...(data.endTime && { endTime: new Date(data.endTime) }),
         ...(data.lessonId !== undefined && { lessonId: data.lessonId || null }),
-      }
+      },
     });
   }
 
@@ -765,7 +768,8 @@ export class CourseService {
 
     // ✅ ปรับแก้ข้อมูล IDs ให้ถูกต้องก่อนอัปเดต (string cuid หรือ null)
     if (updateData.levelId === '' || updateData.levelId === undefined) updateData.levelId = null;
-    if (updateData.categoryId === '' || updateData.categoryId === undefined) updateData.categoryId = null;
+    if (updateData.categoryId === '' || updateData.categoryId === undefined)
+      updateData.categoryId = null;
     if ('instructorId' in updateData) {
       updateData.teacherId = updateData.instructorId === '' ? null : updateData.instructorId;
       delete updateData.instructorId;
@@ -854,7 +858,7 @@ export class CourseService {
         id,
         course.maxSeats!,
         enrolledCount,
-        0, // ยังไม่มี active reservation ตอน publish
+        0 // ยังไม่มี active reservation ตอน publish
       );
     }
 
