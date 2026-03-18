@@ -595,48 +595,74 @@ export default function AdminCoursesPage() {
                       </select>
                     </td>
 
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-center gap-1">
-                        <Link href={`/course/${course.id}`} target="_blank">
-                          <button
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                            title="ดูตัวอย่าง"
-                          >
-                            <Eye size={16} />
-                          </button>
-                        </Link>
-                        {course.courseType !== 'ONLINE' && (
-                          <Link href={`/admin/courses/${course.id}/seats`}>
+                    <td className="px-5 py-4 align-middle">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Slot 1: View */}
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <Link href={`/course/${course.id}`} target="_blank" className="flex items-center justify-center w-full h-full">
                             <button
-                              className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
-                              title="จัดการที่นั่ง"
+                              type="button"
+                              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              title="ดูตัวอย่าง"
                             >
-                              <Users size={16} />
+                              <Eye size={16} />
                             </button>
                           </Link>
-                        )}
-                        <Link href={`/admin/courses/${course.id}/edit`}>
+                        </div>
+                        
+                        {/* Slot 2: Manage Seats (Conditional) */}
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          {course.courseType !== 'ONLINE' ? (
+                            <Link href={`/admin/courses/${course.id}/seats`} className="flex items-center justify-center w-full h-full">
+                              <button
+                                type="button"
+                                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                title="จัดการที่นั่ง"
+                              >
+                                <Users size={16} />
+                              </button>
+                            </Link>
+                          ) : (
+                            <div className="w-8 h-8"></div>
+                          )}
+                        </div>
+
+                        {/* Slot 3: Edit */}
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <Link href={`/admin/courses/${course.id}/edit`} className="flex items-center justify-center w-full h-full">
+                            <button
+                              type="button"
+                              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="แก้ไข"
+                            >
+                              <Edit size={16} />
+                            </button>
+                          </Link>
+                        </div>
+
+                        {/* Slot 4: Export */}
+                        <div className="w-8 h-8 flex items-center justify-center">
                           <button
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            title="แก้ไข"
+                            type="button"
+                            onClick={() => handleExportExcel(course.id, course.title)}
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Export นักเรียน (.xlsx)"
                           >
-                            <Edit size={16} />
+                            <Download size={16} />
                           </button>
-                        </Link>
-                        <button
-                          onClick={() => handleExportExcel(course.id, course.title)}
-                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Export นักเรียน (.xlsx)"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <button
-                          onClick={() => setDeletingId(course.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="ลบ"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        </div>
+
+                        {/* Slot 5: Delete */}
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setDeletingId(course.id)}
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="ลบ"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
