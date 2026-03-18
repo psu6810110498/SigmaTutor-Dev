@@ -36,6 +36,7 @@ model Course {
   gumletVideoId      String?
   videoProvider      VideoProvider    @default(YOUTUBE)
   teacherId          String?
+  instructorId       String?
   accessDurationDays Int?             @default(365)
   enrollments        Enrollment[]
   payments           Payment[]
@@ -51,6 +52,7 @@ model Course {
   promotions         Promotion[]      @relation("CoursePromotions")
   selfStudySessions  SelfStudySession[]
 
+  @@index([instructorId])
   @@index([teacherId])
   @@index([status])
   @@index([status, categoryId])
@@ -112,6 +114,8 @@ model UserProgress {
   lessonId    String?
   scheduleId  String?
   isCompleted Boolean  @default(true)
+  watchedSeconds Int      @default(0)
+  lastWatchedAt  DateTime?
   completedAt DateTime @default(now())
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

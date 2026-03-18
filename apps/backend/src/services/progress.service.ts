@@ -63,6 +63,37 @@ export class ProgressService {
             });
         }
     }
+
+    async updateWatchTime(
+        userId: string,
+        courseId: string,
+        data: { lessonId?: string; scheduleId?: string; watchedSeconds: number }
+    ) {
+        if (!data.lessonId && !data.scheduleId) {
+            throw new Error('Must provide either lessonId or scheduleId');
+        }
+
+        const where = data.lessonId
+            ? { userId_lessonId: { userId, lessonId: data.lessonId } }
+            : { userId_scheduleId: { userId, scheduleId: data.scheduleId! } };
+
+        return prisma.userProgress.upsert({
+            where,
+            update: {
+                watchedSeconds: data.watchedSeconds,
+                lastWatchedAt: new Date()
+            },
+            create: {
+                userId,
+                courseId,
+                ...(data.lessonId ? { lessonId: data.lessonId } : {}),
+                ...(data.scheduleId ? { scheduleId: data.scheduleId } : {}),
+                watchedSeconds: data.watchedSeconds,
+                lastWatchedAt: new Date(),
+                isCompleted: false,
+            },
+        });
+    }
 }
 
 export const progressService = new ProgressService();

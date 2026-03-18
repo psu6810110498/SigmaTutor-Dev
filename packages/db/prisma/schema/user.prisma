@@ -7,6 +7,13 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   profileImage   String?
+  nickname       String?
+  title          String?
+  bio            String?
+  expertise      String?
+  education      String?
+  experience     String?
+  socialLink     String?
   address        String?
   phone          String?
   birthday       DateTime?
@@ -38,5 +45,6 @@ model Session {
 
 enum Role {
   USER
+  INSTRUCTOR
   ADMIN
 }

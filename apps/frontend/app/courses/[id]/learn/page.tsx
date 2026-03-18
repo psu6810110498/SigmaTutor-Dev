@@ -534,45 +534,63 @@ export default function LearningPage() {
                     <div className="p-8 max-w-5xl mx-auto w-full flex-1 overflow-y-auto">
                         {/* Video Player */}
                         <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative z-0">
-                            {/* 1. Lesson has Gumlet */}
-                            {(currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && currentLesson?.gumletVideoId?.trim())) && currentLesson?.gumletVideoId?.trim() ? (
-                                <iframe
-                                    src={`https://play.gumlet.io/embed/${currentLesson.gumletVideoId.trim()}`}
-                                    className="w-full h-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    title={currentLesson?.topic || currentLesson?.title || 'Gumlet Video'}
-                                />
-                            ) : ((currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !currentLesson?.gumletVideoId?.trim())) && (currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim())) ? (
-                                (() => {
-                                    const rawUrl = currentLesson?.videoUrl?.trim() || currentLesson?.youtubeUrl?.trim();
-                                    const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                            {(() => {
+                                const getValidId = (id?: string | null) => {
+                                    if (!id) return null;
+                                    const trimmed = id.trim();
+                                    if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') return null;
+                                    return trimmed;
+                                };
+
+                                const lessonGumletId = getValidId(currentLesson?.gumletVideoId);
+                                const isLessonGumlet = currentLesson?.videoProvider === 'GUMLET' || (!currentLesson?.videoProvider && !!lessonGumletId);
+                                const isLessonYouTube = currentLesson?.videoProvider === 'YOUTUBE' || (!currentLesson?.videoProvider && !lessonGumletId);
+                                const lessonYoutubeUrl = getValidId(currentLesson?.videoUrl) || getValidId(currentLesson?.youtubeUrl);
+
+                                const courseGumletId = getValidId(course?.gumletVideoId);
+                                const courseYoutubeUrl = getValidId(course?.demoVideoUrl);
+
+                                if (isLessonGumlet && lessonGumletId) {
                                     return (
-                                        <LiteYouTube vid={vid} title={currentLesson?.topic || currentLesson?.title} />
+                                        <iframe
+                                            key={`gumlet-lesson-${currentLesson?.id}-${lessonGumletId}`}
+                                            src={`https://play.gumlet.io/embed/${lessonGumletId}`}
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            title={currentLesson?.topic || currentLesson?.title || 'Gumlet Video'}
+                                        />
                                     );
-                                })()
-                            ) : ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && course?.gumletVideoId?.trim())) && course?.gumletVideoId?.trim()) ? (
-                                <iframe
-                                    src={`https://play.gumlet.io/embed/${course.gumletVideoId.trim()}`}
-                                    className="w-full h-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    title="Course Demo Video"
-                                />
-                            ) : ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && course?.demoVideoUrl) ? (
-                                (() => {
-                                    const rawUrl = course.demoVideoUrl;
-                                    const vid = rawUrl ? (rawUrl.includes('v=') ? rawUrl.split('v=')[1]?.split('&')[0] : rawUrl.split('/').pop()) : '';
+                                } else if (isLessonYouTube && lessonYoutubeUrl) {
+                                    const vid = lessonYoutubeUrl.includes('v=') ? lessonYoutubeUrl.split('v=')[1]?.split('&')[0] : lessonYoutubeUrl.split('/').pop();
                                     return (
-                                        <LiteYouTube vid={vid} title="Course Demo Video" />
+                                        <LiteYouTube vid={vid || ''} title={currentLesson?.topic || currentLesson?.title} />
                                     );
-                                })()
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
-                                    <PlayCircle size={48} className="opacity-50 text-slate-300" />
-                                    <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
-                                </div>
-                            )}
+                                } else if ((course?.videoProvider === 'GUMLET' || (!course?.videoProvider && !!courseGumletId)) && courseGumletId) {
+                                    return (
+                                        <iframe
+                                            key={`gumlet-course-${course?.id}-${courseGumletId}`}
+                                            src={`https://play.gumlet.io/embed/${courseGumletId}`}
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            title="Course Demo Video"
+                                        />
+                                    );
+                                } else if ((course?.videoProvider === 'YOUTUBE' || !course?.videoProvider) && courseYoutubeUrl) {
+                                    const vid = courseYoutubeUrl.includes('v=') ? courseYoutubeUrl.split('v=')[1]?.split('&')[0] : courseYoutubeUrl.split('/').pop();
+                                    return (
+                                        <LiteYouTube vid={vid || ''} title="Course Demo Video" />
+                                    );
+                                } else {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-100 gap-3">
+                                            <PlayCircle size={48} className="opacity-50 text-slate-300" />
+                                            <p className="font-medium text-slate-500">ไม่มีวิดีโอสำหรับบทเรียนนี้</p>
+                                        </div>
+                                    );
+                                }
+                            })()}
                         </div>
 
                         {/* Lesson Title & Desc */}
