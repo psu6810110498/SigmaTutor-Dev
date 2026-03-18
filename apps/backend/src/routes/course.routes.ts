@@ -3,7 +3,12 @@ import { courseService } from '../services/course.service.js';
 import { upload, uploadService } from '../services/upload.service.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { publicApiLimiter } from '../middleware/rate-limit.middleware.js';
-import { authenticate, optionalAuthenticate, AuthRequest, requireRole } from '../middleware/auth.middleware.js';
+import {
+  authenticate,
+  optionalAuthenticate,
+  AuthRequest,
+  requireRole,
+} from '../middleware/auth.middleware.js';
 import {
   createCourseSchema,
   updateCourseSchema,
@@ -27,7 +32,9 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       // Debugging: log incoming payload (trimmed) to help trace missing schedules
-      try { console.log('Create course payload:', JSON.stringify(req.body).slice(0, 1000)); } catch { };
+      try {
+        console.log('Create course payload:', JSON.stringify(req.body).slice(0, 1000));
+      } catch {}
       const course = await courseService.create(req.user!.userId, req.body);
       res.status(201).json({ success: true, data: course });
     } catch (error) {
@@ -192,7 +199,10 @@ router.get('/my-schedules', authenticate, async (req: Request, res: Response): P
 router.get('/enrolled-vod', authenticate, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
-  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
   try {
     const courses = await courseService.getEnrolledVodCourses(userId);
     res.json({ success: true, data: courses });
@@ -209,7 +219,10 @@ router.get('/enrolled-vod', authenticate, async (req: Request, res: Response): P
 router.post('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
-  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
   try {
     const session = await courseService.createSelfStudySession(userId, req.body);
     res.status(201).json({ success: true, data: session });
@@ -223,18 +236,25 @@ router.post('/self-study', authenticate, async (req: Request, res: Response): Pr
  * DELETE /api/courses/self-study/:id
  * Delete a self-study session
  */
-router.delete('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
-  const authReq = req as AuthRequest;
-  const userId = authReq.user?.userId;
-  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
-  try {
-    await courseService.deleteSelfStudySession(userId, req.params.id as string);
-    res.json({ success: true, message: 'Session deleted' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete session';
-    res.status(400).json({ success: false, error: message });
+router.delete(
+  '/self-study/:id',
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
+    const userId = authReq.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    try {
+      await courseService.deleteSelfStudySession(userId, req.params.id as string);
+      res.json({ success: true, message: 'Session deleted' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete session';
+      res.status(400).json({ success: false, error: message });
+    }
   }
-});
+);
 
 /**
  * GET /api/courses/self-study
@@ -243,7 +263,10 @@ router.delete('/self-study/:id', authenticate, async (req: Request, res: Respons
 router.get('/self-study', authenticate, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
-  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
   try {
     const sessions = await courseService.getAllSelfStudySessions(userId);
     res.json({ success: true, data: sessions });
@@ -260,9 +283,16 @@ router.get('/self-study', authenticate, async (req: Request, res: Response): Pro
 router.put('/self-study/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
-  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
   try {
-    const session = await courseService.updateSelfStudySession(userId, req.params.id as string, req.body);
+    const session = await courseService.updateSelfStudySession(
+      userId,
+      req.params.id as string,
+      req.body
+    );
     res.json({ success: true, data: session });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update session';
@@ -274,16 +304,20 @@ router.put('/self-study/:id', authenticate, async (req: Request, res: Response):
  * GET /api/courses/slug/:slug
  * Get course details by slug (public)
  */
-router.get('/slug/:slug', optionalAuthenticate, async (req: Request, res: Response): Promise<void> => {
-  const authReq = req as AuthRequest;
-  try {
-    const course = await courseService.findBySlug(String(req.params.slug), authReq.user?.userId);
-    res.json({ success: true, data: course });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Course not found';
-    res.status(404).json({ success: false, error: message });
+router.get(
+  '/slug/:slug',
+  optionalAuthenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
+    try {
+      const course = await courseService.findBySlug(String(req.params.slug), authReq.user?.userId);
+      res.json({ success: true, data: course });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Course not found';
+      res.status(404).json({ success: false, error: message });
+    }
   }
-});
+);
 
 /**
  * GET /api/courses/:id
@@ -426,7 +460,7 @@ router.post(
       const courseId = req.params.id as string;
       const course = await prisma.course.findUniqueOrThrow({
         where: { id: courseId },
-        select: { maxSeats: true, courseType: true }
+        select: { maxSeats: true, courseType: true },
       });
 
       if (course.courseType === 'ONLINE' || !course.maxSeats) {
@@ -437,12 +471,17 @@ router.post(
       const enrolledCount = await prisma.enrollment.count({
         where: { courseId, status: 'ACTIVE' },
       });
-      // Need to import seatReservationService at top to use it here: 
+      // Need to import seatReservationService at top to use it here:
       const { seatReservationService } = await import('../services/seat-reservation.service.js');
       const reservedCount = await seatReservationService.countReservations(courseId);
-      
-      await seatReservationService.syncCounter(courseId, course.maxSeats, enrolledCount, reservedCount);
-      
+
+      await seatReservationService.syncCounter(
+        courseId,
+        course.maxSeats,
+        enrolledCount,
+        reservedCount
+      );
+
       res.json({ success: true, message: 'Seat counter synced successfully' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to sync seats';
@@ -463,7 +502,7 @@ router.patch(
     try {
       const courseId = req.params.id as string;
       const maxSeats = Number(req.body.maxSeats);
-      
+
       if (isNaN(maxSeats) || maxSeats < 0) {
         res.status(400).json({ success: false, error: 'Invalid maxSeats' });
         return;
@@ -492,10 +531,10 @@ router.get(
         where: { courseId: req.params.id as string, status: 'ACTIVE' },
         include: {
           user: {
-            select: { id: true, name: true, email: true, profileImage: true, phone: true }
-          }
+            select: { id: true, name: true, email: true, profileImage: true, phone: true },
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
       res.json({ success: true, data: enrollments });
     } catch (error) {
