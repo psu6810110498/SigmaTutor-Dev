@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main # deploy ทุกครั้งที่ push to main
+      - prod
 
 jobs:
   deploy:
