@@ -20,7 +20,10 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd SigmaTutor-Dev
-            git fetch
-            git pull
-            docker compose -f docker-compose.prod.yml up -d --build
+            sudo bash -c "
+              cd /root/SigmaTutor-Dev &&
+              git fetch &&
+              git reset --hard origin/master &&
+              git pull &&
+              docker compose -f docker-compose.prod.yml up -d --build
+            "
